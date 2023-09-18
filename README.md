@@ -40,6 +40,7 @@ A Bluetooth and (soon to be) Obex client that is straight to the point, DE/WM ag
 - Auto accept files
 - Changing files storage location
 - Sorting devices by rssi (signal strength)
+- Battery monitoring
 
 ###### obviously the "what doesn't work" is a lot right now, but its in the works :D
 ###### oh and also the screenshot is themed, this isn't what normal adwaita looks like, if you want it to look like this go [here](https://github.com/kaii-lb/dotfiles) and then copy the thingies in `presets` to somewhere on your disk, and use gradience to apply the theme :D
