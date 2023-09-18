@@ -17,7 +17,9 @@ template $OverskrideWindow: Adw.ApplicationWindow {
   }
 
   content: Adw.ToolbarView toolbar_view { 
-     [top]
+    top-bar-style: flat;
+    
+    [top]
     Adw.HeaderBar headerbar {
       Box {
         ToggleButton show_sidebar_button {

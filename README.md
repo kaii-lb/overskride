@@ -1,6 +1,8 @@
 # Overskride
 A Bluetooth and (soon to be) Obex client that is straight to the point, DE/WM agnostic, and beautiful (also soon to be) :D
 
+![Screenshot](/assets/images/overskride.png)
+
 # Prerequisites
 - gtk4 and libadwaita (development packages)
 - rust
@@ -17,6 +19,7 @@ A Bluetooth and (soon to be) Obex client that is straight to the point, DE/WM ag
 - `./src/overskride`
 
 ###### this should be automated later on but oh well
+###### press the refresh button to start discovering devices (will be automated)
 
 # Features
 - Dynamically enumerate and list all devices known/in range 
