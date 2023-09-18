@@ -7,7 +7,7 @@ A Bluetooth and (soon to be) Obex client that is straight to the point, DE/WM ag
 - gtk4 and libadwaita (development packages)
 - rust
 - cargo
-- bluez (should be installed by default on all distros)
+- bluez and bluez-utils (should be installed by default on all distros)
 
 # Compiling
 - `git clone https://github.com/kaii-lb/overskride && cd overskride`
