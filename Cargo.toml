@@ -1,0 +1,13 @@
+[package]
+name = "overskride"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+adw = { version = "0.5.2", package = "libadwaita", features = ["v1_4"] }
+bluer = { version = "0.16.1-pre", features = ["full"] }
+futures = { version = "0.3.28", features = ["futures-executor"] }
+gettext-rs = { version = "0.7", features = ["gettext-system"] }
+gtk = { version = "0.7.2", package = "gtk4", features = ["blueprint"] }
+logwatcher = "0.1.1"
+tokio = { version = "1.32.0", features = ["full"] }

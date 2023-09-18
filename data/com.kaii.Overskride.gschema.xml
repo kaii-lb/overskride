@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<schemalist gettext-domain="overskride">
+	<schema id="com.kaii.Overskride" path="/com/kaii/Overskride/">
+		<key name="window-width" type="i">
+			<default>-1</default>
+			<summary>default window width</summary>
+		</key>
+		<key name="window-height" type="i">
+			<default>-1</default>
+			<summary>default window height</summary>
+		</key>
+		<key name="window-maximized" type="b">
+			<default>false</default>
+			<summary>default window maximized</summary>
+		</key>
+		<key name="current-adapter-name" type="s">
+			<default>""</default>
+			<summary>default adapter name which the app chooses at startup</summary>
+		</key>
+		<key name="original-adapter-name" type="s">
+			<default>""</default>
+			<summary>original adapter name incase everything else fails</summary>
+		</key>
+</schema>
+</schemalist>
+

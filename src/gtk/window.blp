@@ -1,0 +1,365 @@
+using Gtk 4.0;
+using Adw 1;
+
+template $OverskrideWindow: Adw.ApplicationWindow {
+  width-request: 425;
+  height-request: 460;
+
+  Adw.Breakpoint breakpoint {
+    condition ("max-width: 700sp")
+    setters {
+      split_view.collapsed: true;
+      split_view.show-sidebar: false;
+      headerbar.show-title: true;
+      //navigation_page.title: "Device Settings";
+      show_sidebar_button.active: false;
+    }
+  }
+
+  content: Adw.ToolbarView toolbar_view { 
+     [top]
+    Adw.HeaderBar headerbar {
+      Box {
+        ToggleButton show_sidebar_button {
+          icon-name: "dock-left-symbolic";
+          active: true;
+        }
+      }
+      show-title: true;
+    }
+
+    content: Adw.OverlaySplitView split_view {
+      pin-sidebar: false;
+      show-sidebar: bind show_sidebar_button.active;
+      enable-hide-gesture: true;
+      enable-show-gesture: true;
+      halign: fill;
+      valign: fill;
+      sidebar-position: start;
+      sidebar-width-fraction: 0.35;
+      sidebar-width-unit: sp;
+      min-sidebar-width: 275;
+      max-sidebar-width: 350;
+
+      sidebar: Box {
+        //title: _("Sidebar");
+        styles ["compact"]
+        margin-top: 12;
+        margin-bottom: 12;
+        margin-start: 12;
+        margin-end: 12;
+          Box {
+          //width-request: 350;
+          valign: fill;
+          orientation: vertical;
+          spacing: 28;
+
+          Adw.PreferencesGroup {
+            title: "Settings";
+            description: "General Bluetooth Settings.";
+            
+            ListBox secondary_listbox {
+              styles ["boxed-list"]
+              Adw.ActionRow bluetooth_settings_row {
+                title: "Bluetooth Settings";
+                activatable: true;
+              }
+            }
+          }
+
+          Adw.PreferencesGroup {
+            title: "Devices";
+            description: "All the devices you've connected to.";
+          
+            header-suffix: Box {
+              Button refresh_button {
+                margin-top: 8;
+                margin-bottom: 8;
+                //label: "Refresh";
+                icon-name: "refresh-large-symbolic";
+              }
+            };
+          
+            ScrolledWindow {
+              propagate-natural-height: true;
+              styles ["flat"]
+              kinetic-scrolling: true;
+              overlay-scrolling: true;
+              
+              [start]
+              ListBox main_listbox {
+                margin-top: 12;
+                margin-bottom: 12;
+                margin-start: 1;
+                margin-end: 1;
+                styles ["boxed-list"]
+                valign: fill;
+
+                
+                Adw.ActionRow {
+                  title: "Bluetooth Headphones";
+                }
+                Adw.ActionRow {
+                  title: "Mom's Phone";
+                }
+                Adw.ActionRow {
+                  title: "HP Laptop";
+                }              
+              }                
+            }
+          
+          }
+        }
+      };
+      content: Stack main_stack{
+        valign: start;
+        halign: fill;
+
+        StackPage device_settings_page {
+          child: ScrolledWindow device_status_page {
+            valign: start;
+            propagate-natural-height: true;
+            styles ["flat"]
+            kinetic-scrolling: true;
+            overlay-scrolling: true;
+            
+            Adw.Clamp {
+              orientation: horizontal;
+              unit: sp;
+              maximum-size: 500;
+              margin-top: 32;
+              margin-bottom: 32;
+              margin-start: 32;
+              margin-end: 32;
+
+              Box {
+                orientation: vertical;
+                valign: center;
+                spacing: 18;
+
+                Box {
+                valign: start;
+                halign: center;
+                orientation: vertical;
+                spacing: 20;
+
+                Image device_icon {
+                  icon-name: "bluetooth-symbolic";
+                  icon-size: large;
+                  pixel-size: 80;
+                }
+                Label device_title {
+                  label: "<span font_weight='bold' size='x-large'>Bluetooth Settings</span>";
+                  use-markup: true;
+                }
+              }
+
+                Adw.PreferencesGroup {
+                  title: "Connection Properties";
+                  description: "Bluetooth connection information about this device.";
+
+                  Adw.SwitchRow connected_switch_row {
+                    title: "Connected";
+                    //action-name: "win.set_device_active";
+                  }
+                  Adw.ExpanderRow audio_profile_expander {
+                    title: "Audio Profile";
+                    show-enable-switch: true;
+                    sensitive: false;
+
+                    Adw.ActionRow audio_profile_1 {
+                      styles ["flat"]
+                      title: "A2DP Sink";
+                      activatable: true;
+                    }
+                    Adw.ActionRow audio_profile_2 {
+                      styles ["flat"]
+                      title: "Handsfree HSP/HFP";
+                      activatable: true;
+                    }
+                  }
+                  Adw.ActionRow send_file_row {
+                    title: "Send File To Device";
+                    sensitive: false;
+
+                    [suffix]
+                    Box {
+                      margin-top: 6;
+                      margin-bottom: 6;
+                      Button choose_file_button {
+                        label: "Choose FIle";
+                      }
+                    }
+                  }
+                }
+
+                Adw.PreferencesGroup {
+                  title: "Device Properties";
+                  description: "Information about the bluetooth device.";
+
+                  Adw.EntryRow device_name_entry {
+                    title: "Device Name";
+                    text: "Bluetooth Headset";
+                    input-purpose: alpha;
+                    show-apply-button: true;
+                  }
+                  Adw.SwitchRow trusted_row {
+                    title: "Trusted";
+                  }
+                  Adw.SwitchRow blocked_row {
+                    title: "Blocked";
+                  }
+                }
+
+                Adw.PreferencesGroup {
+                  Button remove_device_button {
+                    styles ["destructive-action"]
+                    label: "Remove Device";
+                  }
+                }
+              }
+            }
+          };
+        }
+
+        StackPage bluetooth_settings_page {
+          child: ScrolledWindow bluetooth_status_page {
+            propagate-natural-height: true;
+            styles ["flat"]
+            kinetic-scrolling: true;
+            overlay-scrolling: true;
+            
+            child: Adw.Clamp {
+              orientation: horizontal;
+              unit: sp;
+              maximum-size: 500;
+              margin-top: 32;
+              margin-bottom: 32;
+              margin-start: 32;
+              margin-end: 32;
+
+              Box {
+                orientation: vertical;
+                valign: start;
+                spacing: 20;
+
+                Box {
+                  valign: start;
+                  halign: center;
+                  orientation: vertical;
+                  spacing: 20;
+
+                  Image {
+                    icon-name: "bluetooth-symbolic";
+                    icon-size: large;
+                    pixel-size: 80;
+                  }
+                  Label {
+                    label: "<span font_weight='bold' size='x-large'>Bluetooth Settings</span>";
+                    use-markup: true;
+                  }
+                }
+
+                Adw.PreferencesGroup {
+                  title: "Bluetooth Adapter Status";
+                  description: "What's this adapter doing?";
+
+                  Adw.SwitchRow powered_switch_row {
+                    title: "Powered";
+                  }
+
+                  Adw.SwitchRow discoverable_switch_row {
+                    title: "Discoverable";
+                    subtitle: "visible to others?";
+                  }
+                }
+
+                Adw.PreferencesGroup {
+                  title: "Adapter Properties";
+                  description: "Information about the current bluetooth adapter.";
+
+                  Adw.ExpanderRow default_controller_expander {
+                    title: "Current Bluetooth Adapter";
+                    show-enable-switch: false;
+                    // sensitive: false;
+
+                    Adw.ActionRow adapter_1 {
+                      styles ["flat"]
+
+                      title: "Bluetooth Dongle";
+                      activatable: true;
+
+                      [suffix]
+                      Box {
+                        Image {
+                          icon-name: "check-plain-symbolic";
+                        }
+                      }
+                    }
+
+                    Adw.ActionRow adapter_2 {
+                      styles ["flat"]
+
+                      title: "Intergrated Controller";
+                      activatable: true;
+                    }
+                  }
+
+                  Adw.SpinRow timeout_row {
+                    title: "Discoverable Timeout";
+                    enable-undo: true;
+                    subtitle: "in minutes";
+                    climb-rate: 1;
+                    adjustment: timeout_time_adjustment;
+                  }
+
+                  Adw.EntryRow adapter_name_entry {
+                    title: "Adapter Name";
+                    text: "Bluetooth Dongle";
+                    input-purpose: alpha;
+                    show-apply-button: true;
+                  }
+                }
+
+                Adw.PreferencesGroup {
+                  title: "System Settings";
+                  description: "Manage how your system is set up.";
+
+                  Adw.SwitchRow auto_accept_trusted_row {
+                    title: "Auto Accept";
+                    subtitle: "auto accept files from trusted devices?";
+                    sensitive: false;
+                  }
+
+                  Adw.EntryRow file_save_location {
+                    title: "Recieved Files Location";
+                    text: "/home/kaii/Downloads/Bluetooth/";
+                    sensitive: false;
+
+                    [suffix]
+                    Box {
+                      Button choose_location_button {
+                        icon-name: "folder-symbolic";
+                        margin-bottom: 8;
+                        margin-top: 8;
+                        margin-end: 8;
+                        margin-start: 8;
+                      }
+                    }
+                  }
+                }
+              }
+            };
+          };
+        }
+      };
+    };
+  };
+}
+
+Adjustment timeout_time_adjustment {
+  step-increment: 1;
+  lower: 0;
+  upper: 60;
+  value: 2;
+}
