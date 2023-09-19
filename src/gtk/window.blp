@@ -92,14 +92,27 @@ template $OverskrideWindow: Adw.ApplicationWindow {
                 Frame {
                   height-request: 250;
 
-                  Image {
+                  child: Box {
                     valign: center;
                     halign: center;
+                    orientation: vertical;
+                    spacing: 20;
 
-                    icon-name: "no-bluetooth-symbolic";
-                    pixel-size: 52;
-                    opacity: 0.2;
-                  }
+                    Image {
+                      valign: center;
+                      halign: center;
+
+                      icon-name: "no-bluetooth-symbolic";
+                      pixel-size: 52;
+                      opacity: 0.4;
+                    
+                    }
+
+                    Label {
+                      label: "No devices in range";
+                      opacity: 0.4;
+                    }                    
+                  };
                 }
               }
             

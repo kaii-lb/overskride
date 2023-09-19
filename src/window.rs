@@ -45,7 +45,7 @@ enum Message {
     SwitchTrusted(bool),
     SwitchBlocked(bool),
     SwitchActive(bool),
-    SwitchName(String),
+    SwitchName(String, Option<String>),
     SwitchPage(Option<String>, Option<String>),
     RemoveDevice(String),
     AddRow(bluer::Device),
@@ -226,15 +226,30 @@ impl OverskrideWindow {
                     let connected_switch_row = clone.imp().connected_switch_row.get();
                     connected_switch_row.set_active(active);
                 },
-                Message::SwitchName(alias) => {
+                Message::SwitchName(alias, optional_old_alias) => {
                     let list_box = clone.imp().main_listbox.get();
                     let index: i32;
+                    let mut listbox_index = 0;
                     unsafe { index = CURRENT_INDEX }
-                    let row = list_box.row_at_index(index);
-                    
-                    if row.is_some() {
-                        let action_row = row.unwrap().downcast::<adw::ActionRow>().unwrap();
-                        action_row.set_title(alias.as_str());
+
+                    if optional_old_alias.is_none() {
+                        let row = list_box.row_at_index(index);
+                        if row.is_some() {
+                            let action_row = row.unwrap().downcast::<adw::ActionRow>().unwrap();
+                            action_row.set_title(alias.as_str());
+                        }
+                    }
+                    else {
+                        while list_box.clone().row_at_index(listbox_index) != None {
+                            //println!("{}", index);
+                            let action_row = list_box.clone().row_at_index(index).unwrap().downcast::<adw::ActionRow>().expect("cannot downcast to action row.");
+                            //println!("{:?}", action_row.clone().title());
+                            if action_row.clone().title() == optional_old_alias.clone().unwrap() {
+                                action_row.set_title(alias.as_str());
+                            }
+
+                            listbox_index += 1;
+                        }
                     }
                 },
                 Message::AddRow(device) => {
@@ -590,7 +605,7 @@ impl OverskrideWindow {
                         return;
                     },
                 };
-                sender_clone.send(Message::SwitchName(name)).expect("cannot send message");
+                sender_clone.send(Message::SwitchName(name, None)).expect("cannot send message");
             });
         });
 
@@ -1272,7 +1287,8 @@ async fn get_devices_continuous() -> bluer::Result<()> {
                                 String::new()
                             };
                             
-                            sender.send(Message::RemoveDevice(device_name.clone())).expect("cannot send message {}"); 
+                            sender.send(Message::RemoveDevice(device_name.clone())).expect("cannot send message"); 
+                            sender.send(Message::UpdateListBoxImage()).expect("cannot send message");
                             println!("Device removed: {:?} {}", addr, device_name.clone());    
 						}
                     },
@@ -1335,15 +1351,24 @@ async fn get_devices_continuous() -> bluer::Result<()> {
                     },
                     DeviceProperty::Alias(name) => {
                         let current_address: bluer::Address;
-                        unsafe { current_address = CURRENT_ADDRESS }
+                        let sender: Sender<Message>;
+                        unsafe { 
+                            current_address = CURRENT_ADDRESS;
+                            sender = CURRENT_SENDER.clone().unwrap()
+                        }
                         
                         if addr == current_address {
-                            let sender: Sender<Message>;
-                            unsafe { sender = CURRENT_SENDER.clone().unwrap() }
-
                             std::thread::sleep(std::time::Duration::from_secs_f32(0.5));
-                            sender.send(Message::SwitchName(name.clone())).expect("cannot send message");
+                            sender.send(Message::SwitchName(name.clone(), None)).expect("cannot send message");
                             sender.send(Message::SwitchPage(Some(name.clone()), None)).expect("cannot send message");
+                        }
+                        else {
+                            let hashmap: HashMap<bluer::Address, String>;
+                            unsafe { hashmap = DEVICES_LUT.clone().unwrap() }
+                            let empty = String::new();
+                            let old_alias = hashmap.get(&addr).unwrap_or(&empty);
+
+                            sender.send(Message::SwitchName(name.clone(), Some(old_alias.to_string()))).expect("cannot send message");
                         }
                     },
                     DeviceProperty::Icon(icon) => {
@@ -1358,18 +1383,6 @@ async fn get_devices_continuous() -> bluer::Result<()> {
                             sender.send(Message::SwitchPage(None, Some(icon))).expect("cannot send message");
                         }
                     },
-                    /*DeviceProperty::Rssi(rssi) => {
-                        let current_address: bluer::Address;
-                        unsafe { current_address = CURRENT_ADDRESS }
-                        
-                        if addr == current_address {
-                            let sender: Sender<Message>;
-                            unsafe { sender = CURRENT_SENDER.clone().unwrap() }
-
-                            std::thread::sleep(std::time::Duration::from_secs_f32(0.5));
-                            sender.send(Message::SwitchPage(None, Some(icon))).expect("cannot send message");
-                        }
-                    },*/
                     _ => (),
                 }
             }
