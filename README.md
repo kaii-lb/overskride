@@ -33,6 +33,7 @@ A Bluetooth and (soon to be) Obex client that is straight to the point, DE/WM ag
 - Rename adapter 
 - Resizing support 
 - Sorting devices by rssi (signal strength)
+- Showing errors to user
 
 # What doesn't work
 - **Authenticating with devices (aka passkey confirmation)**
@@ -41,7 +42,6 @@ A Bluetooth and (soon to be) Obex client that is straight to the point, DE/WM ag
 - Auto accept files
 - Changing files storage location
 - Battery polling over bluetooth
-- Showing errors to user
 
 ###### obviously the "what doesn't work" is a lot right now, but its in the works :D
 
