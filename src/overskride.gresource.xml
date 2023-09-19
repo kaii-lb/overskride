@@ -13,5 +13,11 @@
     <file alias="refresh-large-symbolic.svg">icons/symbolic/actions/refresh-large-symbolic.svg</file>
     <file alias="phone-symbolic.svg">icons/symbolic/actions/smartphone-symbolic.svg</file>
     <file alias="image-missing-symbolic.svg">icons/symbolic/actions/image-missing-symbolic.svg</file>
+    <file alias="rssi-dead-symbolic.svg">icons/symbolic/actions/rssi-dead-symbolic.svg</file>
+    <file alias="rssi-high-symbolic.svg">icons/symbolic/actions/rssi-high-symbolic.svg</file>
+    <file alias="rssi-low-symbolic.svg">icons/symbolic/actions/rssi-low-symbolic.svg</file>
+    <file alias="rssi-medium-symbolic.svg">icons/symbolic/actions/rssi-medium-symbolic.svg</file>
+    <file alias="rssi-not-found-symbolic.svg">icons/symbolic/actions/rssi-not-found-symbolic.svg</file>
+    <file alias="rssi-none-symbolic.svg">icons/symbolic/actions/rssi-none-symbolic.svg</file>
   </gresource>
 </gresources>
