@@ -167,8 +167,9 @@ impl OverskrideWindow {
 
         let win: OverskrideWindow = glib::Object::builder().property("application", application).build();
 
-        win.setup().expect("cannot setup window");
-
+        
+        win.setup();
+        
         win
     }
 
@@ -178,37 +179,10 @@ impl OverskrideWindow {
     }
 
     /// Sets up the application. Basically it binds actions to stuff and updates what needs to be updated.
-    #[tokio::main]
-    async fn setup(&self) -> bluer::Result<()> {
+    fn setup(&self) {
         let (sender, receiver) = glib::MainContext::channel::<Message>(glib::Priority::default());
-        let settings = self.imp().settings.get().unwrap();
-
-        unsafe { 
-            CURRENT_SENDER = Some(sender.clone());
-            DEVICES_LUT = Some(HashMap::new());
-            RSSI_LUT = Some(HashMap::new());
-            let name = settings.string("current-adapter-name").to_string();
-            let session = bluer::Session::new().await?;
-            if name == "" {
-                let adapter = session.default_adapter().await?;
-                CURRENT_ADAPTER = adapter.name().to_string();
-                ORIGINAL_ADAPTER = CURRENT_ADAPTER.clone().to_string();
-                settings.set_string("current-adapter-name", CURRENT_ADAPTER.as_str()).expect("cannot set default adapter at start");
-                settings.set_string("original-adapter-name", CURRENT_ADAPTER.as_str()).expect("cannot set original adapter at start");
-            }
-            else {
-                CURRENT_ADAPTER = name.clone();
-            }
-            
-            let mut lut = HashMap::new();
-            
-            let adapter = session.adapter(CURRENT_ADAPTER.clone().as_str())?;
-            let alias = adapter.alias().await?;
-            println!("startup alias is: {}", alias);
-
-            lut.insert(alias.to_string(), CURRENT_ADAPTER.to_string());
-            ADAPTERS_LUT = Some(lut);
-        }
+        
+        self.pre_setup(sender.clone()).expect("cannot start presetup, something got REALLY fucked");
 
         let self_clone = self.clone();
         receiver.attach(None, move |msg| {
@@ -417,7 +391,7 @@ impl OverskrideWindow {
                     let toast_overlay = clone.imp().toast_overlay.get();
                     let toast = adw::Toast::new(string.as_str());
 
-                    toast.set_timeout(3);
+                    toast.set_timeout(5);
                     toast.set_priority(adw::ToastPriority::Normal);
                     println!("toast is: {:?}", toast);
 
@@ -441,12 +415,11 @@ impl OverskrideWindow {
             }
         
             glib::ControlFlow::Continue
-        });
-        
+        });        
 
-        let button = self.imp().refresh_button.get();
+        let refresh_button = self.imp().refresh_button.get();
         let sender0 = sender.clone();
-        button.connect_clicked(move |button| {
+        refresh_button.connect_clicked(move |button| {
                 button.set_sensitive(false);
                 let sender_clone = sender0.clone();
                 
@@ -459,6 +432,7 @@ impl OverskrideWindow {
                     can_loop = !CURRENTLY_LOOPING;
                 }
                 if can_loop {
+                    sender0.send(Message::PopupError("Started searching for devices".to_string())).expect("cannot send message");
                     match get_avaiable_devices() {
                         Err(err) => {
                             let string = err.message;
@@ -469,12 +443,13 @@ impl OverskrideWindow {
                     }
                 }
                 else {
-                    sender0.send(Message::PopupError("Already discovering devices".to_string())).expect("can't send message");
+                    sender0.send(Message::PopupError("Already searching for devices".to_string())).expect("can't send message");
                 }
                 println!("trying to available devices");
         });
+        refresh_button.emit_clicked();
+        
         let main_listbox = self.imp().main_listbox.get();
-
         main_listbox.invalidate_sort();
         main_listbox.set_sort_func(|row_one, row_two| {
             let binding_one = row_one.clone().downcast::<adw::ActionRow>().unwrap().title();
@@ -760,8 +735,6 @@ impl OverskrideWindow {
             let show_sidebar_button = self_clone3.imp().show_sidebar_button.get();
             show_sidebar_button.set_active(view.shows_sidebar());
         });
-
-        Ok(())
     }
 
     fn save_window_size(&self) -> Result<(), glib::BoolError> {
@@ -791,6 +764,41 @@ impl OverskrideWindow {
 
         self.set_maximized(maximized);
     }
+
+    #[tokio::main]
+    async fn pre_setup(&self, sender: Sender<Message>) -> bluer::Result<()> {
+        let settings = self.imp().settings.get().unwrap();
+
+
+        unsafe { 
+            CURRENT_SENDER = Some(sender.clone());
+            DEVICES_LUT = Some(HashMap::new());
+            RSSI_LUT = Some(HashMap::new());
+            let name = settings.string("current-adapter-name").to_string();
+            let session = bluer::Session::new().await?;
+            if name == "" {
+                let adapter = session.default_adapter().await?;
+                CURRENT_ADAPTER = adapter.name().to_string();
+                ORIGINAL_ADAPTER = CURRENT_ADAPTER.clone().to_string();
+                settings.set_string("current-adapter-name", CURRENT_ADAPTER.as_str()).expect("cannot set default adapter at start");
+                settings.set_string("original-adapter-name", CURRENT_ADAPTER.as_str()).expect("cannot set original adapter at start");
+            }
+            else {
+                CURRENT_ADAPTER = name.clone();
+            }
+            
+            let mut lut = HashMap::new();
+            
+            let adapter = session.adapter(CURRENT_ADAPTER.clone().as_str())?;
+            let alias = adapter.alias().await?;
+            println!("startup alias is: {}", alias);
+
+            lut.insert(alias.to_string(), CURRENT_ADAPTER.to_string());
+            ADAPTERS_LUT = Some(lut);
+        }
+
+        Ok(())
+    }
 }
 
 /// Gets the available devices around this device. 
@@ -809,7 +817,7 @@ async fn get_avaiable_devices() -> bluer::Result<()> {
                 }
                 let string = match err.message {
                     s if s.to_lowercase().contains("resource not ready") => {
-                        "Adapter is not powered on".to_string()
+                        "Adapter is not powered".to_string()
                     },
                     s => {
                         s
@@ -1011,6 +1019,7 @@ async fn add_child_row(device: bluer::Device) -> bluer::Result<adw::ActionRow> {
     
     suffix_box.append(&rssi_icon);
     child_row.add_suffix(&suffix_box);
+    
     unsafe {
         let mut devices_lut = DEVICES_LUT.clone().unwrap();
         devices_lut.insert(address, name.clone());
@@ -1393,7 +1402,7 @@ async fn get_devices_continuous() -> bluer::Result<()> {
     unsafe { 
         CURRENTLY_LOOPING = false;
     }
-    Err(bluer::Error { kind: bluer::ErrorKind::Failed, message: "Stopped searching for devices.".to_string() })
+    Err(bluer::Error { kind: bluer::ErrorKind::Failed, message: "Stopped searching for devices".to_string() })
 }
 
 #[tokio::main]
