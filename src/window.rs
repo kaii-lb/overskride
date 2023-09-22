@@ -22,7 +22,6 @@ use adw::prelude::*;
 use gtk::gio::Settings;
 use gtk::glib::Sender;
 use gtk::{gio, glib};
-use gtk;
 
 use bluer::{AdapterEvent, AdapterProperty, DeviceEvent, DeviceProperty};
 use futures::{pin_mut, stream::SelectAll, StreamExt};
@@ -733,7 +732,9 @@ impl OverskrideWindow {
         let self_clone3 = self.clone();
         split_view.connect_show_sidebar_notify(move |view| {
             let show_sidebar_button = self_clone3.imp().show_sidebar_button.get();
-            show_sidebar_button.set_active(view.shows_sidebar());
+			let active = view.shows_sidebar();
+
+            show_sidebar_button.set_active(active);
         });
     }
 

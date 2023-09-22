@@ -2,8 +2,8 @@ using Gtk 4.0;
 using Adw 1;
 
 template $OverskrideWindow: Adw.ApplicationWindow {
-  width-request: 425;
-  height-request: 460;
+  width-request: 475;
+  height-request: 575;
 
   Adw.Breakpoint breakpoint {
     condition ("max-width: 700sp")
@@ -17,41 +17,43 @@ template $OverskrideWindow: Adw.ApplicationWindow {
   }
 
   content: Adw.ToastOverlay toast_overlay {
-    child: Adw.ToolbarView toolbar_view { 
-      top-bar-style: flat;
-      
-      [top]
-      Adw.HeaderBar headerbar {
-        Box {
-          ToggleButton show_sidebar_button {
-            icon-name: "dock-left-symbolic";
-            active: true;
-          }
+    child: Adw.OverlaySplitView split_view { 
+      pin-sidebar: false;
+      show-sidebar: bind show_sidebar_button.active;
+      enable-hide-gesture: true;
+      enable-show-gesture: true;
+      halign: fill;
+      valign: fill;
+      sidebar-position: start;
+      sidebar-width-fraction: 0.4;
+      sidebar-width-unit: sp;
+      min-sidebar-width: 300;
+      max-sidebar-width: 350;
+      styles ["view"]
+
+
+      sidebar: Adw.ToolbarView toolbar_view {
+      	top-bar-style: flat;
+      	
+        [top]
+        Adw.HeaderBar {
+          //[center]
+      	  //Adw.WindowTitle {
+            //halign: center;
+            //margin-start: 24;
+            //title: "Sidebar";
+          //}
+          show-title: false;
         }
-        show-title: true;
-      }
-
-      content: Adw.OverlaySplitView split_view {
-        pin-sidebar: false;
-        show-sidebar: bind show_sidebar_button.active;
-        enable-hide-gesture: true;
-        enable-show-gesture: true;
-        halign: fill;
-        valign: fill;
-        sidebar-position: start;
-        sidebar-width-fraction: 0.35;
-        sidebar-width-unit: sp;
-        min-sidebar-width: 275;
-        max-sidebar-width: 350;
-
-        sidebar: Box {
+        content: Box sidebar_content_box {
           //title: _("Sidebar");
           styles ["compact"]
           margin-top: 12;
           margin-bottom: 12;
           margin-start: 12;
           margin-end: 12;
-            Box {
+          
+          Box {
             //width-request: 350;
             valign: fill;
             orientation: vertical;
@@ -150,7 +152,20 @@ template $OverskrideWindow: Adw.ApplicationWindow {
             }
           }
         };
-        content: Stack main_stack{
+      };
+      content: Adw.ToolbarView {
+        [top]
+        Adw.HeaderBar headerbar {
+          Box {
+            ToggleButton show_sidebar_button {
+              icon-name: "dock-left-symbolic";
+              active: true;
+            }
+          }
+          show-title: true;
+        }
+
+        Stack main_stack{
           valign: start;
           halign: fill;
 
@@ -391,7 +406,7 @@ template $OverskrideWindow: Adw.ApplicationWindow {
               };
             };
           }
-        };
+        }
       };
     };
   };
