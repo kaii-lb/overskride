@@ -20,13 +20,14 @@
 use adw::subclass::prelude::*;
 use adw::prelude::*;
 use gtk::gio::Settings;
-use gtk::glib::Sender;
+use gtk::glib::{Sender, clone};
 use gtk::{gio, glib};
 
 use bluer::{AdapterEvent, AdapterProperty, DeviceEvent, DeviceProperty};
 use futures::{pin_mut, stream::SelectAll, StreamExt};
-use std::cell::OnceCell;
+use std::cell::{OnceCell, RefCell};
 use std::collections::HashMap;
+use std::rc::Rc;
 
 // U N S A F E T Y 
 static mut CURRENT_ADDRESS: bluer::Address = bluer::Address::any();
@@ -110,6 +111,8 @@ mod imp {
         pub listbox_image_box: TemplateChild<gtk::Box>,
 
         pub settings: OnceCell<Settings>,
+        pub display_pass_key_dialog: RefCell<Option<adw::MessageDialog>>,
+        pub index: RefCell<u32>,
     }
 
     #[glib::object_subclass]
@@ -165,7 +168,6 @@ impl OverskrideWindow {
         //  .build();
 
         let win: OverskrideWindow = glib::Object::builder().property("application", application).build();
-
         
         win.setup();
         
@@ -410,7 +412,7 @@ impl OverskrideWindow {
                         listbox_image_box.set_visible(true);
                         main_listbox.set_visible(false);
                     }
-                }
+                },
             }
         
             glib::ControlFlow::Continue
@@ -633,9 +635,11 @@ impl OverskrideWindow {
 
         let discoverable_switch_row = self.imp().discoverable_switch_row.get();
        	let sender6 = sender.clone();
+        let self_clone69 = self.clone();
        	discoverable_switch_row.connect_activated(move |_| {
             let sender_clone = sender6.clone();
-            
+            self_clone69.request_confirmation(None);
+
             std::thread::spawn(move || {
                 let discoverable = match set_adapter_discoverable() {
                     Ok(bool) => {
@@ -699,7 +703,6 @@ impl OverskrideWindow {
         let self_clone2 = self.clone();
         bluetooth_settings_row.connect_activated(move |_| {
             let sender_clone = sender9.clone();
-
             std::thread::spawn(move || {
                 let adapter_names = populate_adapter_expander();
 
@@ -736,6 +739,7 @@ impl OverskrideWindow {
 
             show_sidebar_button.set_active(active);
         });
+
     }
 
     fn save_window_size(&self) -> Result<(), glib::BoolError> {
@@ -767,9 +771,268 @@ impl OverskrideWindow {
     }
 
     #[tokio::main]
+    async fn request_pin_code(&self, request: bluer::agent::RequestPinCode) -> bluer::agent::ReqResult<String> {
+        let device: String;
+        let adapter: String;
+        unsafe {
+            device = DEVICES_LUT.clone().unwrap().get(&request.device).unwrap_or(&"Unknown Device".to_string()).to_string();
+            adapter = ADAPTERS_LUT.clone().unwrap().get(&request.adapter).unwrap_or(&"Unknown Adapter".to_string()).to_string();
+        }
+
+        let body = device + "has requested pairing on " + adapter.as_str() + ", please enter the correct pin code.";
+        let popup = adw::MessageDialog::new(Some(self), Some("Pin Code Requested"), Some(body.as_str()));
+
+        popup.set_modal(true);
+        popup.set_destroy_with_parent(true);
+        
+        popup.add_response("cancle", "Cancel");
+        popup.add_response("confirm", "Confirm");
+        popup.set_response_appearance("confirm", adw::ResponseAppearance::Suggested);
+        popup.set_default_response(Some("confirm"));
+        popup.set_close_response("cancel");
+
+        let entry = gtk::Entry::new();
+        entry.set_placeholder_text(Some(&"12345 or abcde"));
+        popup.set_extra_child(Some(&entry));
+        popup.set_response_enabled("confirm", false);
+
+        entry.connect_changed(clone!(@weak popup => move |entry| {
+            let is_empty = entry.text().is_empty();
+
+            popup.set_response_enabled("confirm", !is_empty);
+
+            if is_empty {
+                entry.add_css_class("error");
+            }
+            else {
+                entry.remove_css_class("error");
+            }
+        }));
+        entry.add_css_class("error");
+                
+        let mainloop = glib::MainLoop::new(None, false);
+        let mainloop_clone = mainloop.clone();
+        
+        let pin_code = Rc::new(RefCell::new(String::new()));
+        let pin_code_clone = pin_code.clone();
+        popup.clone().choose(gtk::gio::Cancellable::NONE, move |response| {
+            match response.to_string() {
+                s if s.contains("confirm") => {
+                    *pin_code_clone.borrow_mut() = entry.text().to_string();
+                }
+                _ => {
+                    *pin_code_clone.borrow_mut() = String::new();
+                }
+            }
+            mainloop_clone.quit();
+        });
+
+        mainloop.run();
+        
+        let final_pin_code = pin_code.borrow().clone();
+        println!("pin code is: {:?}", final_pin_code);
+        Ok(final_pin_code)
+    }
+
+    #[tokio::main]
+    async fn display_pin_code(&self, request: bluer::agent::DisplayPinCode) -> bluer::agent::ReqResult<()> {
+        let pin_code = &request.pincode;
+        let device: String;
+        unsafe {
+            device = DEVICES_LUT.clone().unwrap().get(&request.device).unwrap_or(&"Unknown Device".to_string()).to_string();
+        }
+
+        let body = "Please enter this pin code on ".to_string() + device.as_str();
+        let popup = adw::MessageDialog::new(Some(self), None, Some(body.as_str()));
+        
+        let label = gtk::Label::new(Some(pin_code.as_str()));
+
+        popup.set_extra_child(Some(&label));
+        popup.add_response("okay", "Okay");
+        popup.set_close_response("okay");
+
+        let mainloop = glib::MainLoop::new(None, false);
+        let mainloop_clone = mainloop.clone();
+        popup.clone().choose(gtk::gio::Cancellable::NONE,  move |_| {
+            mainloop_clone.quit();
+        });
+
+        mainloop.run();
+
+        Ok(())
+    }
+
+    #[tokio::main]
+    async fn request_pass_key(&self, request: bluer::agent::RequestPasskey) -> bluer::agent::ReqResult<u32> {
+        let device: String;
+        let adapter: String;
+        unsafe {
+            device = DEVICES_LUT.clone().unwrap().get(&request.device).unwrap_or(&"Unknown Device".to_string()).to_string();
+            adapter = ADAPTERS_LUT.clone().unwrap().get(&request.adapter).unwrap_or(&"Unknown Adapter".to_string()).to_string();
+        }
+
+        let body = device + "has requested pairing on " + adapter.as_str() + ", please enter the correct pass key.";
+        let popup = adw::MessageDialog::new(Some(self), Some("Pass Key Requested"), Some(body.as_str()));
+
+        popup.set_close_response("cancel");
+        popup.set_modal(true);
+        popup.set_destroy_with_parent(true);
+
+        popup.add_response("cancle", "Cancel");
+        popup.add_response("confirm", "Confirm");
+        popup.set_response_appearance("confirm", adw::ResponseAppearance::Suggested);
+        popup.set_default_response(Some("confirm"));
+
+        let entry = gtk::Entry::new();
+        entry.set_placeholder_text(Some(&"0-999999"));
+        entry.set_input_purpose(gtk::InputPurpose::Digits);
+        entry.set_max_length(6);
+
+        popup.set_extra_child(Some(&entry));
+        popup.set_response_enabled("confirm", false);
+
+        entry.connect_changed(clone!(@weak popup => move |entry| {
+            let is_empty = entry.text().is_empty();
+
+            popup.set_response_enabled("confirm", !is_empty);
+
+            if is_empty {
+                entry.add_css_class("error");
+            }
+            else {
+                entry.remove_css_class("error");
+            }
+        }));
+        entry.add_css_class("error");
+                
+        let mainloop = glib::MainLoop::new(None, false);
+        let mainloop_clone = mainloop.clone();
+        
+        let pass_key = Rc::new(RefCell::new(String::new()));
+        let pass_key_clone = pass_key.clone();
+        popup.clone().choose(gtk::gio::Cancellable::NONE, move |response| {
+            match response.to_string() {
+                s if s.contains("confirm") => {
+                    *pass_key_clone.borrow_mut() = entry.text().to_string();
+                }
+                _ => {
+                    *pass_key_clone.borrow_mut() = String::new();
+                }
+            }
+            mainloop_clone.quit();
+        });
+
+        mainloop.run();
+
+        let final_pass_key = pass_key.borrow().clone().parse::<u32>().unwrap_or(0);
+
+        println!("pass key is: {}", final_pass_key);
+        Ok(final_pass_key)
+    }    
+
+    #[tokio::main]
+    async fn display_pass_key(&self, request: bluer::agent::DisplayPasskey) -> bluer::agent::ReqResult<()> {
+        let pin_code = &request.passkey;
+        let device: String;
+        unsafe {
+            device = DEVICES_LUT.clone().unwrap().get(&request.device).unwrap_or(&"Unknown Device".to_string()).to_string();
+        }
+
+        if self.imp().display_pass_key_dialog.borrow().clone().is_some() {
+            let dialog = self.imp().display_pass_key_dialog.borrow().clone().unwrap();
+            let label = dialog.extra_child().unwrap().downcast::<gtk::Label>().unwrap();
+
+            label.set_text(&pin_code.to_string().as_str());
+
+            Ok(())
+        }
+        else {
+            let body = "Please enter this pin code on ".to_string() + device.as_str();
+            let popup = adw::MessageDialog::new(Some(self), None, Some(body.as_str()));
+            
+            let label = gtk::Label::new(Some(pin_code.to_string().as_str()));
+    
+            popup.set_extra_child(Some(&label));
+            popup.add_response("okay", "Okay");
+            popup.set_close_response("okay");
+            
+            let mainloop = glib::MainLoop::new(None, false);
+            let mainloop_clone = mainloop.clone();
+            popup.clone().choose(gtk::gio::Cancellable::NONE,  move |_| {
+                mainloop_clone.quit();
+            });
+            *self.imp().display_pass_key_dialog.borrow_mut() = Some(popup.clone());
+    
+            mainloop.run();
+            
+            Ok(())
+        }
+    }
+
+    #[tokio::main]
+    async fn request_confirmation(&self, request: Option<bluer::agent::RequestAuthorization>) -> bluer::agent::ReqResult<()> {
+        let device: String = "<span font_weight='bold'>Lenovo Phab 2 Plus</span>".to_string();
+        let adapter: String = "adafaw".to_string();
+        // let passkey = &request.passkey.to_string().as_str();
+        // unsafe {
+        //     device = DEVICES_LUT.clone().unwrap().get(&request.device).unwrap_or(&"Unknown Device".to_string()).to_string();
+        //     adapter = ADAPTERS_LUT.clone().unwrap().get(&request.adapter).unwrap_or(&"Unknown Adapter".to_string()).to_string();
+        // }
+        let passkey = "123534";
+
+        let body = "Is this the right code for ".to_string() + device.as_str() + " on " + adapter.as_str();
+        let popup = adw::MessageDialog::new(Some(self), Some("Pairing Request"), None);
+        popup.set_body_use_markup(true);
+        popup.set_body(body.as_str());
+
+        popup.set_close_response("cancel");
+        popup.set_modal(true);
+        popup.set_destroy_with_parent(true);
+
+        popup.add_response("cancle", "Cancel");
+        popup.add_response("allow", "Allow");
+        popup.set_response_appearance("allow", adw::ResponseAppearance::Suggested);
+        popup.set_default_response(Some("allow"));
+
+        let string = "<span font_weight='bold' font_size='32pt'>".to_string() + passkey + "</span>";
+        let label = gtk::Label::new(None);
+        label.set_use_markup(true);
+        label.set_label(string.as_str());
+
+        popup.set_extra_child(Some(&label));
+                
+        let mainloop = glib::MainLoop::new(None, false);
+        let mainloop_clone = mainloop.clone();
+        
+        let pass_key = Rc::new(RefCell::new(false));
+        let pass_key_clone = pass_key.clone();
+        popup.clone().choose(gtk::gio::Cancellable::NONE, move |response| {
+            match response.to_string() {
+                s if s.contains("allow") => {
+                    *pass_key_clone.borrow_mut() = true;
+                }
+                _ => {
+                    *pass_key_clone.borrow_mut() = false;
+                }
+            }
+            mainloop_clone.quit();
+        });
+
+        mainloop.run();
+
+        if pass_key.borrow().clone() == true {
+            println!("allowed pairing with device");
+            Ok(())
+        }
+        else {
+            println!("rejected pairing with device");
+            Err(bluer::agent::ReqError::Rejected)
+        }
+
+    }
+    #[tokio::main]
     async fn pre_setup(&self, sender: Sender<Message>) -> bluer::Result<()> {
         let settings = self.imp().settings.get().unwrap();
-
 
         unsafe { 
             CURRENT_SENDER = Some(sender.clone());
@@ -777,6 +1040,7 @@ impl OverskrideWindow {
             RSSI_LUT = Some(HashMap::new());
             let name = settings.string("current-adapter-name").to_string();
             let session = bluer::Session::new().await?;
+
             if name == "" {
                 let adapter = session.default_adapter().await?;
                 CURRENT_ADAPTER = adapter.name().to_string();
@@ -797,7 +1061,6 @@ impl OverskrideWindow {
             lut.insert(alias.to_string(), CURRENT_ADAPTER.to_string());
             ADAPTERS_LUT = Some(lut);
         }
-
         Ok(())
     }
 }
@@ -1420,7 +1683,6 @@ async fn set_timeout_duration(timeout: u32) -> bluer::Result<u32> {
 
     Ok(adapter.discoverable_timeout().await? / 60)
 }
-
 
 
 
