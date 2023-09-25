@@ -44,6 +44,7 @@ static mut DISPLAYING_DIALOG: bool = false;
 static mut PIN_CODE: String = String::new();
 static mut PASS_KEY: u32 = 0;
 static mut CONFIRMATION_AUTHORIZATION: bool = false;
+static mut AGENT_ID: Option<bluer::agent::AgentHandle> = None;
 
 enum Message {
     #[allow(dead_code)]
@@ -406,7 +407,6 @@ impl OverskrideWindow {
 
                     toast.set_timeout(5);
                     toast.set_priority(adw::ToastPriority::Normal);
-                    println!("toast is: {:?}", toast);
 
                     toast_overlay.add_toast(toast);
                 },
@@ -821,7 +821,8 @@ impl OverskrideWindow {
                         bool
                     },
                     Err(err) => {
-                        let string = err.message;
+                        let string = err.clone().message;
+                        println!("error while connecting {:?}\n", err);
                         sender_clone.send(Message::PopupError(string)).expect("cannot send message");
                         false
                     },
@@ -1108,13 +1109,13 @@ impl OverskrideWindow {
                 CURRENT_ADAPTER = name.clone();
             }
 
-            register_agent(&session, true, false).await.expect("cannot register agent, ABORT!");
+            AGENT_ID = Some(register_agent(&session, true, true).await.expect("cannot register agent, ABORT!"));
             
             let mut lut = HashMap::new();
             
             let adapter = session.adapter(CURRENT_ADAPTER.clone().as_str())?;
             let alias = adapter.alias().await?;
-            println!("startup alias is: {}", alias);
+            println!("startup alias is: {}\n", alias);
 
             lut.insert(alias.to_string(), CURRENT_ADAPTER.to_string());
             ADAPTERS_LUT = Some(lut);
@@ -1163,6 +1164,7 @@ async fn get_avaiable_devices() -> bluer::Result<()> {
 async fn set_device_active(address: bluer::Address) -> bluer::Result<bool> {
     let current_session = bluer::Session::new().await?;
     let adapter_name: String;
+
     unsafe {
         adapter_name = CURRENT_ADAPTER.clone();
     }
@@ -1291,7 +1293,7 @@ async fn set_adapter_discoverable() -> bluer::Result<bool> {
 
     let discoverable = adapter.is_discoverable().await?;
 
-    println!("discoverable is: {}", discoverable);
+    // println!("discoverable is: {}", discoverable);
 
     Ok(discoverable)
 }
@@ -1300,7 +1302,7 @@ async fn set_adapter_discoverable() -> bluer::Result<bool> {
 async fn add_child_row(device: bluer::Device) -> bluer::Result<adw::ActionRow> {
     let child_row = adw::ActionRow::new();
     let current_device = device.clone();
-    println!("{:?}", device.name().await?);
+    // println!("added device name is {:?}", device.name().await?);
 
     let name = current_device.alias().await?;
     let address = current_device.address();
@@ -1338,7 +1340,7 @@ async fn add_child_row(device: bluer::Device) -> bluer::Result<adw::ActionRow> {
         }
     };
     rssi_icon.set_icon_name(Some(icon_name));
-    println!("rssi is: {:?}", rssi.clone());
+    // println!("rssi is: {:?}", rssi.clone());
     
     suffix_box.append(&rssi_icon);
     child_row.add_suffix(&suffix_box);
@@ -1416,7 +1418,7 @@ async fn get_device_properties(address: bluer::Address) -> bluer::Result<()> {
     sender.send(Message::SwitchBlocked(is_blocked)).expect("cannot send message {}");
     sender.send(Message::SwitchTrusted(is_trusted)).expect("cannot send message {}");
     
-    println!("the devices properties have been gotten with state: {}", is_active);
+    // println!("the devices properties have been gotten with state: {}", is_active);
 
     Ok(())
 }
@@ -1446,7 +1448,7 @@ async fn populate_adapter_expander() -> bluer::Result<HashMap<String, String>> {
         ADAPTERS_LUT = Some(alias_name_hashmap.clone());
     }
 
-    println!("entire adapter names list: {:?}", alias_name_hashmap);
+    //println!("entire adapter names list: {:?}", alias_name_hashmap);
     Ok(alias_name_hashmap)
 }
 
@@ -1475,7 +1477,7 @@ async fn get_adapter_properties(adapters_hashmap: HashMap<String, String>) -> bl
     sender.send(Message::SwitchAdapterName(alias.clone().to_string(), alias.to_string())).expect("cannot send message {}");
     sender.send(Message::SwitchAdapterTimeout(timeout)).expect("cannot send message {}");
     
-    println!("the adapter properties have been updated.");
+    // println!("the adapter properties have been updated.");
 
     Ok(())
 }
@@ -1543,11 +1545,11 @@ async fn get_devices_continuous() -> bluer::Result<()> {
     }
     let adapter = current_session.adapter(adapter_name.as_str())?;
 
-	let filter = bluer::DiscoveryFilter {
-        transport: bluer::DiscoveryTransport::Auto,
-        ..Default::default()
-    };
-    adapter.set_discovery_filter(filter).await?;
+	// let filter = bluer::DiscoveryFilter {
+    //     transport: bluer::DiscoveryTransport::Auto,
+    //     ..Default::default()
+    // };
+    // adapter.set_discovery_filter(filter).await?;
 	
     let device_events = adapter.discover_devices().await?;
     pin_mut!(device_events);    
@@ -1621,7 +1623,7 @@ async fn get_devices_continuous() -> bluer::Result<()> {
                             
                             sender.send(Message::RemoveDevice(device_name.clone())).expect("cannot send message"); 
                             sender.send(Message::UpdateListBoxImage()).expect("cannot send message");
-                            println!("Device removed: {:?} {}", addr, device_name.clone());    
+                            println!("Device removed: {:?} {}\n", addr, device_name.clone());    
 						}
                     },
                     AdapterEvent::PropertyChanged(AdapterProperty::Powered(powered)) => {
@@ -1760,7 +1762,12 @@ async fn request_pin_code(request: bluer::agent::RequestPinCode) -> bluer::agent
         PIN_CODE.clone()
     };
     println!("pin code is: {:?}", final_pin_code);
-    Ok(final_pin_code)
+    if final_pin_code.is_empty() {
+      	Err(bluer::agent::ReqError::Rejected)
+    }
+    else {
+	    Ok(final_pin_code)
+    }
 }
 
 async fn display_pin_code(request: bluer::agent::DisplayPinCode) -> bluer::agent::ReqResult<()> {
@@ -1797,7 +1804,12 @@ async fn request_pass_key(request: bluer::agent::RequestPasskey) -> bluer::agent
         PASS_KEY.clone()
     };
     println!("pass key is: {}", pass_key);
-    Ok(pass_key)
+    if pass_key == 0 {
+    	Err(bluer::agent::ReqError::Rejected)
+    }
+    else {
+    	Ok(pass_key)
+    }
 }   
 
 async fn display_pass_key(request: bluer::agent::DisplayPasskey) -> bluer::agent::ReqResult<()> {
@@ -1913,7 +1925,10 @@ async fn register_agent(session: &bluer::Session, request_default: bool, set_tru
         authorize_service: Some(Box::new(|req| authorize_service(req).boxed())),
         ..Default::default()
     };
-    let handle = session.register_agent(agent).await?;
+
+    let handle = session.register_agent(agent).await.expect("unable to register agent, fuck-");
+    
+	println!("registered agent! (i think)\n");
     Ok(handle)
 }
 
