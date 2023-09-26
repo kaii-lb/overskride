@@ -44,7 +44,6 @@ static mut DISPLAYING_DIALOG: bool = false;
 static mut PIN_CODE: String = String::new();
 static mut PASS_KEY: u32 = 0;
 static mut CONFIRMATION_AUTHORIZATION: bool = false;
-static mut AGENT_ID: Option<bluer::agent::AgentHandle> = None;
 
 enum Message {
     #[allow(dead_code)]
@@ -778,8 +777,8 @@ impl OverskrideWindow {
             unsafe {
                 hashmap = RSSI_LUT.clone().unwrap();
             }
-            let rssi_one = hashmap.get(&binding_one.clone().to_string()).unwrap_or(&(-100 as i32));
-            let rssi_two = hashmap.get(&binding_two.clone().to_string()).unwrap_or(&(-100 as i32));
+            let rssi_one = hashmap.get(&binding_one.clone().to_string()).unwrap_or(&(-100));
+            let rssi_two = hashmap.get(&binding_two.clone().to_string()).unwrap_or(&(-100));
             //println!("rssi one {} rssi two {}", rssi_one, rssi_two);
             
             let mut one = binding_one.as_str();
@@ -791,8 +790,8 @@ impl OverskrideWindow {
             one = one_str.as_str();
             two = two_str.as_str();
             
-            let name_result = one.cmp(&two);
-            let rssi_result = rssi_two.cmp(&rssi_one);
+            let name_result = one.cmp(two);
+            let rssi_result = rssi_two.cmp(rssi_one);
             //println!("rssi result {:?}", rssi_result);
             
             let final_result = if rssi_result == std::cmp::Ordering::Equal {
@@ -1023,13 +1022,10 @@ impl OverskrideWindow {
             std::thread::spawn(move || {
                 let adapter_names = populate_adapter_expander();
 
-                if adapter_names.is_ok() {
-                    match get_adapter_properties(adapter_names.unwrap()) {
-                        Err(err) => {
-                            let string = "Adapter ".to_string() + &err.message;
-                            sender_clone.send(Message::PopupError(string)).expect("cannot send message");    
-                        }
-                        _ => (),
+                if let Ok(names) = adapter_names {
+                    if let Err(err) = get_adapter_properties(names) {
+	                    let string = "Adapter ".to_string() + &err.message;
+	                    sender_clone.send(Message::PopupError(string)).expect("cannot send message");    
                     }
                 }
             });
@@ -1098,7 +1094,7 @@ impl OverskrideWindow {
             let name = settings.string("current-adapter-name").to_string();
             let session = bluer::Session::new().await?;
 
-            if name == "" {
+            if name.is_empty() {
                 let adapter = session.default_adapter().await?;
                 CURRENT_ADAPTER = adapter.name().to_string();
                 ORIGINAL_ADAPTER = CURRENT_ADAPTER.clone().to_string();
@@ -1108,8 +1104,6 @@ impl OverskrideWindow {
             else {
                 CURRENT_ADAPTER = name.clone();
             }
-
-            AGENT_ID = Some(register_agent(&session, true, true).await.expect("cannot register agent, ABORT!"));
             
             let mut lut = HashMap::new();
             
@@ -1120,6 +1114,10 @@ impl OverskrideWindow {
             lut.insert(alias.to_string(), CURRENT_ADAPTER.to_string());
             ADAPTERS_LUT = Some(lut);
         }
+
+		std::thread::spawn(|| {
+			forever_agent().expect("oupsies, no agent for u :D");
+		});
         
         Ok(())
     }    
@@ -1165,6 +1163,7 @@ async fn set_device_active(address: bluer::Address) -> bluer::Result<bool> {
     let current_session = bluer::Session::new().await?;
     let adapter_name: String;
 
+
     unsafe {
         adapter_name = CURRENT_ADAPTER.clone();
     }
@@ -1174,12 +1173,19 @@ async fn set_device_active(address: bluer::Address) -> bluer::Result<bool> {
 
     let state = device.is_connected().await?;
 
-    if state == true {
+    if state {
         device.disconnect().await?;
     }
-    else if state == false {
+    else if !device.is_paired().await? {
+		let agent = register_agent(&current_session, true, true).await?;
+		println!("agent is: {:?}\n", agent);
+		
+   		device.pair().await?;
         device.connect().await?;
-    }
+   	}
+   	else {
+        device.connect().await?;
+   	}
 
     let updated_state = device.is_connected().await?;
 
@@ -1650,7 +1656,7 @@ async fn get_devices_continuous() -> bluer::Result<()> {
                     DeviceProperty::Connected(connected) => {
                         let current_address: bluer::Address;
                         unsafe { current_address = CURRENT_ADDRESS }
-                        
+                       	
                         if addr == current_address {
                             let sender: Sender<Message>;
                             unsafe { sender = CURRENT_SENDER.clone().unwrap() }
@@ -1942,3 +1948,15 @@ async fn wait_for_dialog_exit() {
     }
 }
 
+#[tokio::main]
+async fn forever_agent() -> bluer::Result<()> {
+	let current_session = bluer::Session::new().await?;
+	let agent = register_agent(&current_session, true, true).await?;
+	println!("agent is: {:?}\n", agent);	
+
+	loop {
+		std::thread::sleep(std::time::Duration::from_secs(1));
+	}
+
+	Ok(())
+}
