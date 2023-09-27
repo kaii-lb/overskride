@@ -23,6 +23,7 @@ A Bluetooth and (soon to be) Obex client that is straight to the point, DE/WM ag
 
 # Features
 - Dynamically enumerate and list all devices known/in range 
+- Authenticating with devices (aka passkey confirmation)
 - Connect/disconnect from devices
 - Rename device
 - Trust or block a device
@@ -36,7 +37,6 @@ A Bluetooth and (soon to be) Obex client that is straight to the point, DE/WM ag
 - Showing errors to user
 
 # What doesn't work
-- **Authenticating with devices (aka passkey confirmation)**
 - Sending/receiving files
 - Audio profiles
 - Auto accept files
