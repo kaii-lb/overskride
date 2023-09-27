@@ -215,21 +215,21 @@ impl OverskrideWindow {
                 },
                 Message::SwitchName(alias, optional_old_alias) => {
                     let list_box = clone.imp().main_listbox.get();
-                    let index: i32;
+                    let index = unsafe { 
+                    	CURRENT_INDEX 
+                    };
                     let mut listbox_index = 0;
-                    unsafe { index = CURRENT_INDEX }
 
                     if optional_old_alias.is_none() {
-                        let row = list_box.row_at_index(index);
-                        if row.is_some() {
-                            let action_row = row.unwrap().downcast::<adw::ActionRow>().unwrap();
+                        if let Some(some_row) = list_box.row_at_index(index) {
+                            let action_row = some_row.downcast::<adw::ActionRow>().unwrap();
                             action_row.set_title(alias.as_str());
                         }
                     }
                     else {
-                        while list_box.clone().row_at_index(listbox_index) != None {
+                        while let Some(row) = list_box.clone().row_at_index(listbox_index) {
                             //println!("{}", index);
-                            let action_row = list_box.clone().row_at_index(index).unwrap().downcast::<adw::ActionRow>().expect("cannot downcast to action row.");
+                            let action_row = row.downcast::<adw::ActionRow>().expect("cannot downcast to action row.");
                             //println!("{:?}", action_row.clone().title());
                             if action_row.clone().title() == optional_old_alias.clone().unwrap() {
                                 action_row.set_title(alias.as_str());
@@ -241,20 +241,20 @@ impl OverskrideWindow {
                 },
                 Message::AddRow(device) => {
                     let row = add_child_row(device);
-                    if row.is_ok() {
+                    if let Ok(ok_row) = row {
                         let main_listbox = clone.imp().main_listbox.get();
-                        main_listbox.append(&row.unwrap());
+                        main_listbox.append(&ok_row);
                         main_listbox.invalidate_sort();
                     }
                 },
                 Message::RemoveDevice(name) => {
                     let listbox = clone.clone().imp().main_listbox.get();
                     let mut index = 0;
-                    while listbox.clone().row_at_index(index) != None {
+                    while let Some(row) = listbox.clone().row_at_index(index) {
                         // println!("{}", index);
-                        let action_row = listbox.clone().row_at_index(index).unwrap().downcast::<adw::ActionRow>().expect("cannot downcast to action row.");
+                        let action_row = row.downcast::<adw::ActionRow>().expect("cannot downcast to action row.");
                         // println!("{:?}", action_row.clone());
-                        if action_row.clone().title().to_string() == name {
+                        if action_row.clone().title() == name {
                             listbox.clone().remove(&action_row);
                         }
                         index += 1;
@@ -268,23 +268,17 @@ impl OverskrideWindow {
                     let device_title = clone.imp().device_title.get();
                     let device_icon = clone.imp().device_icon.get();
                     
-                    match alias {
-                        Some(name) => {
-                            entry_row.set_text(name.as_str());
-                            device_title.set_text(name.as_str());
-                        }
-                        None => (),
+                    if let Some(name) = alias {
+	                    entry_row.set_text(name.as_str());
+	                    device_title.set_text(name.as_str());
                     }
 
-                    match icon_name {
-                        Some(icon) => {
-                            let final_icon_name = icon.clone() + "-symbolic";
+					if let Some(icon) = icon_name {
+	                    let final_icon_name = icon.clone() + "-symbolic";
 
-                            device_icon.set_icon_name(Some(final_icon_name.as_str()));
-                            println!("icon name is: {}", icon);
-                        }
-                        None => (),
-                    }
+	                    device_icon.set_icon_name(Some(final_icon_name.as_str()));
+	                    println!("icon name is: {}", icon);	
+					}
                     
                     let secondary_listbox = clone.imp().secondary_listbox.get();
                     secondary_listbox.unselect_all();
@@ -310,15 +304,15 @@ impl OverskrideWindow {
                     let default_controller_expander = clone.imp().default_controller_expander.get();
                     let listbox = default_controller_expander.last_child().unwrap().downcast::<gtk::Box>().unwrap(); 
                     let revealer = listbox.last_child().unwrap().downcast::<gtk::Revealer>().unwrap();
-                    //println!("{:?}", revealer);
+                    
                     let listbox = revealer.last_child().unwrap().downcast::<gtk::ListBox>().unwrap();
-                    //println!("{:?}", listbox);
+                    
                     let mut index = 0;
-                    while listbox.clone().row_at_index(index) != None {
-                        //println!("{}", index);
-                        let action_row = listbox.clone().row_at_index(index).unwrap().downcast::<adw::ActionRow>().expect("cannot downcast to action row.");
-                        //println!("{:?}", action_row.clone().title());
-                        if action_row.clone().title().to_string() == old_alias.to_string() {
+                    while let Some(row) = listbox.clone().row_at_index(index) {
+                    
+                        let action_row = row.downcast::<adw::ActionRow>().expect("cannot downcast to action row.");
+                    
+                        if action_row.clone().title() == old_alias {
                             action_row.set_title(new_alias.as_str());
                         }
                         index += 1;
@@ -346,8 +340,10 @@ impl OverskrideWindow {
                     for alias in adapter_aliases.clone() {
                         let row = adw::ActionRow::new();
                         let val = hashmap_clone.get(&alias).cloned();
-                        let holder: String;
-                        unsafe { holder = ORIGINAL_ADAPTER.to_string() }
+                        let holder = unsafe {
+                        	ORIGINAL_ADAPTER.to_string()
+                        };
+                        
                         let name = val.clone().unwrap_or(holder);
                         //println!("name is {}", name.clone());
                         //println!("alias is {}", alias.clone());
@@ -360,7 +356,7 @@ impl OverskrideWindow {
                         suffix.append(&icon);
                         
                         unsafe {
-                            if CURRENT_ADAPTER.to_string() == name.clone() {
+                            if CURRENT_ADAPTER == name.clone() {
                                 suffix.show();
                             }
                             else {
@@ -375,9 +371,9 @@ impl OverskrideWindow {
                         row.connect_activated(move |_| { 
                             let mut index = 0;
                             if listbox_clone.clone().is_ok() {
-                                while listbox_clone.clone().unwrap().row_at_index(index) != None {
+                                while let Some(row) = listbox_clone.clone().unwrap().row_at_index(index) {
                                     //println!("{}", index);
-                                    let action_row = listbox_clone.clone().unwrap().row_at_index(index).unwrap().downcast::<adw::ActionRow>().expect("cannot downcast to action row.");
+                                    let action_row = row.downcast::<adw::ActionRow>().expect("cannot downcast to action row.");
                                     //println!("{:?}", action_row.clone().title());
                                     action_row.first_child().unwrap().last_child().unwrap().last_child().unwrap().hide();
 
@@ -446,7 +442,7 @@ impl OverskrideWindow {
                     popup.set_close_response("cancel");
             
                     let entry = gtk::Entry::new();
-                    entry.set_placeholder_text(Some(&"12345 or abcde"));
+                    entry.set_placeholder_text(Some("12345 or abcde"));
                     popup.set_extra_child(Some(&entry));
                     popup.set_response_enabled("confirm", false);
             
@@ -525,7 +521,7 @@ impl OverskrideWindow {
                     popup.set_default_response(Some("confirm"));
             
                     let entry = gtk::Entry::new();
-                    entry.set_placeholder_text(Some(&"0-999999"));
+                    entry.set_placeholder_text(Some("0-999999"));
                     entry.set_input_purpose(gtk::InputPurpose::Digits);
                     entry.set_max_length(6);
             
@@ -574,7 +570,7 @@ impl OverskrideWindow {
                         let dialog = clone.imp().display_pass_key_dialog.borrow().clone().unwrap();
                         let label = dialog.extra_child().unwrap().downcast::<gtk::Label>().unwrap();
             
-                        label.set_text(&pin_code.to_string().as_str());
+                        label.set_text(pin_code.to_string().as_str());
                     }
                     else {
                         let body = "Please enter this pin code on ".to_string() + device.as_str();
@@ -599,9 +595,9 @@ impl OverskrideWindow {
                     let adapter: String;
                     let passkey = &request.passkey.to_string();
                     unsafe {
+                        DISPLAYING_DIALOG = true;
                         device = DEVICES_LUT.clone().unwrap().get(&request.device).unwrap_or(&"Unknown Device".to_string()).to_string();
                         adapter = ADAPTERS_LUT.clone().unwrap().get(&request.adapter).unwrap_or(&"Unknown Adapter".to_string()).to_string();
-                        DISPLAYING_DIALOG = true;
                     }
             
                     let body = "Is this the right code for ".to_string() + device.as_str() + " on " + adapter.as_str();
@@ -637,7 +633,7 @@ impl OverskrideWindow {
                         }
                         unsafe {
                             DISPLAYING_DIALOG = false;
-                            CONFIRMATION_AUTHORIZATION = pass_key.borrow().clone();
+                            CONFIRMATION_AUTHORIZATION = *pass_key.borrow();
                         }
                     });            
                 },
@@ -676,7 +672,7 @@ impl OverskrideWindow {
                         }
                         unsafe {
                             DISPLAYING_DIALOG = false;
-                            CONFIRMATION_AUTHORIZATION = pass_key.borrow().clone();
+                            CONFIRMATION_AUTHORIZATION = *pass_key.borrow();
                         }
                     });            
                 },
@@ -684,9 +680,9 @@ impl OverskrideWindow {
                     let device: String;
                     let adapter: String;
                     unsafe {
+                        DISPLAYING_DIALOG = true;
                         device = DEVICES_LUT.clone().unwrap().get(&request.device).unwrap_or(&"Unknown Device".to_string()).to_string();
                         adapter = ADAPTERS_LUT.clone().unwrap().get(&request.adapter).unwrap_or(&"Unknown Adapter".to_string()).to_string();
-                        DISPLAYING_DIALOG = true;
                     }
             
                     let body = "Is ".to_string() + device.as_str() + " on " + adapter.as_str() + " allowed to authorize this service?";
@@ -726,7 +722,7 @@ impl OverskrideWindow {
                         }
                         unsafe {
                             DISPLAYING_DIALOG = false;
-                            CONFIRMATION_AUTHORIZATION = pass_key.borrow().clone();
+                            CONFIRMATION_AUTHORIZATION = *pass_key.borrow();
                         }
                     });
                 },
@@ -745,19 +741,16 @@ impl OverskrideWindow {
                    std::thread::sleep(std::time::Duration::from_secs(2));
                    sender_clone.send(Message::SetRefreshSensitive(true)).expect("cannot send message");
                 });
-                let can_loop: bool;
-                unsafe {
-                    can_loop = !CURRENTLY_LOOPING;
-                }
+                
+                let can_loop = unsafe {
+                    !CURRENTLY_LOOPING
+                };
+                
                 if can_loop {
                     sender0.send(Message::PopupError("Started searching for devices".to_string())).expect("cannot send message");
-                    match get_avaiable_devices() {
-                        Err(err) => {
-                            let string = err.message;
-    
-                            sender0.send(Message::PopupError(string)).expect("cannot send message");
-                        }
-                        _ => (),
+                    if let Err(err) = get_avaiable_devices() {
+	                    let string = err.message;
+	                    sender0.send(Message::PopupError(string)).expect("cannot send message");
                     }
                 }
                 else {
@@ -773,10 +766,9 @@ impl OverskrideWindow {
             let binding_one = row_one.clone().downcast::<adw::ActionRow>().unwrap().title();
             let binding_two = row_two.clone().downcast::<adw::ActionRow>().unwrap().title();
             
-            let hashmap: HashMap<String, i32>;
-            unsafe {
-                hashmap = RSSI_LUT.clone().unwrap();
-            }
+            let hashmap = unsafe {
+                RSSI_LUT.clone().unwrap()
+            };
             let rssi_one = hashmap.get(&binding_one.clone().to_string()).unwrap_or(&(-100));
             let rssi_two = hashmap.get(&binding_two.clone().to_string()).unwrap_or(&(-100));
             //println!("rssi one {} rssi two {}", rssi_one, rssi_two);
@@ -809,8 +801,9 @@ impl OverskrideWindow {
         let sender1 = sender.clone();
         connected_switch_row.set_activatable(true);
         connected_switch_row.connect_activated(move |_| {
-            let address: bluer::Address;
-            unsafe { address = CURRENT_ADDRESS }
+            let address = unsafe { 
+            	CURRENT_ADDRESS 
+            };
             
             let sender_clone = sender1.clone();
             
@@ -834,9 +827,9 @@ impl OverskrideWindow {
         let blocked_row = self.imp().blocked_row.get();
         let sender2 = sender.clone();
         blocked_row.connect_activated(move |_| {
-            let address: bluer::Address;
-            unsafe { address = CURRENT_ADDRESS }
-            
+            let address = unsafe { 
+            	CURRENT_ADDRESS 
+            };
             let sender_clone = sender2.clone();
             
             std::thread::spawn(move || {
@@ -858,8 +851,9 @@ impl OverskrideWindow {
         let trusted_row = self.imp().trusted_row.get();
         let sender3 = sender.clone();
         trusted_row.connect_activated(move |_| {
-            let address: bluer::Address;
-            unsafe { address = CURRENT_ADDRESS }
+            let address = unsafe { 
+            	CURRENT_ADDRESS 
+            };
             
             let sender_clone = sender3.clone();
             
@@ -882,8 +876,9 @@ impl OverskrideWindow {
         let device_name_entry = self.imp().device_name_entry.get();
         let sender4 = sender.clone();
         device_name_entry.connect_apply(move |entry| {
-            let address: bluer::Address;
-            unsafe { address = CURRENT_ADDRESS }
+            let address = unsafe { 
+           		CURRENT_ADDRESS 
+            };
             let name = entry.text().to_string();
 
             let sender_clone = sender4.clone();
@@ -908,9 +903,10 @@ impl OverskrideWindow {
         remove_device_button.connect_clicked(move |_| {
             let sender_clone = sender4.clone();
             
-            let address: bluer::Address;
-            unsafe { address = CURRENT_ADDRESS }
-
+            let address = unsafe { 
+            	CURRENT_ADDRESS 
+            };
+            
             std::thread::spawn(move || {
                 let name = match remove_device(address) {
                     Ok(name) => {
@@ -1133,10 +1129,9 @@ async fn get_avaiable_devices() -> bluer::Result<()> {
                 println!("stopped getting devices (gracefully)");
             }
             Err(err) => {
-                let sender: Sender<Message>;
-                unsafe {
-                    sender = CURRENT_SENDER.clone().unwrap();
-                }
+                let sender = unsafe {
+                    CURRENT_SENDER.clone().unwrap()
+                };
                 let string = match err.message {
                     s if s.to_lowercase().contains("resource not ready") => {
                         "Adapter is not powered".to_string()
@@ -1161,12 +1156,10 @@ async fn get_avaiable_devices() -> bluer::Result<()> {
 #[tokio::main]
 async fn set_device_active(address: bluer::Address) -> bluer::Result<bool> {
     let current_session = bluer::Session::new().await?;
-    let adapter_name: String;
-
-
-    unsafe {
-        adapter_name = CURRENT_ADAPTER.clone();
-    }
+    let adapter_name = unsafe {
+        CURRENT_ADAPTER.clone()
+    };
+    
     let adapter = current_session.adapter(adapter_name.as_str())?;
 
     let device = adapter.device(address)?;
@@ -1177,11 +1170,12 @@ async fn set_device_active(address: bluer::Address) -> bluer::Result<bool> {
         device.disconnect().await?;
     }
     else if !device.is_paired().await? {
-		let agent = register_agent(&current_session, true, true).await?;
-		println!("agent is: {:?}\n", agent);
-		
+		// let agent = register_agent(&current_session, true, true).await?;
+		// println!("agent is: {:?}\n", agent);
+		 
    		device.pair().await?;
         device.connect().await?;
+		// drop(agent);
    	}
    	else {
         device.connect().await?;
@@ -1199,10 +1193,10 @@ async fn set_device_active(address: bluer::Address) -> bluer::Result<bool> {
 #[tokio::main]
 async fn set_device_blocked(address: bluer::Address)  -> bluer::Result<bool> {
     let current_session = bluer::Session::new().await?;
-    let adapter_name: String;
-    unsafe {
-        adapter_name = CURRENT_ADAPTER.clone();
-    }
+    let adapter_name = unsafe {
+        CURRENT_ADAPTER.clone()
+    };
+    
     let adapter = current_session.adapter(adapter_name.as_str())?;
 
     let device = adapter.device(address)?;
@@ -1223,10 +1217,10 @@ async fn set_device_blocked(address: bluer::Address)  -> bluer::Result<bool> {
 #[tokio::main]
 async fn set_device_trusted(address: bluer::Address) -> bluer::Result<bool> {
     let current_session = bluer::Session::new().await?;
-    let adapter_name: String;
-    unsafe {
-        adapter_name = CURRENT_ADAPTER.clone();
-    }
+    let adapter_name = unsafe {
+        CURRENT_ADAPTER.clone()
+    };
+    
     let adapter = current_session.adapter(adapter_name.as_str())?;
 
     let device = adapter.device(address)?;
@@ -1247,10 +1241,10 @@ async fn set_device_trusted(address: bluer::Address) -> bluer::Result<bool> {
 #[tokio::main]
 async fn set_device_name(address: bluer::Address, name: String) -> bluer::Result<String> {
     let current_session = bluer::Session::new().await?;
-    let adapter_name: String;
-    unsafe {
-        adapter_name = CURRENT_ADAPTER.clone();
-    }
+    let adapter_name = unsafe {
+        CURRENT_ADAPTER.clone()
+    };
+    
     let adapter = current_session.adapter(adapter_name.as_str())?;
 
     let device = adapter.device(address)?;
@@ -1271,10 +1265,10 @@ async fn set_device_name(address: bluer::Address, name: String) -> bluer::Result
 #[tokio::main]
 async fn set_adapter_powered() -> bluer::Result<bool> {
     let current_session = bluer::Session::new().await?;
-    let adapter_name: String;
-    unsafe {
-        adapter_name = CURRENT_ADAPTER.clone();
-    }
+    let adapter_name = unsafe {
+        CURRENT_ADAPTER.clone()
+    };
+    
     let adapter = current_session.adapter(adapter_name.as_str())?;
     
     let current = adapter.is_powered().await?;
@@ -1288,10 +1282,10 @@ async fn set_adapter_powered() -> bluer::Result<bool> {
 #[tokio::main]
 async fn set_adapter_discoverable() -> bluer::Result<bool> {
     let current_session = bluer::Session::new().await?;
-    let adapter_name: String;
-    unsafe {
-        adapter_name = CURRENT_ADAPTER.clone();
-    }
+    let adapter_name = unsafe {
+        CURRENT_ADAPTER.clone()
+    };
+    
     let adapter = current_session.adapter(adapter_name.as_str())?;
     
     let current = adapter.is_discoverable().await?;
@@ -1326,22 +1320,23 @@ async fn add_child_row(device: bluer::Device) -> bluer::Result<adw::ActionRow> {
         None => {
             "rssi-none-symbolic"
         },
-        Some(n) if (n * -1) <= 50 => {
+        Some(n) if -n <= 50 => {
             "rssi-high-symbolic"
         } 
-        Some(n) if (n * -1) <= 60 => {
+        Some(n) if -n <= 60 => {
             "rssi-medium-symbolic"
         }
-        Some(n) if (n * -1) <= 70 => {
+        Some(n) if -n <= 70 => {
             "rssi-low-symbolic"
         }
-        Some(n) if (n * -1) <= 80 => {
+        Some(n) if -n <= 80 => {
             "rssi-dead-symbolic"
         }
-        Some(n) if (n * -1) <= 90 => {
+        Some(n) if -n <= 90 => {
             "rssi-none-symbolic"
         }
-        Some(_) => {
+        Some(val) => {
+        	println!("rssi unknown val: {}", val);
             "rssi-not-found-symbolic"
         }
     };
@@ -1368,19 +1363,18 @@ async fn add_child_row(device: bluer::Device) -> bluer::Result<adw::ActionRow> {
             CURRENT_ADDRESS = device.address();
         }
 
-        let address: bluer::Address;
-        unsafe { address = CURRENT_ADDRESS }
+        let address = unsafe { 
+        	CURRENT_ADDRESS 
+        };
         
         std::thread::spawn(move || {
-            match get_device_properties(address) {
-                Err(err) => {
-                    let string = err.message;
-                    let sender: Sender<Message>;
-                    unsafe { sender = CURRENT_SENDER.clone().unwrap() }
+            if let Err(err) = get_device_properties(address) {
+	            let string = err.message;
+	            let sender = unsafe { 
+	            	CURRENT_SENDER.clone().unwrap() 
+	            };
 
-                    sender.send(Message::PopupError(string)).expect("cannot send message");
-                }
-                _ => (),
+	            sender.send(Message::PopupError(string)).expect("cannot send message");
             }
         });
     });
@@ -1395,10 +1389,10 @@ async fn add_child_row(device: bluer::Device) -> bluer::Result<adw::ActionRow> {
 #[tokio::main]
 async fn get_device_properties(address: bluer::Address) -> bluer::Result<()> {
     let current_session = bluer::Session::new().await?;
-    let adapter_name: String;
-    unsafe {
-        adapter_name = CURRENT_ADAPTER.clone();
-    }
+    let adapter_name = unsafe {
+        CURRENT_ADAPTER.clone()
+    };
+    
     let adapter = current_session.adapter(adapter_name.as_str())?;
 
     let device = adapter.device(address)?;
@@ -1416,8 +1410,9 @@ async fn get_device_properties(address: bluer::Address) -> bluer::Result<()> {
         },
     };
 
-    let sender: Sender<Message>;
-    unsafe { sender = CURRENT_SENDER.clone().unwrap() }
+    let sender = unsafe { 
+    	CURRENT_SENDER.clone().unwrap() 
+    };
     
     sender.send(Message::SwitchPage(Some(alias), Some(icon_name))).expect("cannot send message {}");
     sender.send(Message::SwitchActive(is_active)).expect("cannot send message {}");
@@ -1461,10 +1456,10 @@ async fn populate_adapter_expander() -> bluer::Result<HashMap<String, String>> {
 #[tokio::main]
 async fn get_adapter_properties(adapters_hashmap: HashMap<String, String>) -> bluer::Result<()> {
     let current_session = bluer::Session::new().await?;
-    let adapter_name: String;
-    unsafe {
-        adapter_name = CURRENT_ADAPTER.clone();
-    }
+    let adapter_name = unsafe {
+        CURRENT_ADAPTER.clone()
+    };
+    
     let adapter = current_session.adapter(adapter_name.as_str())?;
 
 
@@ -1473,8 +1468,9 @@ async fn get_adapter_properties(adapters_hashmap: HashMap<String, String>) -> bl
 	let alias = adapter.alias().await?;
     let timeout = adapter.discoverable_timeout().await? / 60;
 
-    let sender: Sender<Message>;
-    unsafe { sender = CURRENT_SENDER.clone().unwrap() }
+    let sender = unsafe { 
+    	CURRENT_SENDER.clone().unwrap() 
+    };
     
     sender.send(Message::PopulateAdapterExpander(adapters_hashmap)).expect("cannot send message {}");
     //println!("sent populate adapters message");
@@ -1491,10 +1487,9 @@ async fn get_adapter_properties(adapters_hashmap: HashMap<String, String>) -> bl
 #[tokio::main]
 async fn set_adapter_name(alias: String) -> bluer::Result<Vec<String>> {
     let current_session = bluer::Session::new().await?;
-    let adapter_name: String;
-    unsafe {
-        adapter_name = CURRENT_ADAPTER.clone();
-    }
+    let adapter_name = unsafe {
+        CURRENT_ADAPTER.clone()
+    };
 
     let adapter = current_session.adapter(adapter_name.as_str())?;
     let old_alias = adapter.alias().await?;
@@ -1503,9 +1498,8 @@ async fn set_adapter_name(alias: String) -> bluer::Result<Vec<String>> {
     adapter.set_alias(alias).await?;
     let new_alias = adapter.alias().await?;
 
-    let mut lut: HashMap<String, String>;
     unsafe {
-        lut = ADAPTERS_LUT.clone().unwrap();
+        let mut lut = ADAPTERS_LUT.clone().unwrap();
         let bluetooth_name = adapter.name().to_string();
 
         lut.remove(&old_alias.clone());
@@ -1520,10 +1514,10 @@ async fn set_adapter_name(alias: String) -> bluer::Result<Vec<String>> {
 #[tokio::main]
 async fn remove_device(device_address: bluer::Address) -> bluer::Result<String> {
     let current_session = bluer::Session::new().await?;
-    let adapter_name: String;
-    unsafe {
-        adapter_name = CURRENT_ADAPTER.clone();
-    }
+    let adapter_name = unsafe {
+        CURRENT_ADAPTER.clone()
+    };
+    
     let adapter = current_session.adapter(adapter_name.as_str())?;
 
     let device = adapter.device(device_address)?;
@@ -1545,28 +1539,30 @@ async fn remove_device(device_address: bluer::Address) -> bluer::Result<String> 
 #[tokio::main]
 async fn get_devices_continuous() -> bluer::Result<()> {
     let current_session = bluer::Session::new().await?;
-    let adapter_name: String;
-    unsafe {
-        adapter_name = CURRENT_ADAPTER.clone();
-    }
+    let adapter_name = unsafe {
+        CURRENT_ADAPTER.clone()
+    };
     let adapter = current_session.adapter(adapter_name.as_str())?;
 
-	// let filter = bluer::DiscoveryFilter {
-    //     transport: bluer::DiscoveryTransport::Auto,
-    //     ..Default::default()
-    // };
-    // adapter.set_discovery_filter(filter).await?;
+	let filter = bluer::DiscoveryFilter {
+        transport: bluer::DiscoveryTransport::Auto,
+        ..Default::default()
+    };
+    adapter.set_discovery_filter(filter).await?;
 	
     let device_events = adapter.discover_devices().await?;
     pin_mut!(device_events);    
-    let sender: Sender<Message>;
-    unsafe { sender = CURRENT_SENDER.clone().unwrap() }
-    
-    let mut all_change_events = SelectAll::new();
-    
-    //unsafe { CAN_CONTINUE_LOOP = true }
+    let sender = unsafe { 
+    	CURRENT_SENDER.clone().unwrap() 
+    };
 
-    while adapter.is_powered().await? == true  {
+    let mut all_change_events = SelectAll::new();
+
+	let session = bluer::Session::new().await?;
+	let agent = register_agent(&session, true, false).await?;
+	println!("registered agent during discovery {:?}", agent);
+    
+    while adapter.is_powered().await? {
         unsafe { 
             CURRENTLY_LOOPING = true;
         }
@@ -1575,44 +1571,41 @@ async fn get_devices_continuous() -> bluer::Result<()> {
             Some(device_event) = device_events.next() => {
                 match device_event {
                     AdapterEvent::DeviceAdded(addr) => {
-		                if adapter.is_powered().await? == true {
+		                if adapter.is_powered().await? {
 	                        let supposed_device = adapter.device(addr);
 	    
-                            let devices_lut: HashMap<bluer::Address, String>;
-                            unsafe {
-                                devices_lut =  DEVICES_LUT.clone().unwrap();
-                            }
+                            let devices_lut = unsafe {
+                                DEVICES_LUT.clone().unwrap()
+                            };
 
                             if !devices_lut.contains_key(&addr) {
-                                if supposed_device.is_err() {
-                                    Err( supposed_device.clone().err().unwrap() ).unwrap()
+                                if let Ok(added_device) = supposed_device {
+	                                sender.send(Message::AddRow(added_device)).expect("cannot send message {}"); 
+	                                sender.send(Message::UpdateListBoxImage()).expect("cannot send message {}"); 
+	                                //println!("supposedly sent");
+	                                
+	                                let device = adapter.device(addr)?;
+	                                let change_events = device.events().await?.map(move |evt| (addr, evt));
+	                                all_change_events.push(change_events);
                                 }
-                                let added_device = supposed_device.unwrap();
-                                
-                                sender.send(Message::AddRow(added_device)).expect("cannot send message {}"); 
-                                sender.send(Message::UpdateListBoxImage()).expect("cannot send message {}"); 
-                                //println!("supposedly sent");
-                                
-                                let device = adapter.device(addr)?;
-                                let change_events = device.events().await?.map(move |evt| (addr, evt));
-                                all_change_events.push(change_events);
+                                else {
+                                	println!("device isn't present, something went wrong.");
+                                }
                             }
                             else {
                                 println!("device already exists, not adding again.");
                             }
-
 		                }
                     }
                     AdapterEvent::DeviceRemoved(addr) => {
-   		                if adapter.is_powered().await? == true {
-                        	let sender: Sender<Message>;
-                            unsafe { sender = CURRENT_SENDER.clone().unwrap() }
+   		                if adapter.is_powered().await? {
+                        	let sender = unsafe { 
+                        		CURRENT_SENDER.clone().unwrap() 
+                        	};
 
-                            let mut devices_lut: HashMap<bluer::Address, String>;
-                            unsafe {
-                                devices_lut = DEVICES_LUT.clone().unwrap();
-                                //println!("big lut (removed) is: {:?}", DEVICES_LUT.clone());
-                            } 
+                            let mut devices_lut = unsafe {
+                                DEVICES_LUT.clone().unwrap()
+                            };
 
                             let device_name = if devices_lut.contains_key(&addr) {
                                 let lut = devices_lut.get(&addr).unwrap().clone();
@@ -1633,18 +1626,29 @@ async fn get_devices_continuous() -> bluer::Result<()> {
 						}
                     },
                     AdapterEvent::PropertyChanged(AdapterProperty::Powered(powered)) => {
-                        let sender: Sender<Message>;
-                        unsafe { sender = CURRENT_SENDER.clone().unwrap() }
+                        let sender = unsafe { 
+                        	CURRENT_SENDER.clone().unwrap() 
+                        };
+                        
                         std::thread::sleep(std::time::Duration::from_secs_f32(0.5));
                         sender.send(Message::SwitchAdapterPowered(powered)).expect("cannot send message {}"); 
                         println!("powered switch to {}", powered);
                     },
                     AdapterEvent::PropertyChanged(AdapterProperty::Discoverable(discoverable)) => {
-                        let sender: Sender<Message>;
-                        unsafe { sender = CURRENT_SENDER.clone().unwrap() }
+                        let sender = unsafe { 
+                        	CURRENT_SENDER.clone().unwrap() 
+                        };
+                        
                         std::thread::sleep(std::time::Duration::from_secs_f32(0.5));
                         sender.send(Message::SwitchAdapterDiscoverable(discoverable)).expect("cannot send message {}"); 
                         println!("discoverable switch to {}", discoverable);
+                    },
+                    AdapterEvent::PropertyChanged(AdapterProperty::Alias(alias)) => {
+                    	let sender = unsafe {
+                    		CURRENT_SENDER.clone().unwrap()	
+                    	};
+                    	std::thread::sleep(std::time::Duration::from_secs_f32(0.5));
+                    	sender.send(Message::SwitchAdapterName(alias.clone(), alias.clone())).expect("cannot send message {}");
                     },
                     event => {
                         println!("unhandled event: {:?}", event);
@@ -1654,37 +1658,43 @@ async fn get_devices_continuous() -> bluer::Result<()> {
             Some((addr, DeviceEvent::PropertyChanged(property))) = all_change_events.next() => {
                 match property {
                     DeviceProperty::Connected(connected) => {
-                        let current_address: bluer::Address;
-                        unsafe { current_address = CURRENT_ADDRESS }
+                        let current_address = unsafe { 
+                        	CURRENT_ADDRESS 
+                        };
                        	
                         if addr == current_address {
-                            let sender: Sender<Message>;
-                            unsafe { sender = CURRENT_SENDER.clone().unwrap() }
-
+                            let sender = unsafe { 
+                        		CURRENT_SENDER.clone().unwrap() 
+                        	};
+                        	
                             std::thread::sleep(std::time::Duration::from_secs_f32(0.5));
                             sender.send(Message::SwitchActive(connected)).expect("cannot send message");
                         }
                     },
                     DeviceProperty::Trusted(trusted) => {
-                        let current_address: bluer::Address;
-                        unsafe { current_address = CURRENT_ADDRESS }
+                        let current_address = unsafe {
+                        	CURRENT_ADDRESS 
+                        };
                         
                         if addr == current_address {
-                            let sender: Sender<Message>;
-                            unsafe { sender = CURRENT_SENDER.clone().unwrap() }
-
+                            let sender = unsafe { 
+                        		CURRENT_SENDER.clone().unwrap() 
+                        	};
+                        	
                             std::thread::sleep(std::time::Duration::from_secs_f32(0.5));
                             sender.send(Message::SwitchTrusted(trusted)).expect("cannot send message");
                         }
                     },
                     DeviceProperty::Blocked(blocked) => {
-                        let current_address: bluer::Address;
-                        unsafe { current_address = CURRENT_ADDRESS }
+                        let current_address = unsafe {
+                        	CURRENT_ADDRESS 
+                        };
                         
                         if addr == current_address {
-                            let sender: Sender<Message>;
-                            unsafe { sender = CURRENT_SENDER.clone().unwrap() }
-
+                            let sender = unsafe { 
+                        		CURRENT_SENDER.clone().unwrap() 
+                        	};
+                        	
                             std::thread::sleep(std::time::Duration::from_secs_f32(0.5));
                             sender.send(Message::SwitchBlocked(blocked)).expect("cannot send message");
                         }
@@ -1703,8 +1713,10 @@ async fn get_devices_continuous() -> bluer::Result<()> {
                             sender.send(Message::SwitchPage(Some(name.clone()), None)).expect("cannot send message");
                         }
                         else {
-                            let hashmap: HashMap<bluer::Address, String>;
-                            unsafe { hashmap = DEVICES_LUT.clone().unwrap() }
+                            let hashmap = unsafe { 
+                            	DEVICES_LUT.clone().unwrap() 
+                            };
+                            
                             let empty = String::new();
                             let old_alias = hashmap.get(&addr).unwrap_or(&empty);
 
@@ -1712,12 +1724,14 @@ async fn get_devices_continuous() -> bluer::Result<()> {
                         }
                     },
                     DeviceProperty::Icon(icon) => {
-                        let current_address: bluer::Address;
-                        unsafe { current_address = CURRENT_ADDRESS }
-                        
-                        if addr == current_address {
-                            let sender: Sender<Message>;
-                            unsafe { sender = CURRENT_SENDER.clone().unwrap() }
+                        let current_address = unsafe {
+                       		CURRENT_ADDRESS 
+                       	};
+                       
+                       	if addr == current_address {
+                         	let sender = unsafe { 
+                       			CURRENT_SENDER.clone().unwrap() 
+                       		};
 
                             std::thread::sleep(std::time::Duration::from_secs_f32(0.5));
                             sender.send(Message::SwitchPage(None, Some(icon))).expect("cannot send message");
@@ -1733,6 +1747,7 @@ async fn get_devices_continuous() -> bluer::Result<()> {
     unsafe { 
         CURRENTLY_LOOPING = false;
     }
+    drop(agent);
     Err(bluer::Error { kind: bluer::ErrorKind::Failed, message: "Stopped searching for devices".to_string() })
 }
 
@@ -1740,10 +1755,9 @@ async fn get_devices_continuous() -> bluer::Result<()> {
 async fn set_timeout_duration(timeout: u32) -> bluer::Result<u32> {
     let current_session = bluer::Session::new().await?;
 
-    let adapter_name: String;
-    unsafe {
-        adapter_name = CURRENT_ADAPTER.clone();
-    }
+    let adapter_name = unsafe {
+        CURRENT_ADAPTER.clone()
+    };
     let adapter = current_session.adapter(adapter_name.as_str())?;
 
     adapter.set_discoverable_timeout(timeout * 60).await?;
@@ -1752,7 +1766,7 @@ async fn set_timeout_duration(timeout: u32) -> bluer::Result<u32> {
 }
 
 async fn request_pin_code(request: bluer::agent::RequestPinCode) -> bluer::agent::ReqResult<String> {
-    println!("pairing incoming");
+    println!("request pincode incoming");
 
     let sender = unsafe {
         CURRENT_SENDER.clone().unwrap()
@@ -1777,7 +1791,7 @@ async fn request_pin_code(request: bluer::agent::RequestPinCode) -> bluer::agent
 }
 
 async fn display_pin_code(request: bluer::agent::DisplayPinCode) -> bluer::agent::ReqResult<()> {
-    println!("pairing incoming");
+    println!("display pincode incoming");
     
     let sender = unsafe {
         CURRENT_SENDER.clone().unwrap()
@@ -1794,7 +1808,7 @@ async fn display_pin_code(request: bluer::agent::DisplayPinCode) -> bluer::agent
 }
 
 async fn request_pass_key(request: bluer::agent::RequestPasskey) -> bluer::agent::ReqResult<u32> {
-    println!("pairing incoming");
+    println!("request passkey incoming");
 
     let sender = unsafe {
         CURRENT_SENDER.clone().unwrap()
@@ -1807,7 +1821,7 @@ async fn request_pass_key(request: bluer::agent::RequestPasskey) -> bluer::agent
     wait_for_dialog_exit().await;
 
     let pass_key = unsafe {
-        PASS_KEY.clone()
+        PASS_KEY
     };
     println!("pass key is: {}", pass_key);
     if pass_key == 0 {
@@ -1819,7 +1833,7 @@ async fn request_pass_key(request: bluer::agent::RequestPasskey) -> bluer::agent
 }   
 
 async fn display_pass_key(request: bluer::agent::DisplayPasskey) -> bluer::agent::ReqResult<()> {
-    println!("pairing incoming");
+    println!("display passkey incoming");
     
     let sender = unsafe {
         CURRENT_SENDER.clone().unwrap()
@@ -1835,7 +1849,7 @@ async fn display_pass_key(request: bluer::agent::DisplayPasskey) -> bluer::agent
 }
 
 async fn request_confirmation(request: bluer::agent::RequestConfirmation, _: bluer::Session, _: bool) -> bluer::agent::ReqResult<()> {
-    println!("pairing incoming");
+    println!("pairing confirmation incoming");
     
     let sender = unsafe {
         CURRENT_SENDER.clone().unwrap()
@@ -1850,7 +1864,7 @@ async fn request_confirmation(request: bluer::agent::RequestConfirmation, _: blu
     let confirmed = unsafe {
         CONFIRMATION_AUTHORIZATION
     };
-    if confirmed == true {
+    if confirmed {
         println!("allowed pairing with device");
         Ok(())
     }
@@ -1861,7 +1875,7 @@ async fn request_confirmation(request: bluer::agent::RequestConfirmation, _: blu
 }
 
 async fn request_authorization(request: bluer::agent::RequestAuthorization, _: bluer::Session, _: bool) -> bluer::agent::ReqResult<()> {
-    println!("pairing incoming");
+    println!("pairing authorization incoming");
     
     let sender = unsafe {
         CURRENT_SENDER.clone().unwrap()
@@ -1876,7 +1890,7 @@ async fn request_authorization(request: bluer::agent::RequestAuthorization, _: b
     let confirmed = unsafe {
         CONFIRMATION_AUTHORIZATION
     };
-    if confirmed == true {
+    if confirmed {
         println!("allowed pairing with device");
         Ok(())
     }
@@ -1888,6 +1902,8 @@ async fn request_authorization(request: bluer::agent::RequestAuthorization, _: b
 }
 
 async fn authorize_service(request: bluer::agent::AuthorizeService) -> bluer::agent::ReqResult<()> {
+    println!("service authorization incoming");
+
     let sender = unsafe {
         CURRENT_SENDER.clone().unwrap()
     };
@@ -1902,7 +1918,7 @@ async fn authorize_service(request: bluer::agent::AuthorizeService) -> bluer::ag
         CONFIRMATION_AUTHORIZATION
     };
 
-    if confirmed == true {
+    if confirmed {
         println!("allowed pairing with device");
         Ok(())
     }
@@ -1910,7 +1926,6 @@ async fn authorize_service(request: bluer::agent::AuthorizeService) -> bluer::ag
         println!("rejected pairing with device");
         Err(bluer::agent::ReqError::Rejected)
     }
-
 }
 
 async fn register_agent(session: &bluer::Session, request_default: bool, set_trust: bool) -> bluer::Result<bluer::agent::AgentHandle> {
@@ -1934,7 +1949,6 @@ async fn register_agent(session: &bluer::Session, request_default: bool, set_tru
 
     let handle = session.register_agent(agent).await.expect("unable to register agent, fuck-");
     
-	println!("registered agent! (i think)\n");
     Ok(handle)
 }
 
@@ -1942,6 +1956,7 @@ async fn wait_for_dialog_exit() {
     unsafe {
         loop {
             if !DISPLAYING_DIALOG {
+				// std::thread::sleep(std::time::Duration::from_secs(1));
                 break;
             }
         }
@@ -1950,13 +1965,11 @@ async fn wait_for_dialog_exit() {
 
 #[tokio::main]
 async fn forever_agent() -> bluer::Result<()> {
-	let current_session = bluer::Session::new().await?;
-	let agent = register_agent(&current_session, true, true).await?;
-	println!("agent is: {:?}\n", agent);	
+	// let current_session = bluer::Session::new().await?;
+	// let agent = register_agent(&current_session, true, true).await?;
+	// println!("registered agent is: {:?}\n", agent);	
 
 	loop {
 		std::thread::sleep(std::time::Duration::from_secs(1));
 	}
-
-	Ok(())
 }
