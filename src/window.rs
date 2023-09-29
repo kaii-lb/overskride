@@ -75,7 +75,7 @@ mod imp {
     use super::*;
 
     #[derive(Debug, Default, gtk::CompositeTemplate)]
-    #[template(resource = "/com/kaii/Overskride/gtk/window.ui")]
+    #[template(resource = "/io/github/kaii_lb/Overskride/gtk/window.ui")]
     pub struct OverskrideWindow {
         #[template_child]
         pub main_listbox: TemplateChild<gtk::ListBox>,
@@ -187,7 +187,7 @@ impl OverskrideWindow {
     }
 
     fn setup_settings(&self) {
-        let settings = Settings::new("com.kaii.Overskride");
+        let settings = Settings::new("io.github.kaii_lb.Overskride");
         self.imp().settings.set(settings).expect("settings not setup");
     }
 
@@ -432,7 +432,7 @@ impl OverskrideWindow {
                     let body = device + "has requested pairing on " + adapter.as_str() + ", please enter the correct pin code.";
                     let popup = adw::MessageDialog::new(Some(&clone), Some("Pin Code Requested"), Some(body.as_str()));
             
-                    popup.set_modal(true);
+                    // popup.set_modal(true);
                     popup.set_destroy_with_parent(true);
                     
                     popup.add_response("cancle", "Cancel");
@@ -512,7 +512,7 @@ impl OverskrideWindow {
                     let popup = adw::MessageDialog::new(Some(&clone), Some("Pass Key Requested"), Some(body.as_str()));
             
                     popup.set_close_response("cancel");
-                    popup.set_modal(true);
+                    // popup.set_modal(true);
                     popup.set_destroy_with_parent(true);
             
                     popup.add_response("cancle", "Cancel");
@@ -606,7 +606,7 @@ impl OverskrideWindow {
                     popup.set_body(body.as_str());
             
                     popup.set_close_response("cancel");
-                    popup.set_modal(true);
+                    // popup.set_modal(true);
                     popup.set_destroy_with_parent(true);
             
                     popup.add_response("cancle", "Cancel");
@@ -652,7 +652,7 @@ impl OverskrideWindow {
                     popup.set_body(body.as_str());
             
                     popup.set_close_response("cancel");
-                    popup.set_modal(true);
+                    // popup.set_modal(true);
                     popup.set_destroy_with_parent(true);
             
                     popup.add_response("cancle", "Cancel");
@@ -702,7 +702,7 @@ impl OverskrideWindow {
                     label.set_label(string.as_str());
             
                     popup.set_close_response("cancel");
-                    popup.set_modal(true);
+                    // popup.set_modal(true);
                     popup.set_destroy_with_parent(true);
             
                     popup.add_response("cancle", "Cancel");
@@ -1174,6 +1174,8 @@ async fn set_device_active(address: bluer::Address) -> bluer::Result<bool> {
 		// println!("agent is: {:?}\n", agent);
 		 
    		device.pair().await?;
+
+   		device.connect().await?;
         device.connect().await?;
 		// drop(agent);
    	}
@@ -1432,14 +1434,8 @@ async fn populate_adapter_expander() -> bluer::Result<HashMap<String, String>> {
 
     for name in adapter_names.clone() {
         let adapter = current_session.adapter(name.as_str())?;
-        let address = adapter.address().await?; 
-        //println!("adapter address is: {}", address.clone());
         
-        std::process::Command::new("bluetoothctl").arg("select").arg(address.to_string());
-		let old_output = String::from_utf8(std::process::Command::new("bluetoothctl").arg("show").output().expect("cant do so").stdout).expect("nah");
-  		let old_name = old_output.lines().nth(2).unwrap().replace("\tAlias: ", "").replace("hci0 name changed: ", "");
-	   	
-        let alias = &old_name[0..old_name.find("AdvertisementMonitor").unwrap_or(old_name.len())];
+       	let alias = adapter.alias().await?;
         
         alias_name_hashmap.insert(alias.clone().to_string(), name.clone().to_string());
         //println!("adapter alias is: {}", alias)

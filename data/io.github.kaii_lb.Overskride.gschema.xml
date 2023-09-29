@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <schemalist gettext-domain="overskride">
-	<schema id="com.kaii.Overskride" path="/com/kaii/Overskride/">
+	<schema id="io.github.kaii_lb.Overskride" path="/io/github/kaii_lb/Overskride/">
 		<key name="window-width" type="i">
 			<default>-1</default>
 			<summary>default window width</summary>

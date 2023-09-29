@@ -1,4 +1,4 @@
-application_id = 'com.kaii.Overskride'
+application_id = 'io.github.kaii_lb.Overskride'
 
 scalable_dir = join_paths('hicolor', 'scalable', 'apps')
 install_data(

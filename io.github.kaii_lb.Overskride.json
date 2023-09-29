@@ -1,5 +1,5 @@
 {
-    "app-id" : "com.kaii.Overskride",
+    "app-id" : "io.github.kaii_lb.Overskride",
     "runtime" : "org.gnome.Platform",
     "runtime-version" : "master",
     "sdk" : "org.gnome.Sdk",
@@ -43,7 +43,7 @@
             "sources" : [
                 {
                     "type" : "git",
-                    "url" : "file:///home/kaii/Projects"
+                    "url" : "file:///home/kaii/Projects/overskride"
                 }
             ]
         }

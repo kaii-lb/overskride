@@ -14,7 +14,7 @@ A Bluetooth and (soon to be) Obex client that is straight to the point, DE/WM ag
 - `meson setup build && cd build`
 - `meson compile && meson devenv`
 - `mkdir -p ~/.local/share/glib-2.0/schemas`
-- `cp ../data/com.kaii.Overskride.gschema.xml ~/.local/share/glib-2.0/schemas`
+- `cp ../data/io.github.kaii_lb.Overskride.gschema.xml ~/.local/share/glib-2.0/schemas`
 - `glib-compile-schemas ~/.local/share/glib-2.0/schemas`
 - `./src/overskride`
 

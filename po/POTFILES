@@ -1,4 +1,4 @@
-data/com.kaii.Overskride.desktop.in
-data/com.kaii.Overskride.appdata.xml.in
-data/com.kaii.Overskride.gschema.xml
+data/io.github.kaii_lb.Overskride.desktop.in
+data/io.github.kaii_lb.Overskride.appdata.xml.in
+data/io.github.kaii_lb.Overskride.gschema.xml
 src/window.ui

@@ -1,10 +1,10 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <gresources>
-  <gresource prefix="/com/kaii/Overskride">
+  <gresource prefix="/io/github/kaii_lb/Overskride/">
     <file preprocess="xml-stripblanks">gtk/window.ui</file>
     <file preprocess="xml-stripblanks">gtk/help-overlay.ui</file>
   </gresource>
-  <gresource prefix="/com/kaii/Overskride/icons/scalable/apps/">
+  <gresource prefix="/io/github/kaii_lb/Overskride/icons/scalable/apps/">
     <file alias="check-plain-symbolic.svg">icons/symbolic/actions/check-plain-symbolic.svg</file>
     <file alias="dock-left-symbolic.svg">icons/symbolic/actions/dock-left-symbolic.svg</file>
     <file alias="bluetooth-symbolic.svg">icons/symbolic/actions/bluetooth-symbolic.svg</file>
