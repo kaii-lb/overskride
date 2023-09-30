@@ -21,6 +21,8 @@
 mod application;
 mod config;
 mod window;
+mod message;
+mod bluetooth_settings;
 
 use self::application::OverskrideApplication;
 use self::window::OverskrideWindow;

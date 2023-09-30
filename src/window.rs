@@ -30,6 +30,9 @@ use std::cell::{OnceCell, RefCell};
 use std::collections::HashMap;
 use std::rc::Rc;
 
+use crate::bluetooth_settings;
+use crate::message::Message;
+
 // U N S A F E T Y 
 static mut CURRENT_ADDRESS: bluer::Address = bluer::Address::any();
 static mut CURRENT_INDEX: i32 = 0;
@@ -37,39 +40,13 @@ static mut CURRENT_SENDER: Option<Sender<Message>> = None;
 static mut CURRENT_ADAPTER: String = String::new();
 static mut ORIGINAL_ADAPTER: String = String::new();
 static mut DEVICES_LUT: Option<HashMap<bluer::Address, String>> = None;
-static mut ADAPTERS_LUT: Option<HashMap<String, String>> = None;
+pub static mut ADAPTERS_LUT: Option<HashMap<String, String>> = None;
 static mut RSSI_LUT: Option<HashMap<String, i32>> = None;
 static mut CURRENTLY_LOOPING: bool = false;
 static mut DISPLAYING_DIALOG: bool = false;
 static mut PIN_CODE: String = String::new();
 static mut PASS_KEY: u32 = 0;
 static mut CONFIRMATION_AUTHORIZATION: bool = false;
-
-enum Message {
-    #[allow(dead_code)]
-    SwitchTrusted(bool),
-    SwitchBlocked(bool),
-    SwitchActive(bool),
-    SwitchName(String, Option<String>),
-    SwitchPage(Option<String>, Option<String>),
-    RemoveDevice(String),
-    AddRow(bluer::Device),
-    SwitchAdapterPowered(bool),
-    SwitchAdapterTimeout(u32),
-    SwitchAdapterDiscoverable(bool),
-    SwitchAdapterName(String, String),
-    PopulateAdapterExpander(HashMap<String, String>),
-    SetRefreshSensitive(bool),
-    PopupError(String),
-    UpdateListBoxImage(),
-    RequestPinCode(bluer::agent::RequestPinCode),
-    DisplayPinCode(bluer::agent::DisplayPinCode),
-    RequestPassKey(bluer::agent::RequestPasskey),
-    DisplayPassKey(bluer::agent::DisplayPasskey),
-    RequestConfirmation(bluer::agent::RequestConfirmation),
-    RequestAuthorization(bluer::agent::RequestAuthorization),
-    AuthorizeService(bluer::agent::AuthorizeService),
-} 
 
 mod imp {
     use super::*;
@@ -309,7 +286,6 @@ impl OverskrideWindow {
                     
                     let mut index = 0;
                     while let Some(row) = listbox.clone().row_at_index(index) {
-                    
                         let action_row = row.downcast::<adw::ActionRow>().expect("cannot downcast to action row.");
                     
                         if action_row.clone().title() == old_alias {
@@ -319,7 +295,7 @@ impl OverskrideWindow {
                     }
                     let adapter_name_entry = clone.imp().adapter_name_entry.get();
 
-                    adapter_name_entry.set_text(new_alias.as_str()); // causes issue where it wants to reapply
+                    adapter_name_entry.set_text(new_alias.as_str());
                 },
                 Message::SwitchAdapterTimeout(timeout) => {
                     let timeout_time_adjustment = clone.imp().timeout_time_adjustment.get();
@@ -927,23 +903,18 @@ impl OverskrideWindow {
         let sender5 = sender.clone();
         powered_switch_row.connect_activated(move |_| {
             let sender_clone = sender5.clone();
+            let adapter_name = unsafe {
+                CURRENT_ADAPTER.clone()
+            };
 
             std::thread::spawn(move || {
-                let powered = match set_adapter_powered() {
-                    Ok(bool) => {
-                        bool
-                    },
+                match bluetooth_settings::set_adapter_powered(adapter_name, sender_clone.clone()) {
                     Err(err) => {
                         let string = err.message;
                         sender_clone.send(Message::PopupError(string)).expect("cannot send message");
-                        false
                     },
+                    Ok(()) => (),
                 };
-    
-                sender_clone.send(Message::SetRefreshSensitive(false)).expect("cannot send message");
-                std::thread::sleep(std::time::Duration::from_secs_f32(0.5));
-                sender_clone.send(Message::SwitchAdapterPowered(powered)).expect("can't send message");
-                sender_clone.send(Message::SetRefreshSensitive(true)).expect("cannot send message");
             });
         });
 
@@ -951,21 +922,18 @@ impl OverskrideWindow {
        	let sender6 = sender.clone();
        	discoverable_switch_row.connect_activated(move |_| {
             let sender_clone = sender6.clone();
+            let adapter_name = unsafe {
+                CURRENT_ADAPTER.clone()
+            };
 
             std::thread::spawn(move || {
-                let discoverable = match set_adapter_discoverable() {
-                    Ok(bool) => {
-                        bool
-                    },
+                match bluetooth_settings::set_adapter_discoverable(adapter_name, sender_clone.clone()) {
                     Err(err) => {
                         let string = "Adapter ".to_string() + &err.message;
                         sender_clone.send(Message::PopupError(string)).expect("cannot send message");
-                        false
                     },
+                    Ok(()) => (),
                 };
- 
-                std::thread::sleep(std::time::Duration::from_secs_f32(0.5));
-                sender_clone.send(Message::SwitchAdapterDiscoverable(discoverable)).expect("can't send message"); 	
             });
         });
 
@@ -973,21 +941,19 @@ impl OverskrideWindow {
         let sender7 = sender.clone();
         adapter_name_entry.connect_apply(move |entry| {
             let new_name = entry.text().to_string();
-
             let sender_clone = sender7.clone();
+            let adapter_name = unsafe {
+                CURRENT_ADAPTER.clone()
+            };
 
             std::thread::spawn(move || {
-                let name = match set_adapter_name(new_name) {
-                    Ok(name) => {
-                        name
-                    },
+                match bluetooth_settings::set_adapter_name(new_name, adapter_name, sender_clone.clone()) {
                     Err(err) => {
                         let string = "Adapter ".to_string() + &err.message;
                         sender_clone.send(Message::PopupError(string)).expect("cannot send message");
-                        return;
                     },
+                    Ok(()) => (),
                 };
-                sender_clone.send(Message::SwitchAdapterName(name[0].clone(), name[1].clone())).expect("cannot send message");
             });
         });
 
@@ -995,45 +961,49 @@ impl OverskrideWindow {
         let sender8 = sender.clone();
         timeout_adjustment.connect_value_changed(move |adjustment| {
             let value = adjustment.value();
+            let adapter_name = unsafe {
+                CURRENT_ADAPTER.clone()
+            };
 
-            let new_value = match set_timeout_duration(value as u32) {
-                Ok(val) => {
-                    val
-                }
+            match bluetooth_settings::set_timeout_duration(value as u32, adapter_name, sender8.clone()) {
                 Err(err) => {
                     let string = err.message;
                     sender8.send(Message::PopupError(string)).expect("cannot send message");
-                    3
-                }
+                },
+                Ok(()) => (),
             };
-
-            sender8.send(Message::SwitchAdapterTimeout(new_value)).expect("cannot send message");
         });
 
         let bluetooth_settings_row = self.imp().bluetooth_settings_row.get();
         let sender9 = sender.clone();
-        let self_clone2 = self.clone();
+        let self_clone3 = self.clone();
         bluetooth_settings_row.connect_activated(move |_| {
             let sender_clone = sender9.clone();
             std::thread::spawn(move || {
                 let adapter_names = populate_adapter_expander();
+                let sender = unsafe {
+                    CURRENT_SENDER.clone().unwrap()
+                };
+                let adapter_name = unsafe {
+                    CURRENT_ADAPTER.clone()
+                };
 
                 if let Ok(names) = adapter_names {
-                    if let Err(err) = get_adapter_properties(names) {
+                    if let Err(err) = bluetooth_settings::get_adapter_properties(names, sender, adapter_name) {
 	                    let string = "Adapter ".to_string() + &err.message;
 	                    sender_clone.send(Message::PopupError(string)).expect("cannot send message");    
                     }
                 }
             });
             
-            let main_listbox = self_clone2.imp().main_listbox.get();
+            let main_listbox = self_clone3.imp().main_listbox.get();
             main_listbox.unselect_all();
             
-            let main_stack = self_clone2.imp().main_stack.get();
+            let main_stack = self_clone3.imp().main_stack.get();
             let pages = main_stack.pages();
             pages.select_item(1, true);
 
-            let split_view = self_clone2.imp().split_view.get();
+            let split_view = self_clone3.imp().split_view.get();
             if split_view.is_collapsed() {
                 split_view.set_show_sidebar(false);
             }
@@ -1041,11 +1011,20 @@ impl OverskrideWindow {
         bluetooth_settings_row.emit_activate();
 
         let split_view = self.imp().split_view.get();
-        let self_clone3 = self.clone();
+        let self_clone4 = self.clone();
         split_view.connect_show_sidebar_notify(move |view| {
-            let show_sidebar_button = self_clone3.imp().show_sidebar_button.get();
+            let show_sidebar_button = self_clone4.imp().show_sidebar_button.get();
 			let active = view.shows_sidebar();
 
+            let text = match active {
+                true => {
+                    "Hide Sidebar"
+                },
+                false => {
+                    "Show Sidebar"
+                }
+            };
+            show_sidebar_button.set_tooltip_text(Some(text));
             show_sidebar_button.set_active(active);
         });
 
@@ -1078,7 +1057,7 @@ impl OverskrideWindow {
 
         self.set_maximized(maximized);
     }
-    
+
     #[tokio::main]
     async fn pre_setup(&self, sender: Sender<Message>) -> bluer::Result<()> {
         let settings = self.imp().settings.get().unwrap();
@@ -1264,41 +1243,7 @@ async fn set_device_name(address: bluer::Address, name: String) -> bluer::Result
     Ok(current_alias)
 }
 
-#[tokio::main]
-async fn set_adapter_powered() -> bluer::Result<bool> {
-    let current_session = bluer::Session::new().await?;
-    let adapter_name = unsafe {
-        CURRENT_ADAPTER.clone()
-    };
-    
-    let adapter = current_session.adapter(adapter_name.as_str())?;
-    
-    let current = adapter.is_powered().await?;
-    adapter.set_powered(!current).await?;
-    
-    let powered =  adapter.is_powered().await?;
-    
-    Ok(powered)
-}
 
-#[tokio::main]
-async fn set_adapter_discoverable() -> bluer::Result<bool> {
-    let current_session = bluer::Session::new().await?;
-    let adapter_name = unsafe {
-        CURRENT_ADAPTER.clone()
-    };
-    
-    let adapter = current_session.adapter(adapter_name.as_str())?;
-    
-    let current = adapter.is_discoverable().await?;
-    adapter.set_discoverable(!current).await?;
-
-    let discoverable = adapter.is_discoverable().await?;
-
-    // println!("discoverable is: {}", discoverable);
-
-    Ok(discoverable)
-}
 
 #[tokio::main]
 async fn add_child_row(device: bluer::Device) -> bluer::Result<adw::ActionRow> {
@@ -1384,7 +1329,6 @@ async fn add_child_row(device: bluer::Device) -> bluer::Result<adw::ActionRow> {
     Ok(child_row)
 }
 
-
 /// Gets the the device associates with `address`, and then retrieves the properties of that device.
 /// Its an async method so you have to `await` it else it won't do anything.
 /// Still has an issue when trying to select other devices after first device.
@@ -1447,64 +1391,6 @@ async fn populate_adapter_expander() -> bluer::Result<HashMap<String, String>> {
 
     //println!("entire adapter names list: {:?}", alias_name_hashmap);
     Ok(alias_name_hashmap)
-}
-
-#[tokio::main]
-async fn get_adapter_properties(adapters_hashmap: HashMap<String, String>) -> bluer::Result<()> {
-    let current_session = bluer::Session::new().await?;
-    let adapter_name = unsafe {
-        CURRENT_ADAPTER.clone()
-    };
-    
-    let adapter = current_session.adapter(adapter_name.as_str())?;
-
-
-    let is_powered = adapter.is_powered().await?;
-    let is_discoverable = adapter.is_discoverable().await?;
-	let alias = adapter.alias().await?;
-    let timeout = adapter.discoverable_timeout().await? / 60;
-
-    let sender = unsafe { 
-    	CURRENT_SENDER.clone().unwrap() 
-    };
-    
-    sender.send(Message::PopulateAdapterExpander(adapters_hashmap)).expect("cannot send message {}");
-    //println!("sent populate adapters message");
-    sender.send(Message::SwitchAdapterPowered(is_powered)).expect("cannot send message {}");
-    sender.send(Message::SwitchAdapterDiscoverable(is_discoverable)).expect("cannot send message {}");
-    sender.send(Message::SwitchAdapterName(alias.clone().to_string(), alias.to_string())).expect("cannot send message {}");
-    sender.send(Message::SwitchAdapterTimeout(timeout)).expect("cannot send message {}");
-    
-    // println!("the adapter properties have been updated.");
-
-    Ok(())
-}
-
-#[tokio::main]
-async fn set_adapter_name(alias: String) -> bluer::Result<Vec<String>> {
-    let current_session = bluer::Session::new().await?;
-    let adapter_name = unsafe {
-        CURRENT_ADAPTER.clone()
-    };
-
-    let adapter = current_session.adapter(adapter_name.as_str())?;
-    let old_alias = adapter.alias().await?;
-    //println!("old alias is: {}", old_alias.to_string());
-
-    adapter.set_alias(alias).await?;
-    let new_alias = adapter.alias().await?;
-
-    unsafe {
-        let mut lut = ADAPTERS_LUT.clone().unwrap();
-        let bluetooth_name = adapter.name().to_string();
-
-        lut.remove(&old_alias.clone());
-        lut.insert(new_alias.clone(), bluetooth_name);
-        ADAPTERS_LUT = Some(lut);
-    }
-
-    //println!("name is: {}", name.clone());
-    Ok(vec!(new_alias, old_alias))
 }
 
 #[tokio::main]
@@ -1646,8 +1532,15 @@ async fn get_devices_continuous() -> bluer::Result<()> {
                     	std::thread::sleep(std::time::Duration::from_secs_f32(0.5));
                     	sender.send(Message::SwitchAdapterName(alias.clone(), alias.clone())).expect("cannot send message {}");
                     },
+                    AdapterEvent::PropertyChanged(AdapterProperty::DiscoverableTimeout(timeout)) => {
+                    	let sender = unsafe {
+                    		CURRENT_SENDER.clone().unwrap()	
+                    	};
+                    	std::thread::sleep(std::time::Duration::from_secs_f32(0.5));
+                    	sender.send(Message::SwitchAdapterTimeout(timeout)).expect("cannot send message {}");
+                    },
                     event => {
-                        println!("unhandled event: {:?}", event);
+                        println!("unhandled adapter event: {:?}", event);
                     }
                 }
             }
@@ -1733,7 +1626,9 @@ async fn get_devices_continuous() -> bluer::Result<()> {
                             sender.send(Message::SwitchPage(None, Some(icon))).expect("cannot send message");
                         }
                     },
-                    _ => (),
+                    event => {
+                        println!("unhandeled device event: {:?}", event);
+                    },
                 }
             }
             else => break
@@ -1745,20 +1640,6 @@ async fn get_devices_continuous() -> bluer::Result<()> {
     }
     drop(agent);
     Err(bluer::Error { kind: bluer::ErrorKind::Failed, message: "Stopped searching for devices".to_string() })
-}
-
-#[tokio::main]
-async fn set_timeout_duration(timeout: u32) -> bluer::Result<u32> {
-    let current_session = bluer::Session::new().await?;
-
-    let adapter_name = unsafe {
-        CURRENT_ADAPTER.clone()
-    };
-    let adapter = current_session.adapter(adapter_name.as_str())?;
-
-    adapter.set_discoverable_timeout(timeout * 60).await?;
-
-    Ok(adapter.discoverable_timeout().await? / 60)
 }
 
 async fn request_pin_code(request: bluer::agent::RequestPinCode) -> bluer::agent::ReqResult<String> {
@@ -1959,13 +1840,13 @@ async fn wait_for_dialog_exit() {
     }
 }
 
-#[tokio::main]
-async fn forever_agent() -> bluer::Result<()> {
-	// let current_session = bluer::Session::new().await?;
-	// let agent = register_agent(&current_session, true, true).await?;
-	// println!("registered agent is: {:?}\n", agent);	
-
-	loop {
-		std::thread::sleep(std::time::Duration::from_secs(1));
-	}
-}
+// TODO
+// - add a match rule for weird ass device names (address for name) and add address as subtext
+// - add a match rule for device rssi change and handle icon change and invalidate sort
+// - add a spinner (preffered) or loading bar (looks better?) for long action (connecting to device)
+// - gray out actions that take a while so user doesn't fuck up stuff
+// - set all popups to modal
+// - use fxhashmap for even faster lookups
+// - add option to auto trust device on pair (include warning about how dangerous it is)
+// - fix get devices continous being wrapped in another useless functions
+// - 

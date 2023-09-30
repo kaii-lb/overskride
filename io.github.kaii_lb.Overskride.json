@@ -1,7 +1,7 @@
 {
     "app-id" : "io.github.kaii_lb.Overskride",
     "runtime" : "org.gnome.Platform",
-    "runtime-version" : "master",
+    "runtime-version" : "45",
     "sdk" : "org.gnome.Sdk",
     "sdk-extensions" : [
         "org.freedesktop.Sdk.Extension.rust-stable"
@@ -12,7 +12,10 @@
         "--share=ipc",
         "--socket=fallback-x11",
         "--device=dri",
-        "--socket=wayland"
+        "--socket=wayland",
+        "--allow=bluetooth",
+        "--socket=system-bus",
+        "--socket=session-bus"
     ],
     "build-options" : {
         "append-path" : "/usr/lib/sdk/rust-stable/bin",
@@ -37,13 +40,26 @@
     ],
     "modules" : [
         {
+          "name": "blueprint-compiler",
+          "buildsystem": "meson",
+          "cleanup": ["*"],
+          "sources": [
+            {
+              "type": "git",
+              "url": "https://gitlab.gnome.org/jwestman/blueprint-compiler.git",
+              "tag": "v0.10.0"
+            }
+          ]
+        },
+        {
             "name" : "overskride",
             "builddir" : true,
             "buildsystem" : "meson",
             "sources" : [
                 {
                     "type" : "git",
-                    "url" : "file:///home/kaii/Projects/overskride"
+                    "url" : "file:///home/kaii/Projects/overskride",
+                    "branch" : "main"
                 }
             ]
         }
