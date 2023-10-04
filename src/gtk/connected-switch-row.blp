@@ -1,0 +1,23 @@
+using Gtk 4.0;
+using Adw 1;
+
+template $ConnectedSwitchRow : Adw.ActionRow {
+  activatable: true;
+  activatable-widget: switch;
+
+  styles [ "destructive-action" ]
+
+  [suffix]  
+  Box {
+    Spinner spinner {
+      // spinning: true;
+      margin-end: 12;
+    }
+
+    Switch switch {
+      // active: true;
+      valign: center;
+      can-focus: false;
+    }
+  }
+}

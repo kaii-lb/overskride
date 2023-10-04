@@ -3,6 +3,9 @@
   <gresource prefix="/io/github/kaii_lb/Overskride/">
     <file preprocess="xml-stripblanks">gtk/window.ui</file>
     <file preprocess="xml-stripblanks">gtk/help-overlay.ui</file>
+    <file preprocess="xml-stripblanks">gtk/connected-switch-row.ui</file>
+    <file preprocess="xml-stripblanks">gtk/device-action-row.ui</file>
+    <file>gtk/style.css</file>
   </gresource>
   <gresource prefix="/io/github/kaii_lb/Overskride/icons/scalable/apps/">
     <file alias="check-plain-symbolic.svg">icons/symbolic/actions/check-plain-symbolic.svg</file>

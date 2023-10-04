@@ -88,10 +88,32 @@ pub async fn set_timeout_duration(timeout: u32, adapter_name: String, sender: Se
 
     adapter.set_discoverable_timeout(timeout * 60).await?;
 
-    std::thread::sleep(std::time::Duration::from_secs(1));
+    // std::thread::sleep(std::time::Duration::from_millis(100));
     
     let new_timeout = adapter.discoverable_timeout().await? / 60;
     sender.send(Message::SwitchAdapterTimeout(new_timeout)).expect("cannot set timeout.");
 
     Ok(())
+}
+
+#[tokio::main]
+pub async fn populate_adapter_expander() -> bluer::Result<HashMap<String, String>> {
+    let current_session = bluer::Session::new().await?;
+    let adapter_names = current_session.adapter_names().await?;
+    let mut alias_name_hashmap: HashMap<String, String> = HashMap::new();
+
+    for name in adapter_names.clone() {
+        let adapter = current_session.adapter(name.as_str())?;
+        
+       	let alias = adapter.alias().await?;
+        
+        alias_name_hashmap.insert(alias.clone().to_string(), name.clone().to_string());
+        //println!("adapter alias is: {}", alias)
+    }
+
+    unsafe {
+        ADAPTERS_LUT = Some(alias_name_hashmap.clone());
+    }
+
+    Ok(alias_name_hashmap)
 }

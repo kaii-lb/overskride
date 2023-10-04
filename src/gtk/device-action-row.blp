@@ -1,0 +1,15 @@
+using Gtk 4.0;
+using Adw 1;
+
+template $DeviceActionRow : Adw.ActionRow {
+  activatable: true;
+
+  [suffix]
+  Box {
+    spacing: 16;
+    
+    Image rssi_icon {
+      icon-name: "rssi-none-symbolic";
+    }
+  }
+}

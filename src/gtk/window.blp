@@ -130,9 +130,9 @@ template $OverskrideWindow: Adw.ApplicationWindow {
                   margin-bottom: 12;
                   margin-start: 1;
                   margin-end: 1;
-                  styles ["boxed-list"]
+                  styles [ "boxed-list", "separators" ]
                   valign: fill;
-                  height-request: 250;
+                  // height-request: 250;
                   visible: false;
 
                    // Adw.ActionRow {
@@ -213,9 +213,8 @@ template $OverskrideWindow: Adw.ApplicationWindow {
                     title: "Connection Properties";
                     description: "Bluetooth connection information about this device.";
 
-                    Adw.SwitchRow connected_switch_row {
+                    $ConnectedSwitchRow connected_switch_row {
                       title: "Connected";
-                      //action-name: "win.set_device_active";
                     }
                     Adw.ExpanderRow audio_profile_expander {
                       title: "Audio Profile";
@@ -364,7 +363,8 @@ template $OverskrideWindow: Adw.ApplicationWindow {
                       title: "Discoverable Timeout";
                       enable-undo: true;
                       subtitle: "in minutes";
-                      climb-rate: 1;
+                      climb-rate: 100;
+                      wrap: true;
                       adjustment: timeout_time_adjustment;
                     }
 
