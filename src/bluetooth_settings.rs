@@ -8,10 +8,9 @@ pub async fn set_adapter_powered(adapter_name: String, sender: Sender<Message>) 
     let adapter = bluer::Session::new().await?.adapter(adapter_name.as_str())?;
 
     let current = adapter.is_powered().await?;
-    println!("current powered is: {:?}", current);
+
     adapter.set_powered(!current).await?;
     
-    std::thread::sleep(std::time::Duration::from_secs_f32(0.5));
     sender.send(Message::SetRefreshSensitive(false)).expect("cannot send message");
     let powered =  adapter.is_powered().await?;
     

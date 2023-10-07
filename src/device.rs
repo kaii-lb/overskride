@@ -314,14 +314,11 @@ pub async fn get_devices_continuous(sender: Sender<Message>, adapter_name: Strin
                         }
                     },
                     DeviceProperty::Rssi(rssi) => {
-                        let current_address = unsafe {
-                       		CURRENT_ADDRESS 
-                       	};
-                       
                        	let device = unsafe {
-                            DEVICES_LUT.clone().unwrap().get(&current_address).unwrap_or(&"Unknown Device".to_string()).to_string()
+                            DEVICES_LUT.clone().unwrap().get(&addr).unwrap_or(&"Unknown Device".to_string()).to_string()
                         };
                         sender_clone.send(Message::SwitchRssi(device, rssi as i32)).expect("cannot send message");
+                        sender_clone.send(Message::InvalidateSort()).expect("cannot send message");
                     },
                     event => {
                         println!("unhandeled device event: {:?}", event);

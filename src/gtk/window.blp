@@ -16,7 +16,7 @@ template $OverskrideWindow: Adw.ApplicationWindow {
     }
   }
 
-  content: Adw.ToastOverlay toast_overlay {
+  content: Adw.ToastOverlay toast_overlay {    
     child: Adw.OverlaySplitView split_view { 
       pin-sidebar: false;
       show-sidebar: bind show_sidebar_button.active;
@@ -177,6 +177,7 @@ template $OverskrideWindow: Adw.ApplicationWindow {
               styles ["flat"]
               kinetic-scrolling: true;
               overlay-scrolling: true;
+              margin-bottom: 86;
               
               Adw.Clamp {
                 orientation: horizontal;
@@ -282,6 +283,8 @@ template $OverskrideWindow: Adw.ApplicationWindow {
               styles ["flat"]
               kinetic-scrolling: true;
               overlay-scrolling: true;
+              valign: start;
+              margin-bottom: 86;
               
               child: Adw.Clamp {
                 orientation: horizontal;

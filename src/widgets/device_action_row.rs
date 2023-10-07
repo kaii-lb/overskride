@@ -67,7 +67,7 @@ impl DeviceActionRow {
     }
 
     pub fn get_bluer_address(&self) -> bluer::Address {
-        self.imp().address.borrow().clone()   
+        *self.imp().address.borrow()
     }
 
     pub fn set_bluer_address(&self, address: bluer::Address) {
@@ -75,7 +75,7 @@ impl DeviceActionRow {
     }
 
     pub fn update_rssi_icon(&self) {
-        let icon_name = match self.imp().rssi.borrow().clone() {
+        let icon_name = match *self.imp().rssi.borrow() {
             0 => {
                 "rssi-none-symbolic"
             },
@@ -102,4 +102,10 @@ impl DeviceActionRow {
 
         self.imp().rssi_icon.set_icon_name(Some(icon_name));
     }
+}
+
+impl Default for DeviceActionRow {
+	fn default() -> Self {
+		Self::new()
+	}
 }

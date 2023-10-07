@@ -27,4 +27,5 @@ pub enum Message {
     RequestAuthorization(bluer::agent::RequestAuthorization),
     AuthorizeService(bluer::agent::AuthorizeService),
     GoToBluetoothSettings(bool),
+    InvalidateSort(),
 } 

@@ -710,7 +710,9 @@ impl OverskrideWindow {
                     unsafe {
                         DISPLAYING_DIALOG = true;
                         device = DEVICES_LUT.clone().unwrap().get(&request.device).unwrap_or(&"Unknown Device".to_string()).to_string();
-                        adapter = ADAPTERS_LUT.clone().unwrap().get(&request.adapter).unwrap_or(&"Unknown Adapter".to_string()).to_string();
+                        adapter = ADAPTERS_LUT.clone().unwrap().iter()
+                        	.find_map(|(key, val)| if val == &request.adapter { Some(key) } else { None })
+                       		.unwrap_or(&"Unknown Adapter".to_string()).to_string();
                     }
             
                     let body = "Is ".to_string() + device.as_str() + " on " + adapter.as_str() + " allowed to authorize this service?";
@@ -718,12 +720,17 @@ impl OverskrideWindow {
                     popup.set_body_use_markup(true);
                     popup.set_body(body.as_str());
             
-                    let service_id = match bluer::id::Service::try_from(request.service) {
-                        Ok(name) => format!("{}", name),
-                        Err(_) => format!("{:?}", request.service),
+            		let service_id = match bluer::id::Service::try_from(request.service) {
+                        Ok(name) =>{
+                        	println!("service name is: {}", name.clone());
+                        	format!("{}", name)	
+                        },
+                        Err(_) => {
+                           	println!("service id is: {}", request.service);
+                        	format!("{:?}", request.service)	
+                        },
                     };
-            
-                    let string = "<span font_weight='bold' font_size='24pt'".to_string() + service_id.as_str() + "</span>";
+                    let string = "<span font_weight='bold' font_size='24pt'>".to_string() + service_id.as_str() + "</span>";
             
                     let label = gtk::Label::new(None);
                     label.set_use_markup(true);
@@ -766,6 +773,10 @@ impl OverskrideWindow {
                             listbox.select_row(Some(&row));
                         } 
                     }
+                },
+                Message::InvalidateSort() => {
+                	let main_listbox = clone.imp().main_listbox.get();
+                	main_listbox.invalidate_sort();	
                 },
             }
         
@@ -822,17 +833,16 @@ impl OverskrideWindow {
         refresh_button.emit_clicked();
         
         let main_listbox = self.imp().main_listbox.get();
-        main_listbox.invalidate_sort();
         main_listbox.set_sort_func(|row_one, row_two| {
-            let binding_one = row_one.clone().downcast::<adw::ActionRow>().unwrap().title();
-            let binding_two = row_two.clone().downcast::<adw::ActionRow>().unwrap().title();
+        	let actionrow_one = row_one.clone().downcast::<DeviceActionRow>().unwrap();
+        	let actionrow_two = row_two.clone().downcast::<DeviceActionRow>().unwrap();
+        	
+            let binding_one = actionrow_one.title();
+            let binding_two = actionrow_two.title();
             
-            let hashmap = unsafe {
-                RSSI_LUT.clone().unwrap()
-            };
-            let rssi_one = hashmap.get(&binding_one.clone().to_string()).unwrap_or(&(-100));
-            let rssi_two = hashmap.get(&binding_two.clone().to_string()).unwrap_or(&(-100));
-            //println!("rssi one {} rssi two {}", rssi_one, rssi_two);
+            let rssi_one = actionrow_one.rssi();
+            let rssi_two = actionrow_two.rssi();
+            // println!("binding one {} binding two {}", binding_one, binding_two);
             
             let mut one = binding_one.as_str();
             let mut two = binding_two.as_str();
@@ -844,7 +854,7 @@ impl OverskrideWindow {
             two = two_str.as_str();
             
             let name_result = one.cmp(two);
-            let rssi_result = rssi_two.cmp(rssi_one);
+            let rssi_result = rssi_one.cmp(&rssi_two);
             //println!("rssi result {:?}", rssi_result);
             
             let final_result = if rssi_result == std::cmp::Ordering::Equal {
@@ -853,10 +863,12 @@ impl OverskrideWindow {
             else {
                 rssi_result
             };
-            //println!("rssi result {:?}", final_result);
+            // println!("rssi one {} rssi two {}", rssi_one, rssi_two);
+            // println!("rssi result {:?}", final_result);
             
             final_result.into()
         });
+        main_listbox.invalidate_sort();
         
         let connected_switch_row = self.imp().connected_switch_row.get();
         let sender1 = sender.clone();
@@ -886,6 +898,35 @@ impl OverskrideWindow {
                 }
             });
         });
+        let sender10 = sender.clone();
+        connected_switch_row.child().unwrap().downcast::<gtk::Box>().unwrap().last_child().unwrap().downcast::<gtk::Box>().unwrap()
+            .first_child().unwrap().downcast::<gtk::Box>().unwrap().last_child().unwrap().downcast::<gtk::Switch>().unwrap()
+            .connect_active_notify(move |_| {
+            	println!("swithced");
+                if connected_switch_row.spinning() {
+                    connected_switch_row.set_spinning(false);
+                }
+    
+                let sender_clone = sender10.clone();
+                let address = unsafe { 
+                	CURRENT_ADDRESS 
+                };
+                let adapter_name = unsafe {
+                    CURRENT_ADAPTER.clone()
+                };
+                
+                connected_switch_row.set_active(!connected_switch_row.active());
+                std::thread::spawn(move || {
+                    if let Err(err) = device::set_device_active(address, sender_clone.clone(), adapter_name) {
+                        let string = err.clone().message;
+                        println!("error while connecting {:?}\n", err);
+    
+                        sender_clone.send(Message::PopupError(string, adw::ToastPriority::High, "error".to_string())).expect("cannot send message");
+                        sender_clone.send(Message::SwitchActive(false)).expect("cannot send message");
+                        sender_clone.send(Message::SwitchActiveSpinner(false)).expect("cannot send message");
+                    }
+                });
+            });
         
         let blocked_row = self.imp().blocked_row.get();
         let sender2 = sender.clone();
@@ -1167,7 +1208,7 @@ async fn add_child_row(device: bluer::Device) -> bluer::Result<DeviceActionRow> 
     let address = device.address();
     let rssi = match device.rssi().await? {
         None => {
-            0 as i32
+            0
         },
         Some(n) => {
             n as i32
@@ -1177,8 +1218,9 @@ async fn add_child_row(device: bluer::Device) -> bluer::Result<DeviceActionRow> 
     child_row.set_bluer_address(address);
     child_row.set_title(name.clone().as_str());
     child_row.set_activatable(true);
+    child_row.set_adapter_name(unsafe {CURRENT_ADAPTER.clone()});
 
-    child_row.set_rssi(rssi);    
+    child_row.set_rssi(rssi);   
     
     unsafe {
         let mut devices_lut = DEVICES_LUT.clone().unwrap();
@@ -1187,6 +1229,11 @@ async fn add_child_row(device: bluer::Device) -> bluer::Result<DeviceActionRow> 
         DEVICES_LUT = Some(devices_lut);
         //println!("big lut (add) is: {:?}", DEVICES_LUT.clone());
     } 
+	let sender = unsafe { 
+        CURRENT_SENDER.clone().unwrap() 
+    };
+    sender.send(Message::InvalidateSort()).expect("cannot send message");
+    sender.send(Message::SwitchRssi(name.clone(), rssi)).expect("cannot send message");
 
     child_row.connect_activated(move |row| {        
         unsafe {
@@ -1196,17 +1243,18 @@ async fn add_child_row(device: bluer::Device) -> bluer::Result<DeviceActionRow> 
         
         let address = row.get_bluer_address();
         let adapter_name = row.adapter_name();
+		let sender_clone = sender.clone();
+
+        println!("row address {} with adapter {}", address.clone(), adapter_name.clone());
 
         std::thread::spawn(move || {
-            let sender = unsafe { 
-                CURRENT_SENDER.clone().unwrap() 
-            };
+            let sender_clone_clone = sender_clone.clone(); // lmao
 
-            if let Err(err) = device::get_device_properties(address, sender.clone(), adapter_name) {
+            if let Err(err) = device::get_device_properties(address, sender_clone_clone.clone(), adapter_name) {
 	            let string = err.message;
 
-	            sender.send(Message::GoToBluetoothSettings(true)).expect("cannot send message");
-	            sender.send(Message::PopupError(string, adw::ToastPriority::High, "error".to_string())).expect("cannot send message");
+	            sender_clone_clone.send(Message::GoToBluetoothSettings(true)).expect("cannot send message");
+	            sender_clone_clone.send(Message::PopupError(string, adw::ToastPriority::High, "error".to_string())).expect("cannot send message");
             }
         });
     });
