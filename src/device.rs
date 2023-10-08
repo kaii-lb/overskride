@@ -39,6 +39,8 @@ pub async fn set_device_active(address: bluer::Address, sender: Sender<Message>,
 
     println!("set state {} for device {}\n", updated_state, device.address());
 	sender.send(Message::SwitchActiveSpinner(false)).expect("cannot set spinner to show.");
+	// sender.send(Message::SwitchActiveSpinner(false)).expect("cannot set spinner to show.");
+    // connected_switch_row.set_active(!connected_switch_row.active());
     
     Ok(())
 }

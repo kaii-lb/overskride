@@ -17,7 +17,7 @@ pub enum Message {
     SwitchAdapterName(String, String),
     PopulateAdapterExpander(HashMap<String, String>),
     SetRefreshSensitive(bool),
-    PopupError(String, adw::ToastPriority, String),
+    PopupError(String, adw::ToastPriority),
     UpdateListBoxImage(),
     RequestPinCode(bluer::agent::RequestPinCode),
     DisplayPinCode(bluer::agent::DisplayPinCode),

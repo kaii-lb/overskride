@@ -51,38 +51,35 @@ mod imp {
     impl WidgetImpl for ConnectedSwitchRow {}
     impl ListBoxRowImpl for ConnectedSwitchRow {}
     impl PreferencesRowImpl for ConnectedSwitchRow {}
-
+    
     impl ConnectedSwitchRow {
         /// sets the `ConnectedSwitchRow`'s state to `active`, make the spinning visible in the process.
-        pub fn set_row_active(&self, active: bool) {
+        fn set_row_active(&self, active: bool) {
             let current_active = self.switch.get().is_active();
     
             if current_active == active {
                 return;
             }
-            println!("current active for custom row is: {}", current_active);
+            // println!("current active for custom row is: {}", current_active);
             
             *self.active.borrow_mut() = active;
             self.spinner.set_spinning(true);
         }
-        
-        pub fn get_self_switch(&self) -> gtk::Switch {
-            self.switch.get()
-        }
-
+ 
         /// return the current state of the row's spinner, ie: spinning, or not visible.
-        pub fn get_row_spinning(&self) -> bool {
+        fn get_row_spinning(&self) -> bool {
             self.spinner.is_spinning()
         }
-
+        
         /// sets the row's spinner to `spinning`.
-        pub fn set_row_spinning(&self, spinning: bool) {
+        fn set_row_spinning(&self, spinning: bool) {
             self.spinner.set_spinning(spinning);
         }
 
         fn set_switch_active(&self, active: bool) {
             self.switch.set_active(active);
         }
+
     }
 }
 

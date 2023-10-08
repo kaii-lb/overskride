@@ -22,22 +22,24 @@ use adw::prelude::*;
 use gtk::gio::Settings;
 use gtk::glib::{Sender, clone};
 use gtk::{gio, glib};
+use gtk::glib::SignalHandlerId;
 
 use std::cell::{OnceCell, RefCell};
 use std::collections::HashMap;
 use std::rc::Rc;
-use gtk::glib::SignalHandlerId;
+use std::str::FromStr;
 
 use crate::device_action_row::DeviceActionRow;
 use crate::{bluetooth_settings, device, connected_switch_row::ConnectedSwitchRow};
 use crate::message::Message;
+use crate::services::get_name_from_service;
 
 // U N S A F E T Y 
-pub static mut CURRENT_ADDRESS: bluer::Address = bluer::Address::any();
 static mut CURRENT_INDEX: i32 = 0;
 static mut CURRENT_SENDER: Option<Sender<Message>> = None;
 static mut RSSI_LUT: Option<HashMap<String, i32>> = None;
 static mut ORIGINAL_ADAPTER: String = String::new();
+pub static mut CURRENT_ADDRESS: bluer::Address = bluer::Address::any();
 pub static mut CURRENT_ADAPTER: String = String::new();
 pub static mut DEVICES_LUT: Option<HashMap<bluer::Address, String>> = None;
 pub static mut ADAPTERS_LUT: Option<HashMap<String, String>> = None;
@@ -227,11 +229,9 @@ impl OverskrideWindow {
                     let mut listbox_index = 0;
                     
                     while let Some(row) = list_box.clone().row_at_index(listbox_index) {
-                        //println!("{}", index);
                         let action_row = row.downcast::<DeviceActionRow>().expect("cannot downcast to device action row.");
-                        //println!("{:?}", action_row.clone().title());
                         
-                        println!("device {}, with rssi {} changed", device_name.clone(), rssi);
+                        // println!("device {}, with rssi {} changed", device_name.clone(), rssi);
 
                         if action_row.clone().title() == device_name {
                             action_row.set_rssi(rssi);
@@ -399,24 +399,108 @@ impl OverskrideWindow {
                     let button = clone.imp().refresh_button.get();
                     button.set_sensitive(sensitive);
                 },
-                Message::PopupError(string, priority, state) => {
+                Message::PopupError(string, priority) => {
                     let toast_overlay = clone.imp().toast_overlay.get();
                     let toast = adw::Toast::new("");
-
-                    let custom_title = gtk::Label::new(Some(string.as_str()));
                     
                     toast.set_priority(priority);
+
+                    // best practices out the window :D
+                    let title_holder = match string {
+                        s if s.to_lowercase().contains("page-timeout") => {
+                            "Failed to connect to device, connection timed out"
+                        },
+                        s if s.to_lowercase().contains("already-connected") => {
+                            "Device is already connected"
+                        },
+                        s if s.to_lowercase().contains("profile-unavailable") => {
+                            "Failed to find the target profile"
+                        },
+                        s if s.to_lowercase().contains("create-socket") => {
+                            "Failed to connecet to Bluetooth socket, this is bad"
+                        },
+                        s if s.to_lowercase().contains("bad-socket") => {
+                            "Bad socket for connection, this is bad"
+                        },
+                        s if s.to_lowercase().contains("memory-allocation") => {
+                            "Failed to allocate memory"
+                        },
+                        s if s.to_lowercase().contains("busy") => {
+                            "Other operations pending, please try again in a bit"
+                        },
+                        s if s.to_lowercase().contains("limit") => {
+                            "Reached limit, cannot connect to anymore devices"
+                        },
+                        s if s.to_lowercase().contains("connection-timeout") => {
+                            "Failed to connect to device, connection timed out"
+                        },
+                        s if s.to_lowercase().contains("refused") => {
+                            "Connection was refused by target device"
+                        },
+                        s if s.to_lowercase().contains("aborted-by-remote") => {
+                            "Target device aborted connection"
+                        },
+                        s if s.to_lowercase().contains("aborted-by-local") => {
+                            "Connection has been aborted"
+                        },
+                        s if s.to_lowercase().contains("lmp-protocol-error") => {
+                            "Connection failed, lmp protocol error"
+                        },
+                        s if s.to_lowercase().contains("canceled") => {
+                            "Connection was cancled due to unforseen circumstances"
+                        },
+                        s if s.to_lowercase().contains("unknown-error") => {
+                            "Connection failed, no idea why tho"
+                        },
+                        s if s.to_lowercase().contains("invalid-arguments") => {
+                            "Invalid arguements provided"
+                        },
+                        s if s.to_lowercase().contains("not-powered") => {
+                            "Adapter is not powered"
+                        },
+                        s if s.to_lowercase().contains("not-supported") => {
+                            "Connection failed, requested features are not supported"
+                        },
+                        s if s.to_lowercase().contains("layer-protocol-error") => {
+                            "Connection failed, layer protocol error"
+                        },
+                        s if s.to_lowercase().contains("gatt-browsing") => {
+                            "Failed to complete GATT service browsing"
+                        },
+                        s if s.to_lowercase().contains("already-searching") => {
+                            "Already searching for devices"
+                        }
+                        e => {
+                            println!("unknown error: {}", e);
+                            "Connection failed, reasons unknown"
+                        }
+                    };
+
+                    let mut title = String::new();
+                    let icon = gtk::Image::new();
+                    icon.set_icon_name(Some("permissions-notifications"));
+                    let boxholder = gtk::Box::new(gtk::Orientation::Horizontal, 8);
+                    let label = gtk::Label::new(Some(""));
+                    boxholder.append(&icon);
+                    boxholder.append(&label);
+
                     match priority {
                         adw::ToastPriority::High => {
                             toast.set_timeout(5);
-                            custom_title.set_css_classes(&["warning", state.as_str()]);
+                            // custom_title.set_css_classes(&["warning", state.as_str()]);
+                            title += "<span font_weight='bold'>";
                         },
                         _ => {
                             toast.set_timeout(3);
-                            custom_title.set_css_classes(&[state.as_str()]);
+                            title += "<span font_weight='regular'>";
                         }
                     }
-                    toast.set_custom_title(Some(&custom_title));
+                    title += title_holder;
+                    title += "</span>";
+                    label.set_use_markup(true);
+                    label.set_label(&title);
+
+                    toast.set_custom_title(Some(&boxholder));
 
                     toast_overlay.add_toast(toast);
                 },
@@ -674,7 +758,7 @@ impl OverskrideWindow {
                         DISPLAYING_DIALOG = true;
                     }
             
-                    let body = "Is ".to_string() + device.as_str() + " on " + adapter.as_str() + " allowed to pair?";
+                    let body = "Is `".to_string() + device.as_str() + "` on `" + adapter.as_str() + "` allowed to pair?";
                     let popup = adw::MessageDialog::new(Some(&clone), Some("Pairing Request"), None);
                     popup.set_body_use_markup(true);
                     popup.set_body(body.as_str());
@@ -714,30 +798,32 @@ impl OverskrideWindow {
                         	.find_map(|(key, val)| if val == &request.adapter { Some(key) } else { None })
                        		.unwrap_or(&"Unknown Adapter".to_string()).to_string();
                     }
-            
-                    let body = "Is ".to_string() + device.as_str() + " on " + adapter.as_str() + " allowed to authorize this service?";
-                    let popup = adw::MessageDialog::new(Some(&clone), Some("Service Authorization Request"), None);
-                    popup.set_body_use_markup(true);
-                    popup.set_body(body.as_str());
-            
-            		let service_id = match bluer::id::Service::try_from(request.service) {
+            		
+                    let service_id = match bluer::id::Service::try_from(request.service) {
                         Ok(name) =>{
                         	println!("service name is: {}", name.clone());
                         	format!("{}", name)	
                         },
-                        Err(_) => {
-                           	println!("service id is: {}", request.service);
-                        	format!("{:?}", request.service)	
+                        Err(_) => { 
+                           	if let Ok(name) = get_name_from_service(request.service) {
+                                name
+                            }
+                            else {
+                                format!("Unkown Service of UUID: {:?}", request.service)	
+                            }
                         },
                     };
-                    let string = "<span font_weight='bold' font_size='24pt'>".to_string() + service_id.as_str() + "</span>";
+                    
+                    let popup = adw::MessageDialog::new(Some(&clone), Some("Service Authorization Request"), None);
             
-                    let label = gtk::Label::new(None);
+                    let body = "Is <span font_weight='bold' color='#78aeed'>`".to_string() + service_id.as_str() + "`</span> allowed to be authorized?\nRequest by <span font_weight='bold'>`" + device.as_str() + "`</span> on <span font_weight='bold'>`" + adapter.as_str() + "`</span>.";
+                    let label = gtk::Label::new(Some(""));
                     label.set_use_markup(true);
-                    label.set_label(string.as_str());
-            
+                    label.set_label(body.as_str());
+                    popup.set_extra_child(Some(&label));
+                        
                     popup.set_close_response("cancel");
-                    // popup.set_modal(true);
+                    popup.set_modal(true);
                     popup.set_destroy_with_parent(true);
             
                     popup.add_response("cancle", "Cancel");
@@ -801,7 +887,7 @@ impl OverskrideWindow {
                 if can_loop {
                     unsafe {
                         if CURRENTLY_LOOPING {
-                            sender0.send(Message::PopupError("Started searching for devices".to_string(), adw::ToastPriority::High, "success".to_string())).expect("cannot send message");
+                            sender0.send(Message::PopupError("Started searching for devices".to_string(), adw::ToastPriority::High)).expect("cannot send message");
                         }
                     }
                     let sender = sender0.clone();
@@ -811,22 +897,15 @@ impl OverskrideWindow {
 
                     std::thread::spawn(move || {
                         if let Err(err) = device::get_devices_continuous(sender.clone(), adapter_name) {
-                            let string = match err.message {
-                                s if s.to_lowercase().contains("resource not ready") => {
-                                    "Adapter is not powered".to_string()
-                                },
-                                s => {
-                                    s
-                                }
-                            };
+                            let string = err.message;
                 
-                            sender.send(Message::PopupError(string, adw::ToastPriority::High, "error".to_string())).expect("cannot send message");
+                            sender.send(Message::PopupError(string, adw::ToastPriority::High)).expect("cannot send message");
                             sender.send(Message::UpdateListBoxImage()).expect("cannot send message");
                         }
                     });
                 }
                 else {
-                    sender0.send(Message::PopupError("Already searching for devices".to_string(), adw::ToastPriority::Normal, "".to_string())).expect("can't send message");
+                    sender0.send(Message::PopupError("br-adapter-already-searching-for-devices".to_string(), adw::ToastPriority::Normal)).expect("can't send message");
                 }
                 // println!("trying to available devices");
         });
@@ -874,9 +953,7 @@ impl OverskrideWindow {
         let sender1 = sender.clone();
         connected_switch_row.set_activatable(true);
         connected_switch_row.connect_activated(move |row| {
-            if row.spinning() {
-                row.set_spinning(false);
-            }
+            row.set_spinning(false);
 
             let sender_clone = sender1.clone();
             let address = unsafe { 
@@ -892,41 +969,12 @@ impl OverskrideWindow {
                     let string = err.clone().message;
                     println!("error while connecting {:?}\n", err);
 
-                    sender_clone.send(Message::PopupError(string, adw::ToastPriority::High, "error".to_string())).expect("cannot send message");
+                    sender_clone.send(Message::PopupError(string, adw::ToastPriority::High)).expect("cannot send message");
                     sender_clone.send(Message::SwitchActive(false)).expect("cannot send message");
                     sender_clone.send(Message::SwitchActiveSpinner(false)).expect("cannot send message");
                 }
             });
         });
-        let sender10 = sender.clone();
-        connected_switch_row.child().unwrap().downcast::<gtk::Box>().unwrap().last_child().unwrap().downcast::<gtk::Box>().unwrap()
-            .first_child().unwrap().downcast::<gtk::Box>().unwrap().last_child().unwrap().downcast::<gtk::Switch>().unwrap()
-            .connect_active_notify(move |_| {
-            	println!("swithced");
-                if connected_switch_row.spinning() {
-                    connected_switch_row.set_spinning(false);
-                }
-    
-                let sender_clone = sender10.clone();
-                let address = unsafe { 
-                	CURRENT_ADDRESS 
-                };
-                let adapter_name = unsafe {
-                    CURRENT_ADAPTER.clone()
-                };
-                
-                connected_switch_row.set_active(!connected_switch_row.active());
-                std::thread::spawn(move || {
-                    if let Err(err) = device::set_device_active(address, sender_clone.clone(), adapter_name) {
-                        let string = err.clone().message;
-                        println!("error while connecting {:?}\n", err);
-    
-                        sender_clone.send(Message::PopupError(string, adw::ToastPriority::High, "error".to_string())).expect("cannot send message");
-                        sender_clone.send(Message::SwitchActive(false)).expect("cannot send message");
-                        sender_clone.send(Message::SwitchActiveSpinner(false)).expect("cannot send message");
-                    }
-                });
-            });
         
         let blocked_row = self.imp().blocked_row.get();
         let sender2 = sender.clone();
@@ -943,7 +991,7 @@ impl OverskrideWindow {
             std::thread::spawn(move || {
                 if let Err(err) = device::set_device_blocked(address, sender_clone.clone(), adapter_name) {
                     let string = err.message;
-                    sender_clone.send(Message::PopupError(string, adw::ToastPriority::High, "error".to_string())).expect("cannot send message");
+                    sender_clone.send(Message::PopupError(string, adw::ToastPriority::High)).expect("cannot send message");
 	                sender_clone.send(Message::SwitchBlocked(current_state)).expect("cannot send message");
                 }
             });
@@ -964,7 +1012,7 @@ impl OverskrideWindow {
             std::thread::spawn(move || {
                 if let Err(err) = device::set_device_trusted(address, sender_clone.clone(), adapter_name) {
                     let string = err.message;
-                    sender_clone.send(Message::PopupError(string, adw::ToastPriority::High, "error".to_string())).expect("cannot send message");
+                    sender_clone.send(Message::PopupError(string, adw::ToastPriority::High)).expect("cannot send message");
                     sender_clone.send(Message::SwitchTrusted(trusted)).expect("cannot send message");
                 };
             });
@@ -985,7 +1033,7 @@ impl OverskrideWindow {
             std::thread::spawn(move || {
                 if let Err(err) = device::set_device_name(address, name, sender_clone.clone(), adapter_name) {
                     let string = err.message;
-                    sender_clone.send(Message::PopupError(string, adw::ToastPriority::High, "error".to_string())).expect("cannot send message");
+                    sender_clone.send(Message::PopupError(string, adw::ToastPriority::High)).expect("cannot send message");
                 }
             });
         });
@@ -1004,7 +1052,7 @@ impl OverskrideWindow {
             std::thread::spawn(move || {
                 if let Err(err) = device::remove_device(address, sender_clone.clone(), adapter_name) {
                     let string = err.message;
-                    sender_clone.send(Message::PopupError(string, adw::ToastPriority::High, "error".to_string())).expect("cannot send message");
+                    sender_clone.send(Message::PopupError(string, adw::ToastPriority::High)).expect("cannot send message");
                 }
             });
         });
@@ -1020,7 +1068,7 @@ impl OverskrideWindow {
             std::thread::spawn(move || {
                 if let Err(err) = bluetooth_settings::set_adapter_powered(adapter_name, sender_clone.clone()) {
                     let string = err.message;
-                    sender_clone.send(Message::PopupError(string, adw::ToastPriority::High, "error".to_string())).expect("cannot send message");
+                    sender_clone.send(Message::PopupError(string, adw::ToastPriority::High)).expect("cannot send message");
                     sender_clone.send(Message::SwitchAdapterPowered(false)).expect("cannot send message");
                 }
             });
@@ -1037,7 +1085,7 @@ impl OverskrideWindow {
             std::thread::spawn(move || {
                 if let Err(err) = bluetooth_settings::set_adapter_discoverable(adapter_name, sender_clone.clone()) {
                     let string = "Adapter ".to_string() + &err.message;
-                    sender_clone.send(Message::PopupError(string, adw::ToastPriority::High, "error".to_string())).expect("cannot send message");
+                    sender_clone.send(Message::PopupError(string, adw::ToastPriority::High)).expect("cannot send message");
                     sender_clone.send(Message::SwitchAdapterDiscoverable(false)).expect("cannot send message");
                 }
             });
@@ -1055,7 +1103,7 @@ impl OverskrideWindow {
             std::thread::spawn(move || {
                 if let Err(err) = bluetooth_settings::set_adapter_name(new_name, adapter_name, sender_clone.clone()) {
                     let string = "Adapter ".to_string() + &err.message;
-                    sender_clone.send(Message::PopupError(string, adw::ToastPriority::High, "error".to_string())).expect("cannot send message");
+                    sender_clone.send(Message::PopupError(string, adw::ToastPriority::High)).expect("cannot send message");
                 }
             });
         });
@@ -1072,7 +1120,7 @@ impl OverskrideWindow {
             std::thread::spawn(move || {
                 if let Err(err) = bluetooth_settings::set_timeout_duration(value as u32, adapter_name, sender_clone.clone()) {
                     let string = err.message;
-                    sender_clone.send(Message::PopupError(string, adw::ToastPriority::High, "error".to_string())).expect("cannot send message");
+                    sender_clone.send(Message::PopupError(string, adw::ToastPriority::High)).expect("cannot send message");
                     sender_clone.send(Message::SwitchAdapterTimeout(0)).expect("cannot send message");
                 }  
             });
@@ -1096,7 +1144,7 @@ impl OverskrideWindow {
                 if let Ok(names) = adapter_names {
                     if let Err(err) = bluetooth_settings::get_adapter_properties(names, sender, adapter_name) {
 	                    let string = "Adapter ".to_string() + &err.message;
-	                    sender_clone.send(Message::PopupError(string, adw::ToastPriority::Normal, "error".to_string())).expect("cannot send message");    
+	                    sender_clone.send(Message::PopupError(string, adw::ToastPriority::Normal)).expect("cannot send message");    
                     }
                 }
             });
@@ -1216,7 +1264,15 @@ async fn add_child_row(device: bluer::Device) -> bluer::Result<DeviceActionRow> 
     };
     
     child_row.set_bluer_address(address);
-    child_row.set_title(name.clone().as_str());
+
+    if let Ok(bad_title) = bluer::Address::from_str(name.clone().replace('-', ":").as_str()) {
+        child_row.set_title("Unknown Device");
+        child_row.set_subtitle(bad_title.to_string().as_str());
+        println!("broken title is {:?}", bad_title);
+    }
+    else {
+        child_row.set_title(name.clone().as_str());
+    }
     child_row.set_activatable(true);
     child_row.set_adapter_name(unsafe {CURRENT_ADAPTER.clone()});
 
@@ -1243,20 +1299,20 @@ async fn add_child_row(device: bluer::Device) -> bluer::Result<DeviceActionRow> 
         
         let address = row.get_bluer_address();
         let adapter_name = row.adapter_name();
-		let sender_clone = sender.clone();
+        let sender_clone = sender.clone();
 
-        println!("row address {} with adapter {}", address.clone(), adapter_name.clone());
+        // println!("row address {} with adapter {}", address.clone(), adapter_name.clone());
 
         std::thread::spawn(move || {
             let sender_clone_clone = sender_clone.clone(); // lmao
 
             if let Err(err) = device::get_device_properties(address, sender_clone_clone.clone(), adapter_name) {
-	            let string = err.message;
+                let string = err.message;
 
-	            sender_clone_clone.send(Message::GoToBluetoothSettings(true)).expect("cannot send message");
-	            sender_clone_clone.send(Message::PopupError(string, adw::ToastPriority::High, "error".to_string())).expect("cannot send message");
+                sender_clone_clone.send(Message::GoToBluetoothSettings(true)).expect("cannot send message");
+                sender_clone_clone.send(Message::PopupError(string, adw::ToastPriority::High)).expect("cannot send message");
             }
-        });
+        }); 
     });
 
     Ok(child_row)
@@ -1265,14 +1321,12 @@ async fn add_child_row(device: bluer::Device) -> bluer::Result<DeviceActionRow> 
 
 
 // TODO
-// - add a match rule for weird ass device names (address for name) and add address as subtext
-// - add a match rule for device rssi change and handle icon change and invalidate sort
-// - add a spinner (preffered hig) or loading bar (looks better?) for long action (connecting to device) // current
+// - add a match rule for weird ass device names (address for name) and add address as subtext // maybe works? needs testing
+// - also make it where you can view extra info for the device esp in the above case
 // - refresh button should stop discovering and restart it
-// - gray out actions that take a while so user doesn't fuck up stuff
+// - gray out actions that take a while so user doesn't fuck up stuff, set the state of "connected switch" and others
 // - set all popups to modal
 // - use fxhashmap for even faster lookups
 // - add option to auto trust device on pair (include warning about how dangerous it is)
-// - fix get devices continous being wrapped in another useless functions
 // - background running, with a status taskbar thingy wtv its name is
-// - add popup error priority. (perhaps with colors)
+// - add a confirm dialog to "remove device"

@@ -25,8 +25,10 @@ mod message;
 mod bluetooth_settings;
 mod device;
 mod agent;
+mod services;
 #[path = "widgets/connected_switch_row.rs"] mod connected_switch_row;
 #[path = "widgets/device_action_row.rs"] mod device_action_row;
+
 
 use self::application::OverskrideApplication;
 use self::window::OverskrideWindow;
