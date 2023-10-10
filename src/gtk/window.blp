@@ -61,7 +61,7 @@ template $OverskrideWindow: Adw.ApplicationWindow {
 
             Adw.PreferencesGroup {
               title: "Settings";
-              description: "General Bluetooth Settings.";
+              description: "General Bluetooth Settings";
               
               ListBox secondary_listbox {
                 styles ["boxed-list"]
@@ -74,16 +74,7 @@ template $OverskrideWindow: Adw.ApplicationWindow {
 
             Adw.PreferencesGroup {
               title: "Devices";
-              description: "All the devices you've connected to.";
-            
-              header-suffix: Box {
-                Button refresh_button {
-                  margin-top: 8;
-                  margin-bottom: 8;
-                  //label: "Refresh";
-                  icon-name: "refresh-large-symbolic";
-                }
-              };
+              description: "All the devices you've connected to";
 
               Box listbox_image_box {
                 height-request: 250;
@@ -156,6 +147,8 @@ template $OverskrideWindow: Adw.ApplicationWindow {
       content: Adw.ToolbarView {
         [top]
         Adw.HeaderBar headerbar {
+          show-title: true;
+          
           Box {
             ToggleButton show_sidebar_button {
               icon-name: "dock-left-symbolic";
@@ -163,7 +156,13 @@ template $OverskrideWindow: Adw.ApplicationWindow {
               tooltip-text: "Hide Sidebar";
             }
           }
-          show-title: true;
+
+          [end]
+          MenuButton menu_drop_down {
+            icon-name: "open-menu-symbolic";
+            menu-model: primary_menu;
+            tooltip-text: "Open Main Menu";   
+          }
         }
 
         Stack main_stack{
@@ -421,4 +420,24 @@ Adjustment timeout_time_adjustment {
   lower: 0;
   upper: 60;
   value: 3;
+}
+
+menu primary_menu {
+  section {
+    item {
+      label: _("_Refresh");
+      action: "win.refresh-devices";
+    }
+  }
+  section {
+    item {
+      label: _("_Keyboard Shortcuts");
+      action: "win.show-help-overlay";
+    }
+
+    item {
+      label: _("_About Time Warp");
+      action: "app.about";
+    }
+  }
 }

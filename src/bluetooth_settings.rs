@@ -11,12 +11,14 @@ pub async fn set_adapter_powered(adapter_name: String, sender: Sender<Message>) 
 
     adapter.set_powered(!current).await?;
     
-    sender.send(Message::SetRefreshSensitive(false)).expect("cannot send message");
     let powered =  adapter.is_powered().await?;
     
-    sender.send(Message::SwitchAdapterPowered(powered)).expect("can't send message");
-    sender.send(Message::SetRefreshSensitive(true)).expect("cannot send message");
+    if powered {
+        sender.send(Message::RefreshDevicesList()).expect("can't send message");
+        sender.send(Message::PopupError("br-adapter-refreshed".to_string(), adw::ToastPriority::Normal)).expect("can't send message");
+    }
 
+    sender.send(Message::SwitchAdapterPowered(powered)).expect("can't send message");
     Ok(())
 }
 

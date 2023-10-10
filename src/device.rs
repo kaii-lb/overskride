@@ -3,9 +3,11 @@ use std::collections::HashMap;
 use bluer::{AdapterEvent, AdapterProperty, DeviceEvent, DeviceProperty};
 use futures::{pin_mut, stream::SelectAll, StreamExt};
 use gtk::glib::Sender;
+use tokio_util::sync::CancellationToken;
 
-use crate::{message::Message, window::{DEVICES_LUT, CURRENTLY_LOOPING, CURRENT_ADDRESS}, agent};
+use crate::{message::Message, window::{DEVICES_LUT, CURRENT_ADDRESS, CONFIRMATION_AUTHORIZATION, DISPLAYING_DIALOG}, agent::{self, wait_for_dialog_exit}};
 
+static mut CANCELLATION_TOKEN: Option<CancellationToken> = None;
 /// Set the associated with `address` device's state, between connected and not 
 /// connected depending on what was already the case.
 /// A little funky and needs fixing but works for now.
@@ -135,20 +137,47 @@ pub async fn remove_device(address: bluer::Address, sender: Sender<Message>, ada
 	let adapter = bluer::Session::new().await?.adapter(adapter_name.as_str())?;
 	let device = adapter.device(address)?;
 
-    let name = device.alias().await?;
-    adapter.remove_device(address).await?;
-    unsafe {
-        let mut devices_lut = DEVICES_LUT.clone().unwrap();
-        if devices_lut.contains_key(&address) {
-            devices_lut.remove(&address);
-            DEVICES_LUT = Some(devices_lut);
+    let title = "Remove Device".to_string();
+    let subtitle = "Are you sure you want to remove <span font_weight='bold' color='#78aeed'>`".to_string() + &device.alias().await? + "`</span>";
+    let confirm = "Remove".to_string();
+
+    unsafe{
+        DISPLAYING_DIALOG = true;
+    }
+    sender.send(Message::RequestYesNo(title, subtitle, confirm, adw::ResponseAppearance::Destructive)).expect("can't send message");
+
+    wait_for_dialog_exit().await;
+
+    let confirmed = unsafe {
+        CONFIRMATION_AUTHORIZATION
+    };
+
+    if confirmed {
+        println!("removing device...");
+        let name = device.alias().await?;
+        adapter.remove_device(address).await?;
+        unsafe {
+            let mut devices_lut = DEVICES_LUT.clone().unwrap();
+            if devices_lut.contains_key(&address) {
+                devices_lut.remove(&address);
+                DEVICES_LUT = Some(devices_lut);
+            }
         }
+        
+        sender.send(Message::RemoveDevice(name)).expect("can't send message");
+        sender.send(Message::UpdateListBoxImage()).expect("can't send message");    
     }
 
-	sender.send(Message::RemoveDevice(name)).expect("can't send message");
-	sender.send(Message::UpdateListBoxImage()).expect("can't send message");
-
     Ok(())
+}
+
+#[tokio::main]
+pub async fn stop_searching() { 
+    unsafe {
+        if let Some(token) = CANCELLATION_TOKEN.clone() {
+            token.cancel();
+        }
+    }
 }
 
 #[tokio::main]
@@ -167,18 +196,18 @@ pub async fn get_devices_continuous(sender: Sender<Message>, adapter_name: Strin
 
     let mut all_change_events = SelectAll::new();
 
-
 	let session = bluer::Session::new().await?;
 	let sender_clone = sender.clone();
 
 	let agent = agent::register_agent(&session, true, false, sender_clone.clone()).await?;	
 	println!("registered agent during discovery {:?}", agent);
 
-    while adapter.is_powered().await? {
-        unsafe { 
-            CURRENTLY_LOOPING = true;
-        }
+    let cancellation_token = CancellationToken::new();
+    unsafe {
+        CANCELLATION_TOKEN = Some(cancellation_token.clone());
+    }
 
+    while adapter.is_powered().await? {
         tokio::select! {
             Some(device_event) = device_events.next() => {
                 match device_event {
@@ -327,13 +356,24 @@ pub async fn get_devices_continuous(sender: Sender<Message>, adapter_name: Strin
                     },
                 }
             }
+            _ = cancellation_token.cancelled() => {
+                // println!("exited loop from refresh");
+                break;
+            }
             else => break
         }
+
+        // if cancellation_token.is_cancelled() {
+        //     break;
+        // }
     }
+
     println!("exited loop");
-    unsafe { 
-        CURRENTLY_LOOPING = false;
-    }
     // drop(agent);
-    Err(bluer::Error { kind: bluer::ErrorKind::Failed, message: "Stopped searching for devices".to_string() })
+    if cancellation_token.is_cancelled() {
+        Ok(())
+    }
+    else {
+        Err(bluer::Error { kind: bluer::ErrorKind::Failed, message: "Stopped searching for devices".to_string() })
+    }
 }

@@ -43,7 +43,6 @@ pub static mut CURRENT_ADDRESS: bluer::Address = bluer::Address::any();
 pub static mut CURRENT_ADAPTER: String = String::new();
 pub static mut DEVICES_LUT: Option<HashMap<bluer::Address, String>> = None;
 pub static mut ADAPTERS_LUT: Option<HashMap<String, String>> = None;
-pub static mut CURRENTLY_LOOPING: bool = false;
 pub static mut DISPLAYING_DIALOG: bool = false;
 pub static mut PIN_CODE: String = String::new();
 pub static mut PASS_KEY: u32 = 0;
@@ -57,8 +56,6 @@ mod imp {
     pub struct OverskrideWindow {
         #[template_child]
         pub main_listbox: TemplateChild<gtk::ListBox>,
-        #[template_child]
-        pub refresh_button: TemplateChild<gtk::Button>,
         #[template_child]
         pub connected_switch_row: TemplateChild<ConnectedSwitchRow>,
         #[template_child]
@@ -395,10 +392,6 @@ impl OverskrideWindow {
                         default_controller_expander.add_row(&row);                        
                     }
                 },
-                Message::SetRefreshSensitive(sensitive) => {
-                    let button = clone.imp().refresh_button.get();
-                    button.set_sensitive(sensitive);
-                },
                 Message::PopupError(string, priority) => {
                     let toast_overlay = clone.imp().toast_overlay.get();
                     let toast = adw::Toast::new("");
@@ -455,7 +448,7 @@ impl OverskrideWindow {
                         s if s.to_lowercase().contains("invalid-arguments") => {
                             "Invalid arguements provided"
                         },
-                        s if s.to_lowercase().contains("not-powered") => {
+                        s if s.to_lowercase().contains("not-powered") || s.to_lowercase().contains("resource not ready") => {
                             "Adapter is not powered"
                         },
                         s if s.to_lowercase().contains("not-supported") => {
@@ -467,8 +460,11 @@ impl OverskrideWindow {
                         s if s.to_lowercase().contains("gatt-browsing") => {
                             "Failed to complete GATT service browsing"
                         },
-                        s if s.to_lowercase().contains("already-searching") => {
-                            "Already searching for devices"
+                        s if s.to_lowercase().contains("refreshed") => {
+                            "Refreshed devices list"
+                        }
+                        s if s.to_lowercase().contains("stopped searching for devices") => {
+                            "Stopped Searching for devices"
                         }
                         e => {
                             println!("unknown error: {}", e);
@@ -477,26 +473,29 @@ impl OverskrideWindow {
                     };
 
                     let mut title = String::new();
-                    let icon = gtk::Image::new();
-                    icon.set_icon_name(Some("permissions-notifications"));
                     let boxholder = gtk::Box::new(gtk::Orientation::Horizontal, 8);
-                    let label = gtk::Label::new(Some(""));
-                    boxholder.append(&icon);
-                    boxholder.append(&label);
-
+                    
                     match priority {
                         adw::ToastPriority::High => {
                             toast.set_timeout(5);
                             // custom_title.set_css_classes(&["warning", state.as_str()]);
                             title += "<span font_weight='bold'>";
+                            
+                            let icon = gtk::Image::new();
+                            icon.set_icon_name(Some("bell-outline-symbolic"));
+                            boxholder.append(&icon);
                         },
                         _ => {
                             toast.set_timeout(3);
                             title += "<span font_weight='regular'>";
                         }
                     }
+                    let label = gtk::Label::new(Some(""));
+                    boxholder.append(&label);
+
                     title += title_holder;
                     title += "</span>";
+                    
                     label.set_use_markup(true);
                     label.set_label(&title);
 
@@ -860,56 +859,83 @@ impl OverskrideWindow {
                         } 
                     }
                 },
+                Message::RequestYesNo(title, subtitle, confirm, response_type) => {
+                    unsafe{
+                        DISPLAYING_DIALOG = true;
+                    }
+                    
+                    let popup = adw::MessageDialog::new(Some(&clone), Some(&title), None);
+                                    
+                    popup.set_close_response("cancel");
+                    popup.set_modal(true);
+                    popup.set_body_use_markup(true);
+                    popup.set_body(&subtitle);
+                    popup.set_destroy_with_parent(true);
+            
+                    popup.add_response("cancle", "Cancel");
+                    popup.add_response(&confirm.to_lowercase(), &confirm);
+                    popup.set_response_appearance(&confirm.to_lowercase(), response_type);
+                    popup.set_default_response(Some(&confirm.to_lowercase()));
+                            
+                    let pass_key = Rc::new(RefCell::new(false));
+                    popup.clone().choose(gtk::gio::Cancellable::NONE, move |response| {
+                        match response.to_string() {
+                            s if s.contains(&confirm.to_lowercase()) => {
+                                *pass_key.borrow_mut() = true;
+                            }
+                            _ => {
+                                *pass_key.borrow_mut() = false;
+                            }
+                        }
+                        unsafe {
+                            DISPLAYING_DIALOG = false;
+                            CONFIRMATION_AUTHORIZATION = *pass_key.borrow();
+                        }
+                    });
+                },
                 Message::InvalidateSort() => {
                 	let main_listbox = clone.imp().main_listbox.get();
                 	main_listbox.invalidate_sort();	
+                },
+                Message::RefreshDevicesList() => {
+                    gtk::prelude::WidgetExt::activate_action(&clone, "win.refresh-devices", None).expect("cannot refresh devices list");
                 },
             }
         
             glib::ControlFlow::Continue
         });        
 
-        let refresh_button = self.imp().refresh_button.get();
+        
+        let refresh_action = gtk::gio::SimpleAction::new("refresh-devices", None);
         let sender0 = sender.clone();
-        refresh_button.connect_clicked(move |button| {
-                button.set_sensitive(false);
-                let sender_clone = sender0.clone();
-                
-                std::thread::spawn(move || {
-                   std::thread::sleep(std::time::Duration::from_secs(2));
-                   sender_clone.send(Message::SetRefreshSensitive(true)).expect("cannot send message");
-                });
-                
-                let can_loop = unsafe {
-                    !CURRENTLY_LOOPING
-                };
-                
-                if can_loop {
-                    unsafe {
-                        if CURRENTLY_LOOPING {
-                            sender0.send(Message::PopupError("Started searching for devices".to_string(), adw::ToastPriority::High)).expect("cannot send message");
-                        }
-                    }
-                    let sender = sender0.clone();
-                    let adapter_name = unsafe {
-                        CURRENT_ADAPTER.clone()
-                    };
+        refresh_action.connect_activate(move |_, _| {                        
+            device::stop_searching();
+            std::thread::sleep(std::time::Duration::from_millis(100));
+            
+            let sender = sender0.clone();
+            let adapter_name = unsafe {
+                CURRENT_ADAPTER.clone()
+            };
+            std::thread::spawn(move || {
+                let mut can_send = true;
+                if let Err(err) = device::get_devices_continuous(sender.clone(), adapter_name) {
+                    let string = err.message;
+                    
+                    can_send = false;
 
-                    std::thread::spawn(move || {
-                        if let Err(err) = device::get_devices_continuous(sender.clone(), adapter_name) {
-                            let string = err.message;
-                
-                            sender.send(Message::PopupError(string, adw::ToastPriority::High)).expect("cannot send message");
-                            sender.send(Message::UpdateListBoxImage()).expect("cannot send message");
-                        }
-                    });
+                    sender.send(Message::PopupError(string, adw::ToastPriority::High)).expect("cannot send message");
+                    sender.send(Message::UpdateListBoxImage()).expect("cannot send message");
                 }
-                else {
-                    sender0.send(Message::PopupError("br-adapter-already-searching-for-devices".to_string(), adw::ToastPriority::Normal)).expect("can't send message");
+                println!("can send: {}", can_send);
+                std::thread::sleep(std::time::Duration::from_millis(100));
+                if can_send {
+                    sender.send(Message::PopupError("br-adapter-refreshed".to_string(), adw::ToastPriority::Normal)).expect("can't send message");
                 }
-                // println!("trying to available devices");
+            });
+            // println!("trying to available devices");
         });
-        refresh_button.emit_clicked();
+        self.add_action(&refresh_action);
+        refresh_action.activate(None);
         
         let main_listbox = self.imp().main_listbox.get();
         main_listbox.set_sort_func(|row_one, row_two| {
@@ -1267,7 +1293,7 @@ async fn add_child_row(device: bluer::Device) -> bluer::Result<DeviceActionRow> 
 
     if let Ok(bad_title) = bluer::Address::from_str(name.clone().replace('-', ":").as_str()) {
         child_row.set_title("Unknown Device");
-        child_row.set_subtitle(bad_title.to_string().as_str());
+        // child_row.set_subtitle(bad_title.to_string().as_str());
         println!("broken title is {:?}", bad_title);
     }
     else {
@@ -1321,8 +1347,7 @@ async fn add_child_row(device: bluer::Device) -> bluer::Result<DeviceActionRow> 
 
 
 // TODO
-// - add a match rule for weird ass device names (address for name) and add address as subtext // maybe works? needs testing
-// - also make it where you can view extra info for the device esp in the above case
+// - add a more info button to the end of "device properties"
 // - refresh button should stop discovering and restart it
 // - gray out actions that take a while so user doesn't fuck up stuff, set the state of "connected switch" and others
 // - set all popups to modal
@@ -1330,3 +1355,4 @@ async fn add_child_row(device: bluer::Device) -> bluer::Result<DeviceActionRow> 
 // - add option to auto trust device on pair (include warning about how dangerous it is)
 // - background running, with a status taskbar thingy wtv its name is
 // - add a confirm dialog to "remove device"
+// - add a currently connected icon to the main listbox rows

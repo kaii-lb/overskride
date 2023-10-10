@@ -179,7 +179,7 @@ pub async fn register_agent(session: &bluer::Session, request_default: bool, set
     Ok(handle)
 }
 
-async fn wait_for_dialog_exit() {
+pub async fn wait_for_dialog_exit() {
     unsafe {
         loop {
             if !DISPLAYING_DIALOG {

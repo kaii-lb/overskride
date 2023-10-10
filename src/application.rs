@@ -44,6 +44,7 @@ mod imp {
             let obj = self.obj();
             obj.setup_gactions();
             obj.set_accels_for_action("app.quit", &["<primary>q"]);
+            obj.set_accels_for_action("win.refresh-devices", &["<primary>r"])
         }
     }
 
@@ -103,7 +104,7 @@ impl OverskrideApplication {
             .application_icon("io.github.kaii_lb.Overskride")
             .developer_name("kaii")
             .version(VERSION)
-            .developers(vec!["kaii"])
+            .developers(vec!["kaii", "Email: imkaiilb@gmail.com<imkaiilb@gmail.com>".into(), "Github: kaii-lb https://github.com/kaii-lb".into()])
             .copyright("© 2023 kaii")
             .build();
 

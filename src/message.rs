@@ -16,7 +16,6 @@ pub enum Message {
     SwitchAdapterDiscoverable(bool),
     SwitchAdapterName(String, String),
     PopulateAdapterExpander(HashMap<String, String>),
-    SetRefreshSensitive(bool),
     PopupError(String, adw::ToastPriority),
     UpdateListBoxImage(),
     RequestPinCode(bluer::agent::RequestPinCode),
@@ -27,5 +26,7 @@ pub enum Message {
     RequestAuthorization(bluer::agent::RequestAuthorization),
     AuthorizeService(bluer::agent::AuthorizeService),
     GoToBluetoothSettings(bool),
+    RequestYesNo(String, String, String, adw::ResponseAppearance),
     InvalidateSort(),
+    RefreshDevicesList(),
 } 
