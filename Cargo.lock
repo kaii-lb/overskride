@@ -923,7 +923,7 @@ checksum = "dd8b5dd2ae5ed71462c540258bedcb51965123ad7e7ccf4b9a8cafaa4a63576d"
 
 [[package]]
 name = "overskride"
-version = "0.3.1"
+version = "0.3.2"
 dependencies = [
  "bluer",
  "futures",
