@@ -1,0 +1,22 @@
+using Gtk 4.0;
+using Adw 1;
+
+template $ReceivingPopover : Popover {
+  ScrolledWindow {
+    propagate-natural-height: true;
+    propagate-natural-width: true;
+    max-content-height: 280;
+    hscrollbar-policy: never;
+  
+    ListBox listbox {
+      selection-mode: none;
+      margin-top: 6;
+      margin-bottom: 6;
+      margin-start: 6;
+      margin-end: 6;
+      activate-on-single-click: false;
+      styles ["operations-list"]
+            
+    }
+  }
+}

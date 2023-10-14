@@ -1,0 +1,39 @@
+using Gtk 4.0;
+
+template $ReceivingRow : ListBoxRow {
+    Box {
+        CenterBox {
+        orientation: vertical;
+        valign: fill;
+        halign: fill;
+        width-request: 380;
+        height-request: 55;
+
+        start-widget: Label title_label {
+            halign: start;
+            label: "“this is a video.mp4”";
+        };
+        
+        
+        center-widget: ProgressBar progress_bar {
+            halign: start;
+            width-request: 360;
+            fraction: 0.45;
+        };
+        
+        end-widget: Label extra_label {
+            halign: start;
+            use-markup: true;
+            label: "<small>45% | 13/423 MB</small>";
+            styles ["dim-label"]
+        };
+        }
+        Box {
+            Button cancel_button {
+                valign: center;
+                icon-name: "cross-large-symbolic";
+                styles ["circular"]
+            }
+        }
+    }      
+}

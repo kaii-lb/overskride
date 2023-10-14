@@ -6,6 +6,8 @@ edition = "2021"
 [dependencies]
 adw = { version = "0.5.3", package = "libadwaita", features = ["v1_4"] }
 bluer = { version = "0.16.1", features = ["full"] }
+dbus = "0.9.7"
+dbus-crossroads = "0.5.2"
 futures = { version = "0.3.28", features = ["futures-executor"] }
 gettext-rs = { version = "0.7", features = ["gettext-system"] }
 gtk = { version = "0.7.2", package = "gtk4", features = ["blueprint"] }

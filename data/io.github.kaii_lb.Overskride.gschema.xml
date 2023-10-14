@@ -21,6 +21,10 @@
 			<default>""</default>
 			<summary>original adapter name incase everything else fails</summary>
 		</key>
+		<key name="store-folder" type="s">
+			<default>""</default>
+			<summary>where the received files are stored</summary>
+		</key>
 </schema>
 </schemalist>
 

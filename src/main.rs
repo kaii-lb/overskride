@@ -21,13 +21,17 @@
 mod application;
 mod config;
 mod window;
-mod message;
-mod bluetooth_settings;
-mod device;
-mod agent;
-mod services;
+#[path = "bluetooth/message.rs"] mod message;
+#[path = "bluetooth/bluetooth_settings.rs"] mod bluetooth_settings;
+#[path = "bluetooth/device.rs"] mod device;
+#[path = "bluetooth/agent.rs"] mod agent;
+#[path = "bluetooth/services.rs"] mod services;
+#[path = "obex/obex.rs"] mod obex;
+#[path = "obex/obex_utils.rs"] mod obex_utils;
 #[path = "widgets/connected_switch_row.rs"] mod connected_switch_row;
 #[path = "widgets/device_action_row.rs"] mod device_action_row;
+#[path = "widgets/receiving_popover.rs"] mod receiving_popover;
+#[path = "widgets/receiving_row.rs"] mod receiving_row;
 
 
 use self::application::OverskrideApplication;

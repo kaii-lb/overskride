@@ -1,4 +1,5 @@
-/* separator#content_seperator { */
-/* 	color: linear-gradient(transparent,white,transparent); */
-/* 	background-image: linear-gradient(transparent,white,transparent); */
-/* } */
+.operations-list,
+.operations-list > :hover,
+.operations-list > :active {
+    background: none;
+}

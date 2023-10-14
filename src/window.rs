@@ -30,9 +30,11 @@ use std::rc::Rc;
 use std::str::FromStr;
 
 use crate::device_action_row::DeviceActionRow;
+use crate::receiving_row::ReceivingRow;
 use crate::{bluetooth_settings, device, connected_switch_row::ConnectedSwitchRow};
 use crate::message::Message;
 use crate::services::get_name_from_service;
+use crate::obex::register_obex_agent;
 
 // U N S A F E T Y 
 static mut CURRENT_INDEX: i32 = 0;
@@ -47,8 +49,11 @@ pub static mut DISPLAYING_DIALOG: bool = false;
 pub static mut PIN_CODE: String = String::new();
 pub static mut PASS_KEY: u32 = 0;
 pub static mut CONFIRMATION_AUTHORIZATION: bool = false;
+pub static mut STORE_FOLDER: String = String::new();
 
 mod imp {
+    use crate::{receiving_popover::ReceivingPopover, receiving_row::ReceivingRow};
+
     use super::*;
 
     #[derive(Debug, Default, gtk::CompositeTemplate)]
@@ -94,6 +99,8 @@ mod imp {
         pub toast_overlay: TemplateChild<adw::ToastOverlay>,
         #[template_child]
         pub listbox_image_box: TemplateChild<gtk::Box>,
+        #[template_child]
+        pub receiving_popover: TemplateChild<ReceivingPopover>,
 
         pub settings: OnceCell<Settings>,
         pub display_pass_key_dialog: RefCell<Option<adw::MessageDialog>>,
@@ -109,6 +116,8 @@ mod imp {
 
         fn class_init(klass: &mut Self::Class) {
             ConnectedSwitchRow::ensure_type();
+            ReceivingPopover::ensure_type();
+            ReceivingRow::ensure_type();
 
             klass.bind_template();
             /*klass.install_action("win.refresh_devices", None, move |win, _, _| {
@@ -127,13 +136,13 @@ mod imp {
             
             let obj = self.obj();
             obj.setup_settings();
-            obj.load_window_size();
+            obj.preload_settings();
         }
     }
     impl WidgetImpl for OverskrideWindow {}
     impl WindowImpl for OverskrideWindow {
         fn close_request(&self) -> glib::Propagation {
-            self.obj().save_window_size().expect("cannot save window size");
+            self.obj().save_settings().expect("cannot save window size");
 
             glib::Propagation::Proceed
         }
@@ -462,14 +471,26 @@ impl OverskrideWindow {
                         },
                         s if s.to_lowercase().contains("refreshed") => {
                             "Refreshed devices list"
-                        }
+                        },
                         s if s.to_lowercase().contains("stopped searching for devices") => {
                             "Stopped Searching for devices"
-                        }
+                        },
+                        s if s.to_lowercase().contains("connection-unknown") => {
+                            "Connection unknown, please try again"
+                        },
+                        s if s.to_lowercase().contains("home-unknown") => {
+                            "Unable to get home folder, are you sure its configured correctly?"
+                        },
+                        s if s.to_lowercase().contains("transfer-complete") => {
+                            "File has been received"
+                        },
+                        s if s.to_lowercase().contains("transfer-active") => {
+                            "Started receiving file"
+                        },
                         e => {
-                            println!("unknown error: {}", e);
-                            "Connection failed, reasons unknown"
-                        }
+                            println!("unknown error: {}", e.clone());
+                            "Unknown error occured"
+                        },
                     };
 
                     let mut title = String::new();
@@ -900,6 +921,17 @@ impl OverskrideWindow {
                 Message::RefreshDevicesList() => {
                     gtk::prelude::WidgetExt::activate_action(&clone, "win.refresh-devices", None).expect("cannot refresh devices list");
                 },
+                Message::StartTransfer(transfer, filename, percent, current, filesize) => {
+                    let receiving_popover = clone.imp().receiving_popover.get();
+                    let listbox = receiving_popover.get_listbox();
+
+                    let row = ReceivingRow::new(transfer, filename);
+                    println!("row is: {}, {}", row.transfer(), row.filename());
+
+                    row.set_extra(percent, current, filesize);
+
+                    listbox.append(&row);
+                },
             }
         
             glib::ControlFlow::Continue
@@ -1208,7 +1240,7 @@ impl OverskrideWindow {
         });
     }
 
-    fn save_window_size(&self) -> Result<(), glib::BoolError> {
+    fn save_settings(&self) -> Result<(), glib::BoolError> {
         let size = (self.size(gtk::Orientation::Horizontal), self.size(gtk::Orientation::Vertical));
         // let size = self.SIZE
         let settings = self.imp().settings.get().expect("cannot get settings, setup improperly?");
@@ -1222,18 +1254,21 @@ impl OverskrideWindow {
         Ok(())
     }
 
-    fn load_window_size(&self) {
+    fn preload_settings(&self) {
         let settings = self.imp().settings.get().expect("cannot get settings, setup improperly?");
         
         let width = settings.int("window-width");
         let height = settings.int("window-height");
         let maximized = settings.boolean("window-maximized");
 
-        println!("new size is {:?}", (width, height));
+        // println!("new size is {:?}", (width, height));
 
         self.set_default_size(width, height);
-
         self.set_maximized(maximized);
+
+        unsafe {
+            STORE_FOLDER = settings.string("store-folder").to_string();
+        }
     }
 
     #[tokio::main]
@@ -1267,6 +1302,10 @@ impl OverskrideWindow {
 
             lut.insert(alias.to_string(), CURRENT_ADAPTER.to_string());
             ADAPTERS_LUT = Some(lut);
+
+            std::thread::spawn(move || {
+                register_obex_agent(sender.clone()).expect("cannot register obex agent");
+            });
         }
         
         Ok(())
@@ -1347,12 +1386,14 @@ async fn add_child_row(device: bluer::Device) -> bluer::Result<DeviceActionRow> 
 
 
 // TODO
+// - add the send and receive file functionality
+// - move bluetooth agent functionality to a seperate thread to avoid remaking agent on refresh
 // - add a more info button to the end of "device properties"
-// - refresh button should stop discovering and restart it
-// - gray out actions that take a while so user doesn't fuck up stuff, set the state of "connected switch" and others
-// - set all popups to modal
 // - use fxhashmap for even faster lookups
 // - add option to auto trust device on pair (include warning about how dangerous it is)
 // - background running, with a status taskbar thingy wtv its name is
-// - add a confirm dialog to "remove device"
 // - add a currently connected icon to the main listbox rows
+// - add battery reporting thingy 
+// - add auto accept files and tell how dangerous it is
+// - add move file to directory when received 
+// create a new stackpage for every device and allow user to go back and force with nice animations

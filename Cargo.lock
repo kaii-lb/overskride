@@ -926,6 +926,8 @@ name = "overskride"
 version = "0.3.2"
 dependencies = [
  "bluer",
+ "dbus",
+ "dbus-crossroads",
  "futures",
  "gettext-rs",
  "gtk4",

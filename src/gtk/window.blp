@@ -37,12 +37,20 @@ template $OverskrideWindow: Adw.ApplicationWindow {
       	
         [top]
         Adw.HeaderBar {
-          //[center]
-      	  //Adw.WindowTitle {
-            //halign: center;
-            //margin-start: 24;
-            //title: "Sidebar";
-          //}
+      	  Adw.WindowTitle {
+            halign: center;
+            margin-start: 24;
+            title: "Sidebar";
+          }
+          
+          [start]
+          MenuButton show_popup_button {
+            always-show-arrow: false;
+            icon-name: "folder-download-symbolic";
+            popover: $ReceivingPopover receiving_popover {};
+            styles ["flat"]
+          }
+
           show-title: false;
         }
         content: Box sidebar_content_box {
@@ -168,6 +176,7 @@ template $OverskrideWindow: Adw.ApplicationWindow {
         Stack main_stack{
           valign: start;
           halign: fill;
+          transition-type: slide_left_right;
 
           StackPage device_settings_page {
             child: ScrolledWindow device_status_page {
@@ -283,7 +292,7 @@ template $OverskrideWindow: Adw.ApplicationWindow {
               kinetic-scrolling: true;
               overlay-scrolling: true;
               valign: start;
-              margin-bottom: 86;
+              // margin-bottom: 86;
               
               child: Adw.Clamp {
                 orientation: horizontal;

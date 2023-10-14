@@ -5,6 +5,8 @@
     <file preprocess="xml-stripblanks">gtk/help-overlay.ui</file>
     <file preprocess="xml-stripblanks">gtk/connected-switch-row.ui</file>
     <file preprocess="xml-stripblanks">gtk/device-action-row.ui</file>
+    <file preprocess="xml-stripblanks">gtk/receiving-popover.ui</file>
+    <file preprocess="xml-stripblanks">gtk/receiving-row.ui</file>
     <file>gtk/style.css</file>
   </gresource>
   <gresource prefix="/io/github/kaii_lb/Overskride/icons/scalable/apps/">
@@ -25,5 +27,6 @@
     <file alias="no-bluetooth-symbolic.svg">icons/symbolic/actions/no-bluetooth-symbolic.svg</file>
     <file alias="menu-symbolic.svg">icons/symbolic/actions/menu-symbolic.svg</file>
     <file alias="bell-outline-symbolic.svg">icons/symbolic/actions/bell-outline-symbolic.svg</file>
+    <file alias="cross-large-symbolic.svg">icons/symbolic/actions/cross-large-symbolic.svg</file>
   </gresource>
 </gresources>
