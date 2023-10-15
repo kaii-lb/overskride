@@ -34,7 +34,7 @@ use crate::receiving_row::ReceivingRow;
 use crate::{bluetooth_settings, device, connected_switch_row::ConnectedSwitchRow};
 use crate::message::Message;
 use crate::services::get_name_from_service;
-use crate::obex::register_obex_agent;
+use crate::obex::{register_obex_agent, self};
 
 // U N S A F E T Y 
 static mut CURRENT_INDEX: i32 = 0;
@@ -50,6 +50,7 @@ pub static mut PIN_CODE: String = String::new();
 pub static mut PASS_KEY: u32 = 0;
 pub static mut CONFIRMATION_AUTHORIZATION: bool = false;
 pub static mut STORE_FOLDER: String = String::new();
+pub static mut SEND_FILES_PATH: Vec<String> = vec![];
 
 mod imp {
     use crate::{receiving_popover::ReceivingPopover, receiving_row::ReceivingRow};
@@ -101,6 +102,10 @@ mod imp {
         pub listbox_image_box: TemplateChild<gtk::Box>,
         #[template_child]
         pub receiving_popover: TemplateChild<ReceivingPopover>,
+        #[template_child]
+        pub choose_file_button: TemplateChild<gtk::Button>,
+		#[template_child]
+		pub send_file_row: TemplateChild<adw::ActionRow>,
 
         pub settings: OnceCell<Settings>,
         pub display_pass_key_dialog: RefCell<Option<adw::MessageDialog>>,
@@ -199,6 +204,14 @@ impl OverskrideWindow {
 
                     std::thread::sleep(std::time::Duration::from_millis(200));
                     connected_switch_row.set_switch_active(active);
+
+                    let send_file_row = clone.imp().send_file_row.get();
+                    if active {
+                        send_file_row.set_sensitive(true);
+                    }
+                    else {
+                        send_file_row.set_sensitive(false);
+                    }
                 },
                 Message::SwitchActiveSpinner(spinning) => {
                     let connected_switch_row = clone.imp().connected_switch_row.get();
@@ -259,19 +272,31 @@ impl OverskrideWindow {
                 Message::RemoveDevice(name) => {
                     let listbox = clone.clone().imp().main_listbox.get();
                     let mut index = 0;
+                    let mut selected = true;
+
                     while let Some(row) = listbox.clone().row_at_index(index) {
                         // println!("{}", index);
                         let action_row = row.downcast::<adw::ActionRow>().expect("cannot downcast to action row.");
                         // println!("{:?}", action_row.clone());
                         if action_row.clone().title() == name {
                             listbox.clone().remove(&action_row);
+                            if let Some(row) = listbox.selected_row() {
+                                if row == action_row {
+                                    selected = true;
+                                }
+                                else {
+                                    selected = false;
+                                }
+                            }
                         }
                         index += 1;
                     }
 
-                    let bluetooth_settings_row = clone.clone().imp().bluetooth_settings_row.get();
-                    bluetooth_settings_row.emit_activate();
-                }
+                    if selected {
+                        let bluetooth_settings_row = clone.clone().imp().bluetooth_settings_row.get();
+                        bluetooth_settings_row.emit_activate();
+                    }
+                },
                 Message::SwitchPage(alias, icon_name) => {
                     let entry_row = clone.imp().device_name_entry.get();
                     let device_title = clone.imp().device_title.get();
@@ -300,7 +325,7 @@ impl OverskrideWindow {
                     if split_view.is_collapsed() {
                         split_view.set_show_sidebar(false);
                     }
-                }
+                },
                 Message::SwitchAdapterPowered(powered) => {
                     let powered_switch_row = clone.imp().powered_switch_row.get();
                     powered_switch_row.set_active(powered);
@@ -937,10 +962,10 @@ impl OverskrideWindow {
 
                     receiving_popover.add_row(&row);
                 }, 
-                Message::UpdateTransfer(filename, current_mb, status) => {
+                Message::UpdateTransfer(transfer, filename, current_mb, status) => {
                     let receiving_popover = clone.imp().receiving_popover.get();
 
-                    if let Some(row) = receiving_popover.get_row_by_filename(filename.clone()) {
+                    if let Some(row) = receiving_popover.get_row_by_transfer(transfer.clone(), filename.clone()) {
                         let filesize = row.filesize();
                         let fraction = current_mb / filesize * 100.0;
 
@@ -948,21 +973,63 @@ impl OverskrideWindow {
 
                         row.set_percentage(fraction);
                         row.set_extra(fraction.round(), current_mb, filesize);
-                        let nuked = row.set_active_icon(status);
+                        let nuked = row.set_active_icon(status, current_mb);
 
                         if nuked {
                             let cloned = sender_for_receiver_clone.clone();
                             std::thread::spawn(move || {
-                                std::thread::sleep(std::time::Duration::from_secs(20));
-                                cloned.send(Message::RemoveTransfer(filename)).expect("cannot send message");
+                                std::thread::sleep(std::time::Duration::from_secs(60));
+                                cloned.send(Message::RemoveTransfer(transfer, filename)).expect("cannot send message");
                             });
                         }
                     }
                 },
-                Message::RemoveTransfer(filename) => {
+                Message::RemoveTransfer(transfer, filename) => {
                     let receiving_popover = clone.imp().receiving_popover.get();
 
-                    receiving_popover.remove_row(filename);        
+                    receiving_popover.remove_row(transfer, filename);        
+                },
+                Message::GetFile() => {
+                    let dialog = gtk::FileChooserDialog::new(Some("Select File To Send"), 
+                        Some(&clone), 
+                        gtk::FileChooserAction::Open, 
+                        &[("Cancel", gtk::ResponseType::Cancel),
+                          ("Select", gtk::ResponseType::Accept)
+                    ]);
+                    dialog.set_destroy_with_parent(true);
+                    dialog.set_select_multiple(true);
+                    dialog.set_default_response(gtk::ResponseType::Accept);
+                    dialog.set_modal(true);
+
+                    unsafe {
+                        DISPLAYING_DIALOG = true;
+                    }
+
+                    dialog.run_async(|file_chooser, response| {
+                        let mut all_files: Vec<String> = vec![];
+
+                        if response != gtk::ResponseType::Cancel {
+                            let files = file_chooser.files();
+
+                            for file in files.into_iter() {
+                                if file.as_ref().unwrap().is::<gtk::gio::File>() {
+                                    if let Some(path) = file.unwrap().dynamic_cast::<gtk::gio::File>().unwrap().path() {
+                                        all_files.push(path.to_str().unwrap_or("").to_string());
+                                    };
+                                }
+                            }
+                        }
+                        else {
+                            all_files = vec![];
+                        }
+
+                        unsafe {
+                            DISPLAYING_DIALOG = false;
+                            SEND_FILES_PATH = all_files;
+                        }
+
+                        file_chooser.destroy();
+                    });
                 },
             }
         
@@ -1270,6 +1337,34 @@ impl OverskrideWindow {
             show_sidebar_button.set_tooltip_text(Some(text));
             show_sidebar_button.set_active(active);
         });
+
+        let choose_file_button = self.imp().choose_file_button.get();
+        let sender10 = sender.clone();
+        let self_clone5 = self.clone();
+        choose_file_button.connect_clicked(move |_| {
+            let main_listbox = self_clone5.imp().main_listbox.get();
+            let selected_row = main_listbox.selected_row();
+
+            let (destination, source) = if let Some(row) = selected_row {
+                let action_row = row.downcast::<DeviceActionRow>().unwrap();
+                let source = action_row.get_bluer_adapter_address();
+                let destination = action_row.get_bluer_address();
+                (destination, source)
+            }
+            else {
+                (bluer::Address::any(),bluer::Address::any())
+            };
+
+            if destination != bluer::Address::any() {
+                let sender_clone = sender10.clone();
+                std::thread::spawn(move || {
+                    obex::start_send_file(destination, source, sender_clone);
+                });
+            }
+            else {
+                println!("error while sending file, destination doesn't exist");
+            }
+        });
     }
 
     fn save_settings(&self) -> Result<(), glib::BoolError> {
@@ -1365,13 +1460,17 @@ async fn add_child_row(device: bluer::Device) -> bluer::Result<DeviceActionRow> 
     if let Ok(bad_title) = bluer::Address::from_str(name.clone().replace('-', ":").as_str()) {
         child_row.set_title("Unknown Device");
         // child_row.set_subtitle(bad_title.to_string().as_str());
-        println!("broken title is {:?}", bad_title);
+        println!("broken device title is {:?}", bad_title);
     }
     else {
         child_row.set_title(name.clone().as_str());
     }
     child_row.set_activatable(true);
     child_row.set_adapter_name(unsafe {CURRENT_ADAPTER.clone()});
+    if let Ok(adapter) = bluer::Session::new().await?.adapter(unsafe {&CURRENT_ADAPTER.clone()}) {
+        let address = adapter.address().await?;
+        child_row.set_bluer_adapter_address(address);
+    };
 
     child_row.set_rssi(rssi);   
     
@@ -1401,7 +1500,7 @@ async fn add_child_row(device: bluer::Device) -> bluer::Result<DeviceActionRow> 
         // println!("row address {} with adapter {}", address.clone(), adapter_name.clone());
 
         std::thread::spawn(move || {
-            let sender_clone_clone = sender_clone.clone(); // lmao
+            let sender_clone_clone = sender_clone.clone(); // lmao i love rust
 
             if let Err(err) = device::get_device_properties(address, sender_clone_clone.clone(), adapter_name) {
                 let string = err.message;
@@ -1419,6 +1518,7 @@ async fn add_child_row(device: bluer::Device) -> bluer::Result<DeviceActionRow> 
 
 // TODO
 // - add the send and receive file functionality
+// - make it so the transfer update and start is based on `transfer` and not `filename`
 // - move bluetooth agent functionality to a seperate thread to avoid remaking agent on refresh
 // - add a more info button to the end of "device properties"
 // - use fxhashmap for even faster lookups
@@ -1429,4 +1529,4 @@ async fn add_child_row(device: bluer::Device) -> bluer::Result<DeviceActionRow> 
 // - add auto accept files and tell how dangerous it is
 // - add move file to directory when received 
 // - create a new stackpage for every device and allow user to go back and force with nice animations
-// - find out which std::thread::sleep is causing hang on start
+// - find out what is causing hang on start

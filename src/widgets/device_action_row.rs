@@ -21,6 +21,7 @@ mod imp {
         pub adapter_name: RefCell<String>,
 
         pub address: RefCell<bluer::Address>,
+        pub adapter_address: RefCell<bluer::Address>,
     }
 
     #[glib::object_subclass]
@@ -72,6 +73,14 @@ impl DeviceActionRow {
 
     pub fn set_bluer_address(&self, address: bluer::Address) {
         *self.imp().address.borrow_mut() = address;
+    }
+
+    pub fn get_bluer_adapter_address(&self) -> bluer::Address {
+        *self.imp().adapter_address.borrow()
+    }
+
+    pub fn set_bluer_adapter_address(&self, address: bluer::Address) {
+        *self.imp().adapter_address.borrow_mut() = address;
     }
 
     pub fn update_rssi_icon(&self) {

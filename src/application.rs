@@ -100,7 +100,7 @@ impl OverskrideApplication {
         let window = self.active_window().unwrap();
         let about = adw::AboutWindow::builder()
             .transient_for(&window)
-            .application_name("overskride")
+            .application_name("Overskride")
             .application_icon("io.github.kaii_lb.Overskride")
             .developer_name("kaii")
             .version(VERSION)

@@ -63,19 +63,19 @@ impl ReceivingPopover {
 
         println!("added row");
 
-        if listbox.row_at_y(2).is_some() {
+        if listbox.row_at_index(2).is_some() {
             listbox.set_show_separators(true);
         } 
         self.imp().default_row.get().set_visible(false);
     }
 
-    pub fn remove_row(&self, row_filename: String) {
+    pub fn remove_row(&self, transfer: String, filename: String) {
         let listbox = self.imp().listbox.get();
 
         let mut index = 0;
         while let Some(row) = listbox.row_at_index(index) {
             if let Ok(receiving_row) = row.clone().downcast::<ReceivingRow>() {
-                if receiving_row.filename().contains(&row_filename) {
+                if receiving_row.transfer().contains(&transfer) && receiving_row.filename().contains(&filename) {
                     listbox.remove(&row);
                     println!("removed row");
                 }
@@ -84,23 +84,26 @@ impl ReceivingPopover {
             index += 1;
         }
 
-        if listbox.row_at_y(1).is_none() {
+        if listbox.row_at_index(1).is_none() {
             self.imp().default_row.get().set_visible(true);
             listbox.set_show_separators(false);
         }
         else {
             self.imp().default_row.get().set_visible(false);
-            listbox.set_show_separators(true);
+            
+            if listbox.row_at_index(2).is_some() {
+                listbox.set_show_separators(true);
+            }
         }
     }
 
-    pub fn get_row_by_filename(&self, row_filename: String) -> Option<ReceivingRow> {
+    pub fn get_row_by_transfer(&self, transfer: String, filename: String) -> Option<ReceivingRow> {
         let listbox = self.imp().listbox.get();
 
         let mut index = 0;
         while let Some(row) = listbox.row_at_index(index) {
             if let Ok(receiving_row) = row.clone().downcast::<ReceivingRow>() {
-                if receiving_row.filename().contains(&row_filename) {
+                if receiving_row.transfer().contains(&transfer) && receiving_row.filename().contains(&filename) {
                     return Some(receiving_row);
                 }
             }

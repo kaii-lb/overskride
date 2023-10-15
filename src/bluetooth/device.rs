@@ -137,8 +137,8 @@ pub async fn remove_device(address: bluer::Address, sender: Sender<Message>, ada
 	let adapter = bluer::Session::new().await?.adapter(adapter_name.as_str())?;
 	let device = adapter.device(address)?;
 
-    let title = "Remove Device".to_string();
-    let subtitle = "Are you sure you want to remove <span font_weight='bold' color='#78aeed'>`".to_string() + &device.alias().await? + "`</span>";
+    let title = "Remove Device?".to_string();
+    let subtitle = "Are you sure you want to remove <span font_weight='bold' color='#78aeed'>`".to_string() + &device.alias().await? + "`</span>?";
     let confirm = "Remove".to_string();
 
     unsafe{

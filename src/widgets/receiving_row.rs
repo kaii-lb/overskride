@@ -116,7 +116,12 @@ impl ReceivingRow {
         self.imp().extra_label.get().set_label(&extra);
     }
 
-    pub fn set_active_icon(&self, icon_name: String) -> bool {
+    pub fn set_error(&self, error: String) {
+        let final_string = "<small>".to_string() + &error + "</small>";
+        self.imp().extra_label.get().set_label(&final_string);
+    }
+
+    pub fn set_active_icon(&self, icon_name: String, filesize: f32) -> bool {
         let cancel_button = self.imp().cancel_button.get();
         let self_destruct: bool;
 
@@ -124,11 +129,19 @@ impl ReceivingRow {
             "complete" => {
                 cancel_button.set_sensitive(false);
                 self_destruct = true;
+                
+                let done = "File Transfer Completed (".to_string() + &filesize.to_string() + " MB)";
+                self.set_error(done);
+                
                 "check-plain-symbolic"
             },
             "error" => {
                 cancel_button.set_sensitive(false);
                 self_destruct = true;
+                
+                let done = "File Transfer Canceled (".to_string() + &filesize.to_string() + " MB)";
+                self.set_error(done);
+
                 "skull-symbolic"
             },
             e => {
