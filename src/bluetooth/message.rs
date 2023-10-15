@@ -29,5 +29,7 @@ pub enum Message {
     RequestYesNo(String, String, String, adw::ResponseAppearance),
     InvalidateSort(),
     RefreshDevicesList(),
-    StartTransfer(String, String, u32, f32, u32),
+    StartTransfer(String, String, f32, f32, f32),
+    UpdateTransfer(String, f32, String),
+    RemoveTransfer(String),
 } 

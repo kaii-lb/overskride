@@ -7,7 +7,7 @@ use gtk::glib::Sender;
 use std::{time::Duration, collections::HashMap, sync::Mutex};
 use dbus::channel::MatchingReceiver;
 
-use crate::{message::Message, obex_utils::ObexAgentManager1};
+use crate::{message::Message, obex_utils::{ObexAgentManager1, ObexTransfer1}};
 
 const SESSION_INTERFACE: &str = "org.bluez.obex.Session1";
 const TRANSFER_INTERFACE: &str = "org.bluez.obex.Transfer1";
@@ -19,6 +19,7 @@ static mut BREAKING: bool = false;
 static mut CURRENT_FILE_SIZE: u64 = 0;
 static mut CURRENT_FILE_NAME: String = String::new();
 static mut CURRENT_SENDER: Option<Sender<Message>> = None;
+pub static mut CANCEL: bool = false;
 
 // fn approx_equal(a: f32, b: f32, decimal_places: u8) -> bool {
 //     let factor = 10.0f32.powi(decimal_places as i32);
@@ -28,42 +29,57 @@ static mut CURRENT_SENDER: Option<Sender<Message>> = None;
 // }
 
 fn handle_properties_updated(interface: String, changed_properties: PropMap) {
+    println!("{:?} {:?}", interface.clone(),changed_properties);
+
     if interface == TRANSFER_INTERFACE {
-        if let Some(status_holder) = &changed_properties.get_key_value("Status") {
-            let status = status_holder.1.0.as_str().unwrap();
-            let sender = unsafe {
-                CURRENT_SENDER.clone().unwrap()
-            };
+        let sender = unsafe {
+            CURRENT_SENDER.clone().unwrap()
+        };
+        let status = if let Some(status_holder) = &changed_properties.get_key_value("Status") {
+            let dummy_status = status_holder.1.0.as_str().unwrap();
             
-            match status {
+            match dummy_status {
                 "active" => {
                     sender.send(Message::PopupError("obex-transfer-active".to_string(), adw::ToastPriority::Normal)).expect("cannot send message");
                 },
                 "complete" => {
                     sender.send(Message::PopupError("obex-transfer-complete".to_string(), adw::ToastPriority::Normal)).expect("cannot send message");
                 },
+                "error" => {
+                    sender.send(Message::PopupError("obex-transfer-error".to_string(), adw::ToastPriority::Normal)).expect("cannot send message");
+                },
                 message => {
                     sender.send(Message::PopupError(message.to_string(), adw::ToastPriority::Normal)).expect("cannot send message");
                 }
             }
 
-            println!("status {:?}", status);
+            println!("status {:?}", dummy_status);
+
+            dummy_status
         }
-        if let Some(val) = changed_properties.get_key_value("Transferred") {
+        else {
+            ""
+        }; 
+
+        let value = if let Some(val) = changed_properties.get_key_value("Transferred") {
             let transferred = val.1.0.as_u64();
 
             let value_mb = match transferred {
                 Some(val) => {
                     let mb = val as f32 / 1000000.0;
-                    let holder = (mb * 100.0).round() / 100.0;
-                    holder
+                    (mb * 100.0).round() / 100.0
                 },
                 None => {
                     0.0
                 }
             };
             println!("transferred: {}", value_mb);
+            value_mb
         }
+        else {
+            0.0
+        };
+        sender.send(Message::UpdateTransfer(unsafe { CURRENT_FILE_NAME.clone() }, value, status.to_string())).expect("cannot send message");
     }
 }
 
@@ -119,8 +135,11 @@ pub fn register_obex_agent(sender: Sender<Message>) -> Result<(), dbus::Error> {
     let mut cr = Crossroads::new();
 
     create_agent(&mut cr, sender.clone());
-
     proxy2.register_agent(Path::from_slice("/overskride/agent").unwrap()).expect("cant create agent");
+
+    sender.send(Message::StartTransfer("transfer".to_string(), "filename".to_string(), 0.0, 17.23, 18.31)).expect("cannot send message");
+    std::thread::sleep(std::time::Duration::from_secs(10));
+    sender.send(Message::UpdateTransfer("filename".to_string(), 18.00, "error".to_string())).expect("cannot send message");
     
     serve(conn, cr)?;
 
@@ -137,7 +156,15 @@ fn serve(conn: &mut Connection, mut cr: Crossroads) -> Result<(), dbus::Error> {
     unsafe {
         while !BREAKING { 
             // println!("serving");
-            conn.process(std::time::Duration::from_millis(1000))?; 
+            conn.process(std::time::Duration::from_millis(1000))?;
+            if CANCEL {
+                let proxy2 = conn.with_proxy("org.bluez.obex", CURRENT_TRANSFER.clone(), Duration::from_millis(5000));
+                proxy2.cancel().expect("cannot cancel transfer");
+
+                let sender = CURRENT_SENDER.clone().unwrap();
+                std::thread::sleep(std::time::Duration::from_secs(20));
+                sender.send(Message::RemoveTransfer(CURRENT_FILE_NAME.clone())).expect("cannot send message");
+            }
         }
     }
 
@@ -164,10 +191,10 @@ fn create_agent(cr: &mut Crossroads, sender: Sender<Message>) {
                     CURRENT_FILE_NAME = filename.clone();
                     CURRENT_FILE_SIZE = filesize;
                 }
-                let mb = (((filesize as f32 / 1000000.0) * 100.0).round() / 100.0) as u32;
+                let mb = ((filesize as f32 / 1000000.0) * 100.0).round() / 100.0;
 
                 println!("transfer is: {:?}", transfer);
-                sender.send(Message::StartTransfer(transfer.to_string(), filename.clone(), 0, 0.0, mb)).expect("cannot send message");
+                sender.send(Message::StartTransfer(transfer.to_string(), filename.clone(), 0.0, 0.0, mb)).expect("cannot send message");
 
                 Ok((filename,))
             }

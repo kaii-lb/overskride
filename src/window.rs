@@ -181,6 +181,7 @@ impl OverskrideWindow {
         
         self.pre_setup(sender.clone()).expect("cannot start presetup, something got REALLY fucked");
 
+        let sender_for_receiver_clone = sender.clone();
         let self_clone = self.clone();
         receiver.attach(None, move |msg| {
             let clone = self_clone.clone();
@@ -486,6 +487,9 @@ impl OverskrideWindow {
                         },
                         s if s.to_lowercase().contains("transfer-active") => {
                             "Started receiving file"
+                        },
+                        s if s.to_lowercase().contains("transfer-error") => {
+                            "File transfer stopped, error occurred"
                         },
                         e => {
                             println!("unknown error: {}", e.clone());
@@ -923,14 +927,42 @@ impl OverskrideWindow {
                 },
                 Message::StartTransfer(transfer, filename, percent, current, filesize) => {
                     let receiving_popover = clone.imp().receiving_popover.get();
-                    let listbox = receiving_popover.get_listbox();
 
-                    let row = ReceivingRow::new(transfer, filename);
+                    let row = ReceivingRow::new(transfer, filename.clone(), filesize);
                     println!("row is: {}, {}", row.transfer(), row.filename());
 
                     row.set_extra(percent, current, filesize);
+                    row.set_percentage(percent);
+                    // println!("{} {} {}", row.percentage(), row.get_extra(), row.filesize());
 
-                    listbox.append(&row);
+                    receiving_popover.add_row(&row);
+                }, 
+                Message::UpdateTransfer(filename, current_mb, status) => {
+                    let receiving_popover = clone.imp().receiving_popover.get();
+
+                    if let Some(row) = receiving_popover.get_row_by_filename(filename.clone()) {
+                        let filesize = row.filesize();
+                        let fraction = current_mb / filesize * 100.0;
+
+                        // println!("fraction {}", fraction);
+
+                        row.set_percentage(fraction);
+                        row.set_extra(fraction.round(), current_mb, filesize);
+                        let nuked = row.set_active_icon(status);
+
+                        if nuked {
+                            let cloned = sender_for_receiver_clone.clone();
+                            std::thread::spawn(move || {
+                                std::thread::sleep(std::time::Duration::from_secs(20));
+                                cloned.send(Message::RemoveTransfer(filename)).expect("cannot send message");
+                            });
+                        }
+                    }
+                },
+                Message::RemoveTransfer(filename) => {
+                    let receiving_popover = clone.imp().receiving_popover.get();
+
+                    receiving_popover.remove_row(filename);        
                 },
             }
         
@@ -1396,4 +1428,5 @@ async fn add_child_row(device: bluer::Device) -> bluer::Result<DeviceActionRow> 
 // - add battery reporting thingy 
 // - add auto accept files and tell how dangerous it is
 // - add move file to directory when received 
-// create a new stackpage for every device and allow user to go back and force with nice animations
+// - create a new stackpage for every device and allow user to go back and force with nice animations
+// - find out which std::thread::sleep is causing hang on start

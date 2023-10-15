@@ -104,7 +104,7 @@ impl OverskrideApplication {
             .application_icon("io.github.kaii_lb.Overskride")
             .developer_name("kaii")
             .version(VERSION)
-            .developers(vec!["kaii", "Email: imkaiilb@gmail.com<imkaiilb@gmail.com>".into(), "Github: kaii-lb https://github.com/kaii-lb".into()])
+            .developers(vec!["kaii", "Email: imkaiilb@gmail.com<imkaiilb@gmail.com>", "Github: kaii-lb https://github.com/kaii-lb"])
             .copyright("© 2023 kaii")
             .build();
 

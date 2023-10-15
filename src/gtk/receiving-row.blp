@@ -30,9 +30,10 @@ template $ReceivingRow : ListBoxRow {
         }
         Box {
             Button cancel_button {
+                styles ["circular"]
                 valign: center;
                 icon-name: "cross-large-symbolic";
-                styles ["circular"]
+                clicked => $cancel_transfer() swapped;
             }
         }
     }      

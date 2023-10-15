@@ -37,12 +37,15 @@ template $OverskrideWindow: Adw.ApplicationWindow {
       	
         [top]
         Adw.HeaderBar {
-      	  Adw.WindowTitle {
+          show-title: false;
+
+          [center]
+          Adw.WindowTitle title {
             halign: center;
             margin-start: 24;
             title: "Sidebar";
           }
-          
+
           [start]
           MenuButton show_popup_button {
             always-show-arrow: false;
@@ -50,8 +53,6 @@ template $OverskrideWindow: Adw.ApplicationWindow {
             popover: $ReceivingPopover receiving_popover {};
             styles ["flat"]
           }
-
-          show-title: false;
         }
         content: Box sidebar_content_box {
           //title: _("Sidebar");

@@ -1,6 +1,10 @@
+use adw::prelude::WidgetExt;
 use glib::Object;
 use gtk::glib;
+use gtk::prelude::{IsA, Cast};
 use gtk::subclass::prelude::*;
+
+use crate::receiving_row::ReceivingRow;
 
 mod imp {
     use super::*;    
@@ -10,6 +14,8 @@ mod imp {
     pub struct ReceivingPopover {
         #[template_child]
         pub listbox: TemplateChild<gtk::ListBox>,
+        #[template_child]
+        pub default_row: TemplateChild<gtk::ListBoxRow>,
     }
 
     #[glib::object_subclass]
@@ -50,8 +56,58 @@ impl ReceivingPopover {
             .build()
     }
 
-    pub fn get_listbox(&self) -> gtk::ListBox {
-        self.imp().listbox.get()
+    /// adds a row, enabling or disabling the "no transfers" label as it sees fit
+    pub fn add_row(&self, row: &impl IsA<gtk::Widget>) {
+        let listbox = self.imp().listbox.get();
+        listbox.append(row);
+
+        println!("added row");
+
+        if listbox.row_at_y(2).is_some() {
+            listbox.set_show_separators(true);
+        } 
+        self.imp().default_row.get().set_visible(false);
+    }
+
+    pub fn remove_row(&self, row_filename: String) {
+        let listbox = self.imp().listbox.get();
+
+        let mut index = 0;
+        while let Some(row) = listbox.row_at_index(index) {
+            if let Ok(receiving_row) = row.clone().downcast::<ReceivingRow>() {
+                if receiving_row.filename().contains(&row_filename) {
+                    listbox.remove(&row);
+                    println!("removed row");
+                }
+            }
+
+            index += 1;
+        }
+
+        if listbox.row_at_y(1).is_none() {
+            self.imp().default_row.get().set_visible(true);
+            listbox.set_show_separators(false);
+        }
+        else {
+            self.imp().default_row.get().set_visible(false);
+            listbox.set_show_separators(true);
+        }
+    }
+
+    pub fn get_row_by_filename(&self, row_filename: String) -> Option<ReceivingRow> {
+        let listbox = self.imp().listbox.get();
+
+        let mut index = 0;
+        while let Some(row) = listbox.row_at_index(index) {
+            if let Ok(receiving_row) = row.clone().downcast::<ReceivingRow>() {
+                if receiving_row.filename().contains(&row_filename) {
+                    return Some(receiving_row);
+                }
+            }
+
+            index += 1;
+        }
+        None
     }
 }
 

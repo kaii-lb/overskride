@@ -28,5 +28,6 @@
     <file alias="menu-symbolic.svg">icons/symbolic/actions/menu-symbolic.svg</file>
     <file alias="bell-outline-symbolic.svg">icons/symbolic/actions/bell-outline-symbolic.svg</file>
     <file alias="cross-large-symbolic.svg">icons/symbolic/actions/cross-large-symbolic.svg</file>
+    <file alias="skull-symbolic.svg">icons/symbolic/actions/skull-symbolic.svg</file>
   </gresource>
 </gresources>

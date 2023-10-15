@@ -15,8 +15,22 @@ template $ReceivingPopover : Popover {
       margin-start: 6;
       margin-end: 6;
       activate-on-single-click: false;
+      // show-separators: true;
       styles ["operations-list"]
             
+      ListBoxRow default_row {
+        // visible: false;
+        width-request: 380;
+        height-request: 55;
+
+        [center]
+        Label {
+          valign: center;
+          justify: center;
+          use-markup: true;
+          label: "<b>No Transactions Ongoing</b>";
+        } 
+      }
     }
   }
 }

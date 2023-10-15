@@ -1,15 +1,14 @@
+use adw::prelude::ButtonExt;
 use glib::{Object, Properties};
 use gtk::glib;
 use gtk::subclass::prelude::*;
 use gtk::prelude::ObjectExt;
 use std::cell::RefCell;
+use gtk::prelude::WidgetExt;
 
-use crate::obex_utils::ObexTransfer1;
+use crate::obex::CANCEL;
 
 mod imp {
-    use adw::prelude::ButtonExt;
-    use dbus::blocking::Connection;
-
     use super::*;    
 
     #[derive(Properties, Default, gtk::CompositeTemplate)]
@@ -30,9 +29,9 @@ mod imp {
         #[property(get = Self::get_filename_from_label, set = Self::set_filename_from_label)]
         pub filename: RefCell<String>,
         #[property(get, set = Self::set_progress_bar_fraction)]
-        pub percentage: RefCell<u32>,
-
-        pub extra: RefCell<String>,
+        pub percentage: RefCell<f32>,
+        #[property(get, set)]
+        pub filesize: RefCell<f32>,
     }
 
     #[glib::object_subclass]
@@ -43,6 +42,7 @@ mod imp {
 
         fn class_init(klass: &mut Self::Class) {
             klass.bind_template();
+            klass.bind_template_callbacks();
         }
 
         fn instance_init(obj: &glib::subclass::InitializingObject<Self>) {
@@ -54,29 +54,34 @@ mod imp {
     impl ObjectImpl for ReceivingRow {
         fn constructed(&self) {
             self.parent_constructed();
-            let transfer = self.transfer.borrow().clone();
-            self.cancel_button.get().connect_clicked(move |_| {
-                let conn = Connection::new_session().expect("cannot create connection.");
-                let proxy = conn.with_proxy("org.bluez.obex", transfer.clone(), std::time::Duration::from_secs(1));
-                proxy.cancel().expect("cannot cancel transfer");
-            });
         }
     }
 
     impl WidgetImpl for ReceivingRow {}
     impl ListBoxRowImpl for ReceivingRow {}
 
+    #[gtk::template_callbacks]
     impl ReceivingRow {
         fn get_filename_from_label(&self) -> String {
-            self.filename.borrow().clone()
+            self.title_label.get().label().to_string()
         }
     
         fn set_filename_from_label(&self, filename: String) {
-            *self.filename.borrow_mut() = filename;
+            self.title_label.get().set_label(&("Receiving: “".to_string() + &filename + "”"));
         }
 
         fn set_progress_bar_fraction(&self, fraction: f32) {
-            self.progress_bar.get().set_fraction(fraction as f64);
+            let holder = (fraction / 100.0) as f64;
+            // println!("divved {}", holder);
+            self.progress_bar.get().set_fraction(holder);
+        }
+
+        #[template_callback]
+        fn cancel_transfer(&self, button: &gtk::Button) {
+            unsafe {
+                CANCEL = true;
+            }
+            button.set_sensitive(false);
         }
     }
 }
@@ -89,23 +94,53 @@ glib::wrapper! {
 
 impl ReceivingRow {
     /// creates a new `ReceivingRow`, no values in, no values out.
-    pub fn new(transfer: String, filename: String) -> Self {
+    pub fn new(transfer: String, filename: String, filesize: f32) -> Self {
         Object::builder()
             .property("transfer", transfer)
             .property("filename", filename)
+            .property("filesize", filesize)
             .build()
     }
 
-    // fn get_extra(&self) -> String {
-    //     self.imp().filename.borrow().clone()
-    // }
+    pub fn get_extra(&self) -> String {
+        self.imp().extra_label.get().label().to_string()
+    }
 
-    #[allow(dead_code)]
-    pub fn set_extra(&self, percent: u32, current_mb: f32, filesize_mb: u32) {
+    pub fn set_extra(&self, percent: f32, current_mb: f32, filesize_mb: f32) {
         let percentage = percent.to_string() + "% | ";
         let size = current_mb.to_string() + "/" + &filesize_mb.to_string();
 
-        let extra = percentage + size.as_str();
-        *self.imp().extra.borrow_mut() = extra;
+        let extra = "<small>".to_string() + &percentage + size.as_str() + "</small>";
+        self.set_filesize(filesize_mb);
+        self.set_percentage(percent);
+        self.imp().extra_label.get().set_label(&extra);
+    }
+
+    pub fn set_active_icon(&self, icon_name: String) -> bool {
+        let cancel_button = self.imp().cancel_button.get();
+        let self_destruct: bool;
+
+        let icon = match icon_name.as_str() {
+            "complete" => {
+                cancel_button.set_sensitive(false);
+                self_destruct = true;
+                "check-plain-symbolic"
+            },
+            "error" => {
+                cancel_button.set_sensitive(false);
+                self_destruct = true;
+                "skull-symbolic"
+            },
+            e => {
+                if !e.is_empty() {
+                    println!("special icon case: {}", e);
+                }
+                self_destruct = false;
+                "cross-large-symbolic"
+            },
+        };
+
+        cancel_button.set_icon_name(icon);
+        self_destruct
     }
 }
