@@ -208,6 +208,7 @@ impl OverskrideWindow {
                     let send_file_row = clone.imp().send_file_row.get();
                     if active {
                         send_file_row.set_sensitive(true);
+                        send_file_row.set_sensitive(true);
                     }
                     else {
                         send_file_row.set_sensitive(false);
@@ -1530,3 +1531,4 @@ async fn add_child_row(device: bluer::Device) -> bluer::Result<DeviceActionRow> 
 // - add move file to directory when received 
 // - create a new stackpage for every device and allow user to go back and force with nice animations
 // - find out what is causing hang on start
+// - change renaming devices to be of addresses and not names

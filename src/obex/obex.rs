@@ -169,9 +169,6 @@ fn serve(conn: &mut Connection, cr: Option<Crossroads>) -> Result<(), dbus::Erro
 
     // Serve clients forever.
     unsafe {
-    	if cr.is_none() {
-    		
-    	}
         while !BREAKING { 
             // println!("serving");
             conn.process(std::time::Duration::from_millis(1000))?;
@@ -313,7 +310,7 @@ pub async fn start_send_file(destination: bluer::Address, source: bluer::Address
 }
 
 fn send_file(source_file: String, session_path: Path, sender: Sender<Message>) {
-    let mut conn = Connection::new_session().expect("cannot create send session");
+    let conn = Connection::new_session().expect("cannot create send session");
     let proxy = conn.with_proxy("org.bluez.obex", session_path, std::time::Duration::from_secs(1));
 
     let output = proxy.send_file(source_file.as_str()).unwrap();
@@ -335,5 +332,29 @@ fn send_file(source_file: String, session_path: Path, sender: Sender<Message>) {
 	    true
     }).expect("can't match signal");
 
-    serve(&mut conn, None).expect("cannot serve send");
+    unsafe {
+        while !BREAKING { 
+            println!("serving {}", BREAKING);
+            conn.process(std::time::Duration::from_millis(1000)).expect("cannot process request");
+            if CANCEL {
+                let sender = CURRENT_SENDER.clone().unwrap();
+                
+                match proxy.cancel() {
+                    Err(err) => {
+                        println!("error while canceling transfer {:?}", err.message());
+                    }
+                    _ => {},
+                }
+
+                let filename = proxy.filename().unwrap_or("".to_string());
+                let transferred = (proxy.transferred().unwrap_or(0) as f32 / 1000000.0).round() * 100.0;
+                sender.send(Message::UpdateTransfer(CURRENT_TRANSFER.clone(), filename.clone(), transferred, "error".to_string())).expect("cannot send message");
+
+                CANCEL = false;
+
+                std::thread::sleep(std::time::Duration::from_secs(60));
+                sender.send(Message::RemoveTransfer(CURRENT_TRANSFER.clone(), filename)).expect("cannot send message");
+            }
+        }
+    }    
 }

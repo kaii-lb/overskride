@@ -24,6 +24,7 @@ A Bluetooth and (soon to be) Obex client that is straight to the point, DE/WM ag
 # Features
 - Dynamically enumerate and list all devices known/in range 
 - Authenticating with devices (aka passkey confirmation)
+- Sending/receiving files
 - Connect/disconnect from devices
 - Rename device
 - Trust or block a device
@@ -37,11 +38,9 @@ A Bluetooth and (soon to be) Obex client that is straight to the point, DE/WM ag
 - Showing errors to user
 
 # What doesn't work
-- Sending/receiving files
 - Audio profiles
 - Auto accept files
 - Changing files storage location
 - Battery polling over bluetooth
 
-###### obviously the "what doesn't work" is a lot right now, but its in the works :D
 
