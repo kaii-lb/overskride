@@ -3,6 +3,12 @@ A Bluetooth and (soon to be) Obex client that is straight to the point, DE/WM ag
 
 ![Screenshot](/assets/images/overskride.png)
 
+# Prerequisites
+- gtk4 and libadwaita (development packages)
+- rust
+- cargo
+- bluez (should be installed by default on all distros)
+
 # How to install
 ```bash
 sudo systemctl enable --now bluetooth
@@ -11,20 +17,16 @@ sudo flatpak install -y ~/Downloads/overskride.flatpak
 rm ~/Downloads/overskride.flatpak
 ```
 
-# Prerequisites
-- gtk4 and libadwaita (development packages)
-- rust
-- cargo
-- bluez (should be installed by default on all distros)
-
 # Compiling
-- `git clone https://github.com/kaii-lb/overskride && cd overskride`
-- `meson setup build && cd build`
-- `meson compile && meson devenv`
-- `mkdir -p ~/.local/share/glib-2.0/schemas`
-- `cp ../data/io.github.kaii_lb.Overskride.gschema.xml ~/.local/share/glib-2.0/schemas`
-- `glib-compile-schemas ~/.local/share/glib-2.0/schemas`
-- `./src/overskride`
+```bash
+git clone https://github.com/kaii-lb/overskride && cd overskride
+meson setup build && cd build
+meson compile && meson devenv
+mkdir -p ~/.local/share/glib-2.0/schemas
+cp ../data/io.github.kaii_lb.Overskride.gschema.xml ~/.local/share/glib-2.0/schemas
+glib-compile-schemas ~/.local/share/glib-2.0/schemas
+./src/overskride
+```
 
 ###### this should be automated later on but oh well
 ###### press the refresh button to start discovering devices (will be automated)
