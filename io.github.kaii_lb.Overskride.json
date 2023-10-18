@@ -8,14 +8,15 @@
     ],
     "command" : "overskride",
     "finish-args" : [
-        "--share=network",
         "--share=ipc",
         "--socket=fallback-x11",
         "--device=dri",
         "--socket=wayland",
         "--allow=bluetooth",
         "--socket=system-bus",
-        "--socket=session-bus"
+        "--socket=session-bus",
+        "--filesystem=xdg-run/gvfsd",
+        "--talk-name=org.gtk.vfs.*"
     ],
     "build-options" : {
         "append-path" : "/usr/lib/sdk/rust-stable/bin",
