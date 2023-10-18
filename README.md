@@ -3,6 +3,14 @@ A Bluetooth and (soon to be) Obex client that is straight to the point, DE/WM ag
 
 ![Screenshot](/assets/images/overskride.png)
 
+# How to install
+```bash
+sudo systemctl enable --now bluetooth
+curl -sSL https://github.com/kaii-lb/overskride/releases/latest/download/overskride.flatpak -o ~/Downloads/overskride.flatpak
+sudo flatpak install -y ~/Downloads/overskride.flatpak
+rm ~/Downloads/overskride.flatpak
+```
+
 # Prerequisites
 - gtk4 and libadwaita (development packages)
 - rust
