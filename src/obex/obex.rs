@@ -305,7 +305,7 @@ pub async fn start_send_file(destination: bluer::Address, source: bluer::Address
     println!("send session is: {:?}", send_session);
 
     for file in file_paths {
-        send_file(file, send_session.clone(), sender.clone());
+        send_file(file.clone(), send_session.clone(), sender.clone());
         println!("file to be sent is {}", file);
     }
 }

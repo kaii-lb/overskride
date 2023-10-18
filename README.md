@@ -1,5 +1,5 @@
 # Overskride
-A Bluetooth and (soon to be) Obex client that is straight to the point, DE/WM agnostic, and beautiful (also soon to be) :D
+A Bluetooth and Obex client that is straight to the point, DE/WM agnostic, and beautiful :D
 
 ![Screenshot](/assets/images/overskride.png)
 
@@ -29,7 +29,6 @@ glib-compile-schemas ~/.local/share/glib-2.0/schemas
 ```
 
 ###### this should be automated later on but oh well
-###### press the refresh button to start discovering devices (will be automated)
 
 # Features
 - Dynamically enumerate and list all devices known/in range 

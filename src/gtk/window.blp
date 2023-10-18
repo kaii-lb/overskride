@@ -10,7 +10,7 @@ template $OverskrideWindow: Adw.ApplicationWindow {
     setters {
       split_view.collapsed: true;
       split_view.show-sidebar: false;
-      headerbar.show-title: true;
+      //headerbar.show-title: false;
       //navigation_page.title: "Device Settings";
       show_sidebar_button.active: false;
     }
@@ -156,7 +156,14 @@ template $OverskrideWindow: Adw.ApplicationWindow {
       content: Adw.ToolbarView {
         [top]
         Adw.HeaderBar headerbar {
-          show-title: true;
+          show-title: false;
+
+          [center]
+          Adw.WindowTitle window_title {
+            halign: center;
+            margin-start: 24;
+            title: "Overskride";
+          }
           
           Box {
             ToggleButton show_sidebar_button {
