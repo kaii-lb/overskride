@@ -49,7 +49,7 @@ glib-compile-schemas ~/.local/share/glib-2.0/schemas
 # What doesn't work
 - Audio profiles
 - Auto accept files
-- Changing files storage location
+- Changing files storage location (in the works)
 - Battery polling over bluetooth
-
-
+- Applet support aka system tray
+- Cancelling send file, for some reason

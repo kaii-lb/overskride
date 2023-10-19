@@ -1,0 +1,11 @@
+### Overskride Version 0.4.4
+- better "device is connected" handling
+- (maybe) fixed issue where an unrelated device getting deleted would deselect device
+- better error message when transfers fail
+- sending file when device isn't connected no longer crashes a thread
+- added "sending" and "receiving" toasts along with respective downloads menu tweaks
+- fixed formatting for transferred amount in downloads menu
+- added toasts for when a transfer succeeds/fails/starts
+- started on foundation for "save file to location" feature
+- cancelling outbound transfer *still* doesn't work
+- switching adapters now completely resets devices list (doubtful change)

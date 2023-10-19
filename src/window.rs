@@ -106,6 +106,8 @@ mod imp {
         pub choose_file_button: TemplateChild<gtk::Button>,
 		#[template_child]
 		pub send_file_row: TemplateChild<adw::ActionRow>,
+        #[template_child]
+        pub file_save_location: TemplateChild<adw::EntryRow>,
 
         pub settings: OnceCell<Settings>,
         pub display_pass_key_dialog: RefCell<Option<adw::MessageDialog>>,
@@ -204,15 +206,6 @@ impl OverskrideWindow {
 
                     std::thread::sleep(std::time::Duration::from_millis(200));
                     connected_switch_row.set_switch_active(active);
-
-                    let send_file_row = clone.imp().send_file_row.get();
-                    if active {
-                        send_file_row.set_sensitive(true);
-                        send_file_row.set_sensitive(true);
-                    }
-                    else {
-                        send_file_row.set_sensitive(false);
-                    }
                 },
                 Message::SwitchActiveSpinner(spinning) => {
                     let connected_switch_row = clone.imp().connected_switch_row.get();
@@ -249,12 +242,12 @@ impl OverskrideWindow {
                     let list_box = clone.imp().main_listbox.get();
                     let mut listbox_index = 0;
                     
-                    while let Some(row) = list_box.clone().row_at_index(listbox_index) {
+                    while let Some(row) = list_box.row_at_index(listbox_index) {
                         let action_row = row.downcast::<DeviceActionRow>().expect("cannot downcast to device action row.");
                         
                         // println!("device {}, with rssi {} changed", device_name.clone(), rssi);
 
-                        if action_row.clone().title() == device_name {
+                        if action_row.title() == device_name {
                             action_row.set_rssi(rssi);
                             action_row.update_rssi_icon();
                         }
@@ -270,30 +263,26 @@ impl OverskrideWindow {
                         main_listbox.invalidate_sort();
                     }
                 },
-                Message::RemoveDevice(name) => {
+                Message::RemoveDevice(name, address) => {
                     let listbox = clone.clone().imp().main_listbox.get();
                     let mut index = 0;
                     let mut selected = true;
 
-                    while let Some(row) = listbox.clone().row_at_index(index) {
+                    while let Some(row) = listbox.row_at_index(index) {
                         // println!("{}", index);
-                        let action_row = row.downcast::<adw::ActionRow>().expect("cannot downcast to action row.");
+                        let action_row = row.downcast::<DeviceActionRow>().expect("cannot downcast to action row.");
                         // println!("{:?}", action_row.clone());
-                        if action_row.clone().title() == name {
-                            listbox.clone().remove(&action_row);
+                        
+                        if action_row.title() == name && action_row.get_bluer_address() == address {
+                            listbox.remove(&action_row);
                             if let Some(row) = listbox.selected_row() {
-                                if row == action_row {
-                                    selected = true;
-                                }
-                                else {
-                                    selected = false;
-                                }
+								selected = row == action_row;
                             }
                         }
                         index += 1;
                     }
 
-                    if selected {
+                    if !selected {
                         let bluetooth_settings_row = clone.clone().imp().bluetooth_settings_row.get();
                         bluetooth_settings_row.emit_activate();
                     }
@@ -343,10 +332,10 @@ impl OverskrideWindow {
                     let listbox = revealer.last_child().unwrap().downcast::<gtk::ListBox>().unwrap();
                     
                     let mut index = 0;
-                    while let Some(row) = listbox.clone().row_at_index(index) {
+                    while let Some(row) = listbox.row_at_index(index) {
                         let action_row = row.downcast::<adw::ActionRow>().expect("cannot downcast to action row.");
                     
-                        if action_row.clone().title() == old_alias {
+                        if action_row.title() == old_alias {
                             action_row.set_title(new_alias.as_str());
                         }
                         index += 1;
@@ -363,7 +352,9 @@ impl OverskrideWindow {
                 },
                 Message::PopulateAdapterExpander(hashmap) => {
                     let default_controller_expander = clone.imp().default_controller_expander.get();
-                    let listbox = default_controller_expander.last_child().unwrap().downcast::<gtk::Box>().unwrap().last_child().unwrap().downcast::<gtk::Revealer>().unwrap().last_child().unwrap().downcast::<gtk::ListBox>(); 
+                    let listbox = default_controller_expander.last_child().unwrap().downcast::<gtk::Box>().unwrap()
+                        .last_child().unwrap().downcast::<gtk::Revealer>().unwrap().last_child().unwrap().downcast::<gtk::ListBox>(); 
+
                     if listbox.clone().is_ok() {
                         while let Some(supposed_row) = listbox.clone().unwrap().last_child() {
                             listbox.clone().unwrap().remove(&supposed_row);
@@ -401,10 +392,11 @@ impl OverskrideWindow {
                         } 
 
                         let listbox_clone = listbox.clone();
+                        let sender_clone = sender_for_receiver_clone.clone();
 
                         row.add_suffix(&suffix.clone());
                         row.set_activatable(true);
-                        row.connect_activated(move |_| { 
+                        row.connect_activated(move |row| { 
                             let mut index = 0;
                             if listbox_clone.clone().is_ok() {
                                 while let Some(row) = listbox_clone.clone().unwrap().row_at_index(index) {
@@ -422,6 +414,8 @@ impl OverskrideWindow {
                                 println!("current adapter name is: {}", CURRENT_ADAPTER.clone());
                             }
 
+                            row.activate_action("refresh-devices", None).expect("cannot refresh after adapter switch");
+                            sender_clone.send(Message::PopupError("bt-refresh-adapter-failed".to_string(), adw::ToastPriority::High)).expect("cannot send message");
                             suffix.show();
                         });
                         
@@ -435,6 +429,7 @@ impl OverskrideWindow {
                     toast.set_priority(priority);
 
                     // best practices out the window :D
+                    // need to ~hashmap~ this shit later
                     let title_holder = match string {
                         s if s.to_lowercase().contains("page-timeout") => {
                             "Failed to connect to device, connection timed out"
@@ -508,14 +503,35 @@ impl OverskrideWindow {
                         s if s.to_lowercase().contains("home-unknown") => {
                             "Unable to get home folder, are you sure its configured correctly?"
                         },
-                        s if s.to_lowercase().contains("transfer-complete") => {
+                        s if s.to_lowercase().contains("transfer-complete-inbound") => {
                             "File has been received"
                         },
-                        s if s.to_lowercase().contains("transfer-active") => {
+                        s if s.to_lowercase().contains("transfer-complete-outbound") => {
+                            "File has been transferred"
+                        },
+                        s if s.to_lowercase().contains("transfer-active-inbound") => {
                             "Started receiving file"
                         },
-                        s if s.to_lowercase().contains("transfer-error") => {
-                            "File transfer stopped, error occurred"
+                        s if s.to_lowercase().contains("transfer-active-outbound") => {
+                            "Started tranferring file"
+                        },
+                        s if s.to_lowercase().contains("transfer-error-inbound") => {
+                            "Receiving file stopped, error occurred"
+                        },
+                        s if s.to_lowercase().contains("transfer-error-outbound") => {
+                            "Sending file stopped, error occurred"
+                        },
+                        s if s.to_lowercase().contains("transfer-not-authorized") => {
+                        	"File transfer has been rejected"
+                        },
+                        s if s.to_lowercase().contains("transfer-cancel-not-authorized") => {
+                        	"Unable to cancel file transfer"
+                        },
+                        s if s.to_lowercase().contains("transfer-connection-error") => {
+                       		"Unable to send file, connection is not possible"
+                       	},
+                        s if s.to_lowercase().contains("refresh-adapter-failed") => {
+                            "Unable to refresh devices list after adapter change"
                         },
                         e => {
                             println!("unknown error: {}", e.clone());
@@ -551,7 +567,7 @@ impl OverskrideWindow {
                     label.set_label(&title);
 
                     toast.set_custom_title(Some(&boxholder));
-
+                    
                     toast_overlay.add_toast(toast);
                 },
                 Message::UpdateListBoxImage() => {
@@ -951,10 +967,10 @@ impl OverskrideWindow {
                 Message::RefreshDevicesList() => {
                     gtk::prelude::WidgetExt::activate_action(&clone, "win.refresh-devices", None).expect("cannot refresh devices list");
                 },
-                Message::StartTransfer(transfer, filename, percent, current, filesize) => {
+                Message::StartTransfer(transfer, filename, percent, current, filesize, outbound) => {
                     let receiving_popover = clone.imp().receiving_popover.get();
 
-                    let row = ReceivingRow::new(transfer, filename.clone(), filesize);
+                    let row = ReceivingRow::new(transfer, filename.clone(), filesize, outbound);
                     println!("row is: {}, {}", row.transfer(), row.filename());
 
                     row.set_extra(percent, current, filesize);
@@ -1032,6 +1048,10 @@ impl OverskrideWindow {
                         file_chooser.destroy();
                     });
                 },
+                Message::SwitchSendFileActive(state) => {
+                    let send_file_row = clone.imp().send_file_row.get();
+                    send_file_row.set_sensitive(state);
+                }
             }
         
             glib::ControlFlow::Continue
@@ -1070,6 +1090,10 @@ impl OverskrideWindow {
         refresh_action.activate(None);
         
         let main_listbox = self.imp().main_listbox.get();
+
+        // smaller => one before two
+        // larger => two before one
+        // equal => theyre equal
         main_listbox.set_sort_func(|row_one, row_two| {
         	let actionrow_one = row_one.clone().downcast::<DeviceActionRow>().unwrap();
         	let actionrow_two = row_two.clone().downcast::<DeviceActionRow>().unwrap();
@@ -1083,6 +1107,13 @@ impl OverskrideWindow {
             
             let mut one = binding_one.as_str();
             let mut two = binding_two.as_str();
+
+            if one == "Unknown Device" {
+                return gtk::Ordering::Larger;
+            }
+            else if two == "Unknown Device" {
+                return gtk::Ordering::Smaller;
+            }
             
         	let one_str = one.to_lowercase();
             let two_str = two.to_lowercase();
@@ -1093,7 +1124,7 @@ impl OverskrideWindow {
             let name_result = one.cmp(two);
             let rssi_result = rssi_one.cmp(&rssi_two);
             //println!("rssi result {:?}", rssi_result);
-            
+
             let final_result = if rssi_result == std::cmp::Ordering::Equal {
                 name_result
             }
@@ -1130,6 +1161,7 @@ impl OverskrideWindow {
                     sender_clone.send(Message::PopupError(string, adw::ToastPriority::High)).expect("cannot send message");
                     sender_clone.send(Message::SwitchActive(false)).expect("cannot send message");
                     sender_clone.send(Message::SwitchActiveSpinner(false)).expect("cannot send message");
+                    sender_clone.send(Message::SwitchSendFileActive(false)).expect("cannot send message");
                 }
             });
         });
@@ -1345,26 +1377,33 @@ impl OverskrideWindow {
         choose_file_button.connect_clicked(move |_| {
             let main_listbox = self_clone5.imp().main_listbox.get();
             let selected_row = main_listbox.selected_row();
+			let connected = self_clone5.imp().connected_switch_row.get().active();
 
-            let (destination, source) = if let Some(row) = selected_row {
-                let action_row = row.downcast::<DeviceActionRow>().unwrap();
-                let source = action_row.get_bluer_adapter_address();
-                let destination = action_row.get_bluer_address();
-                (destination, source)
-            }
-            else {
-                (bluer::Address::any(),bluer::Address::any())
-            };
+			if connected {
+	            let (destination, source) = if let Some(row) = selected_row {
+	                let action_row = row.downcast::<DeviceActionRow>().unwrap();
+	                let source = action_row.get_bluer_adapter_address();
+	                let destination = action_row.get_bluer_address();
+	                (destination, source)
+	            }
+	            else {
+	                (bluer::Address::any(),bluer::Address::any())
+	            };
 
-            if destination != bluer::Address::any() {
-                let sender_clone = sender10.clone();
-                std::thread::spawn(move || {
-                    obex::start_send_file(destination, source, sender_clone);
-                });
-            }
-            else {
-                println!("error while sending file, destination doesn't exist");
-            }
+	            if destination != bluer::Address::any() {
+	                let sender_clone = sender10.clone();
+	                std::thread::spawn(move || {
+	                    obex::start_send_file(destination, source, sender_clone);
+	                });
+	            }
+	            else {
+	                println!("error while sending file, destination doesn't exist???");
+                    sender.send(Message::PopupError("obex-transfer-not-connected".to_string(), adw::ToastPriority::Normal)).expect("cannot send message");					    	
+	            }
+			}
+			else {
+	        	sender.send(Message::PopupError("obex-transfer-not-connected".to_string(), adw::ToastPriority::Normal)).expect("cannot send message");					    	
+			}
         });
     }
 
@@ -1394,9 +1433,21 @@ impl OverskrideWindow {
         self.set_default_size(width, height);
         self.set_maximized(maximized);
 
-        unsafe {
-            STORE_FOLDER = settings.string("store-folder").to_string();
-        }
+        // let file_save_location = self.imp().file_save_location.get();
+        // let mut store_folder = settings.string("store-folder").to_string();
+
+        // if store_folder.is_empty() {
+        //     store_folder = gtk::glib::user_special_dir(gtk::glib::UserDirectory::Downloads).expect("cannot get user download dir")
+        //         .to_str().unwrap_or("Unknown Directory").to_string();
+            
+        //     settings.set_string("store-folder", &store_folder).expect("cannot set store folder");
+        // }
+     
+        // file_save_location.set_text(&store_folder);
+
+        // unsafe {
+        //     STORE_FOLDER = store_folder;
+        // }
     }
 
     #[tokio::main]
@@ -1518,8 +1569,6 @@ async fn add_child_row(device: bluer::Device) -> bluer::Result<DeviceActionRow> 
 
 
 // TODO
-// - add the send and receive file functionality
-// - make it so the transfer update and start is based on `transfer` and not `filename`
 // - move bluetooth agent functionality to a seperate thread to avoid remaking agent on refresh
 // - add a more info button to the end of "device properties"
 // - use fxhashmap for even faster lookups
@@ -1532,3 +1581,5 @@ async fn add_child_row(device: bluer::Device) -> bluer::Result<DeviceActionRow> 
 // - create a new stackpage for every device and allow user to go back and force with nice animations
 // - find out what is causing hang on start
 // - change renaming devices to be of addresses and not names
+// - add a transfer rate and time till completion for transfers
+// - add device in request yes no 

@@ -19,6 +19,7 @@ static mut BREAKING: bool = false;
 static mut CURRENT_FILE_SIZE: u64 = 0;
 static mut CURRENT_FILE_NAME: String = String::new();
 static mut CURRENT_SENDER: Option<Sender<Message>> = None;
+static mut OUTBOUND: bool = false;
 pub static mut CANCEL: bool = false;
 
 // fn approx_equal(a: f32, b: f32, decimal_places: u8) -> bool {
@@ -38,19 +39,34 @@ fn handle_properties_updated(interface: String, changed_properties: PropMap, tra
             
             match dummy_status {
                 "active" => {
-                    sender.send(Message::PopupError("obex-transfer-active".to_string(), adw::ToastPriority::Normal)).expect("cannot send message");
+                	if unsafe { OUTBOUND } {
+                    	sender.send(Message::PopupError("obex-transfer-active-outbound".to_string(), adw::ToastPriority::Normal)).expect("cannot send message");                		
+                	}
+                	else {
+                    	sender.send(Message::PopupError("obex-transfer-active-inbound".to_string(), adw::ToastPriority::Normal)).expect("cannot send message");
+                	}
                     unsafe {
                     	BREAKING = false;
                     }
                 },
                 "complete" => {
-                    sender.send(Message::PopupError("obex-transfer-complete".to_string(), adw::ToastPriority::Normal)).expect("cannot send message");
+                	if unsafe { OUTBOUND } {
+                    	sender.send(Message::PopupError("obex-transfer-complete-outbound".to_string(), adw::ToastPriority::Normal)).expect("cannot send message");                		
+                	}
+                	else {
+                    	sender.send(Message::PopupError("obex-transfer-complete-inbound".to_string(), adw::ToastPriority::Normal)).expect("cannot send message");
+                	}
                     unsafe {
                     	BREAKING = true;
                     }
                 },
                 "error" => {
-                    sender.send(Message::PopupError("obex-transfer-error".to_string(), adw::ToastPriority::Normal)).expect("cannot send message");
+                	if unsafe { OUTBOUND } {
+                    	sender.send(Message::PopupError("obex-transfer-error-outbound".to_string(), adw::ToastPriority::Normal)).expect("cannot send message");
+                	}
+                	else {
+                    	sender.send(Message::PopupError("obex-transfer-error-inbound".to_string(), adw::ToastPriority::Normal)).expect("cannot send message");
+                	}
                     unsafe {
                     	BREAKING = true;
                     }                    
@@ -176,12 +192,10 @@ fn serve(conn: &mut Connection, cr: Option<Crossroads>) -> Result<(), dbus::Erro
                 let sender = CURRENT_SENDER.clone().unwrap();
                 
                 let proxy2 = conn.with_proxy("org.bluez.obex", CURRENT_TRANSFER.clone(), Duration::from_millis(5000));
-                match proxy2.cancel() {
-                    Err(err) => {
-                        println!("error while canceling transfer {:?}", err.message());
-                    }
-                    _ => {},
-                }
+
+				if let Err(err) = proxy2.cancel() {
+                	println!("error while canceling transfer {:?}", err.message());
+				}
 
                 let filename = proxy2.filename().unwrap_or("".to_string());
                 let transferred = (proxy2.transferred().unwrap_or(0) as f32 / 1000000.0).round() * 100.0;
@@ -216,13 +230,14 @@ fn create_agent(cr: &mut Crossroads, sender: Sender<Message>) {
                 unsafe {
                     CURRENT_FILE_NAME = filename.clone();
                     CURRENT_FILE_SIZE = filesize;
+               		OUTBOUND = false;
                 }
                 let mb = ((filesize as f32 / 1000000.0) * 100.0).round() / 100.0;
 
                 if spawn_dialog(filename.clone(), &sender) {
                     println!("transfer is: {:?}", transfer);
-                    sender.send(Message::StartTransfer(transfer.to_string(), filename.clone(), 0.0, 0.0, mb)).expect("cannot send message");
-    
+                    sender.send(Message::StartTransfer(transfer.to_string(), filename.clone(), 0.0, 0.0, mb, false)).expect("cannot send message");
+
                     Ok((filename,))
                 }
                 else {
@@ -257,7 +272,7 @@ async fn spawn_dialog(filename: String, sender: &Sender<Message>) -> bool {
     println!("file receive request incoming!");
 
     let title = "File Transfer Incoming".to_string();
-    let subtitle = "Accept <span font_weight='bold' color='#78aeed'>".to_string() + &filename + "</span> from AJKDA";
+    let subtitle = "Accept <span font_weight='bold' color='#78aeed'>".to_string() + &filename + "</span> from a device";
     let confirm = "Accept".to_string();
     let response_type = adw::ResponseAppearance::Suggested;
 
@@ -268,11 +283,9 @@ async fn spawn_dialog(filename: String, sender: &Sender<Message>) -> bool {
 
     wait_for_dialog_exit().await;
 
-    let confirmed = unsafe {
+    unsafe {
         CONFIRMATION_AUTHORIZATION
-    };
-
-    confirmed
+    }
 }
 
 #[tokio::main]
@@ -301,13 +314,20 @@ pub async fn start_send_file(destination: bluer::Address, source: bluer::Address
     
     hashmap.insert("Source".to_string(), Variant(Box::new(source.to_string())));
 
-    let send_session = proxy.create_session(&destination.to_string(), hashmap).expect("cannot create session");
-    println!("send session is: {:?}", send_session);
+    let send_session = if let Ok(sesh) = proxy.create_session(&destination.to_string(), hashmap) {
+    	sesh
+    }
+    else {
+        sender.send(Message::PopupError("obex-transfer-connection-error".to_string(), adw::ToastPriority::Normal)).expect("cannot send message");					    	
+    	return;
+    };
+    println!("send session is: {:?}, with filepaths {:?}", send_session, file_paths);
 
     for file in file_paths {
-        send_file(file.clone(), send_session.clone(), sender.clone());
         println!("file to be sent is {}", file);
+        send_file(file.clone(), send_session.clone(), sender.clone());
     }
+    println!("done sending files");
 }
 
 fn send_file(source_file: String, session_path: Path, sender: Sender<Message>) {
@@ -323,10 +343,11 @@ fn send_file(source_file: String, session_path: Path, sender: Sender<Message>) {
 
 	unsafe {
 		CURRENT_TRANSFER = output.0.clone().to_string();
+		OUTBOUND = true;
 	}
 	
     let mb = ((transfer_proxy.size().unwrap_or(999) as f32 / 1000000.0) * 100.0).round() / 100.0;	
-    sender.send(Message::StartTransfer(output.0.clone().to_string(), transfer_proxy.filename().unwrap_or("Unknown File".to_string()), 0.0, 0.0, mb)).expect("cannot send message");
+    sender.send(Message::StartTransfer(output.0.clone().to_string(), transfer_proxy.filename().unwrap_or("Unknown File".to_string()), 0.0, 0.0, mb, true)).expect("cannot send message");
 
 	transfer_proxy.match_signal(move |signal: PropertiesPropertiesChanged, _: &Connection, _: &dbus::Message| {
 	    handle_properties_updated(signal.interface_name, signal.changed_properties, output.0.to_string());
@@ -335,17 +356,15 @@ fn send_file(source_file: String, session_path: Path, sender: Sender<Message>) {
 
     unsafe {
         while !BREAKING { 
-            println!("serving {}", BREAKING);
+            // println!("serving {}", BREAKING);
             conn.process(std::time::Duration::from_millis(1000)).expect("cannot process request");
             if CANCEL {
                 let sender = CURRENT_SENDER.clone().unwrap();
-                
-                match proxy.cancel() {
-                    Err(err) => {
-                        println!("error while canceling transfer {:?}", err.message());
-                    }
-                    _ => {},
-                }
+
+				if let Err(err) = transfer_proxy.cancel() {
+                    sender.send(Message::PopupError("obex-transfer-cancel-not-authorized".to_string(), adw::ToastPriority::Normal)).expect("cannot send message");					
+					println!("error while canceling transfer {:?}", err.message());
+				}                	
 
                 let filename = proxy.filename().unwrap_or("".to_string());
                 let transferred = (proxy.transferred().unwrap_or(0) as f32 / 1000000.0).round() * 100.0;

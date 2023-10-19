@@ -41,6 +41,7 @@ pub async fn set_device_active(address: bluer::Address, sender: Sender<Message>,
 
     println!("set state {} for device {}\n", updated_state, device.address());
 	sender.send(Message::SwitchActiveSpinner(false)).expect("cannot set spinner to show.");
+    sender.send(Message::SwitchSendFileActive(updated_state)).expect("cannot send message");
 	// sender.send(Message::SwitchActiveSpinner(false)).expect("cannot set spinner to show.");
     // connected_switch_row.set_active(!connected_switch_row.active());
     
@@ -126,6 +127,7 @@ pub async fn get_device_properties(address: bluer::Address, sender: Sender<Messa
     sender.send(Message::SwitchActive(is_active)).expect("cannot set device active in page.");
     sender.send(Message::SwitchBlocked(is_blocked)).expect("cannot set device blocked in page.");
     sender.send(Message::SwitchTrusted(is_trusted)).expect("cannot set device trusted in page.");
+    sender.send(Message::SwitchSendFileActive(is_active)).expect("cannot send message");
     
     // println!("the devices properties have been gotten with state: {}", is_active);
 
@@ -164,7 +166,7 @@ pub async fn remove_device(address: bluer::Address, sender: Sender<Message>, ada
             }
         }
         
-        sender.send(Message::RemoveDevice(name)).expect("can't send message");
+        sender.send(Message::RemoveDevice(name, address)).expect("can't send message");
         sender.send(Message::UpdateListBoxImage()).expect("can't send message");    
     }
 
@@ -257,7 +259,7 @@ pub async fn get_devices_continuous(sender: Sender<Message>, adapter_name: Strin
                                 String::new()
                             };
                             
-                            sender_clone.send(Message::RemoveDevice(device_name.clone())).expect("cannot send message"); 
+                            sender_clone.send(Message::RemoveDevice(device_name.clone(), addr)).expect("cannot send message"); 
                             sender_clone.send(Message::UpdateListBoxImage()).expect("cannot send message");
                             println!("Device removed: {:?} {}\n", addr, device_name.clone());    
 						}

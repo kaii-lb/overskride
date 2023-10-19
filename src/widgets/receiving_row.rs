@@ -32,6 +32,8 @@ mod imp {
         pub percentage: RefCell<f32>,
         #[property(get, set)]
         pub filesize: RefCell<f32>,
+        #[property(get, set)]
+        pub outbound: RefCell<bool>,
     }
 
     #[glib::object_subclass]
@@ -67,7 +69,12 @@ mod imp {
         }
     
         fn set_filename_from_label(&self, filename: String) {
-            self.title_label.get().set_label(&("Receiving: “".to_string() + &filename + "”"));
+        	if *self.outbound.borrow() {
+            	self.title_label.get().set_label(&("Sending: “".to_string() + &filename + "”"));
+        	}
+        	else {
+            	self.title_label.get().set_label(&("Receiving: “".to_string() + &filename + "”"));        		
+        	}
         }
 
         fn set_progress_bar_fraction(&self, fraction: f32) {
@@ -93,10 +100,11 @@ glib::wrapper! {
 }
 
 impl ReceivingRow {
-    /// creates a new `ReceivingRow`, no values in, no values out.
-    pub fn new(transfer: String, filename: String, filesize: f32) -> Self {
+    /// creates a new `ReceivingRow`
+    pub fn new(transfer: String, filename: String, filesize: f32, outbound: bool) -> Self {
         Object::builder()
             .property("transfer", transfer)
+            .property("outbound", outbound)
             .property("filename", filename)
             .property("filesize", filesize)
             .build()
@@ -108,7 +116,9 @@ impl ReceivingRow {
 
     pub fn set_extra(&self, percent: f32, current_mb: f32, filesize_mb: f32) {
         let percentage = percent.to_string() + "% | ";
-        let size = current_mb.to_string() + "/" + &filesize_mb.to_string();
+
+        let formatted_mb = format!("{:.2}", current_mb);
+        let size = formatted_mb + "/" + &filesize_mb.to_string();
 
         let extra = "<small>".to_string() + &percentage + size.as_str() + "</small>";
         self.set_filesize(filesize_mb);

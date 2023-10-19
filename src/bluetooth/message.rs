@@ -17,7 +17,7 @@ pub enum Message {
     /// Moves between pages, ie changes the values of the rows and icons to `page: Option<String>` and `icon: Option<String>`
     SwitchPage(Option<String>, Option<String>),
     /// Removes the device matching the supplied name (`name: String`)
-    RemoveDevice(String),
+    RemoveDevice(String, bluer::Address),
     /// Adds a new device from the properties of [device](bluer::Device)
     AddRow(bluer::Device),
     /// Changes the adapter's powered state to `bool`
@@ -67,8 +67,9 @@ pub enum Message {
     /// * `filename` - a [String](String) ...which is the filename
     /// * `percent` - a [f32](f32) the starting completion percent (like 45 **not** 0.45)
     /// * `current mb` - a [f32](f32) the current transferred megabytes
-    /// * `fileszie` - a [f32](f32) the total filesize in megabytes
-    StartTransfer(String, String, f32, f32, f32),
+    /// * `filesize` - a [f32](f32) the total filesize in megabytes
+    /// * `outbound` - a [bool](bool) indicating if the transfer is sending or receiving
+    StartTransfer(String, String, f32, f32, f32, bool),
     /// Updates the transfer's progression based on:
     /// ### Arguments
     /// * `transfer` - a [String](String) containing the transfer object
@@ -80,4 +81,6 @@ pub enum Message {
     RemoveTransfer(String, String),
     /// Gets the file path of a file selected by the user 
     GetFile(),
+    /// Sets the sensitive state of the send file row, aka if it is interactable
+    SwitchSendFileActive(bool),
 } 
