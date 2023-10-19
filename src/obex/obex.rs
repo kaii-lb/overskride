@@ -7,7 +7,7 @@ use gtk::glib::Sender;
 use std::{time::Duration, collections::HashMap, sync::Mutex};
 use dbus::channel::MatchingReceiver;
 
-use crate::{message::Message, obex_utils::{ObexAgentManager1, ObexTransfer1, ObexClient1, ObexObjectPush1}, window::{DISPLAYING_DIALOG, CONFIRMATION_AUTHORIZATION, SEND_FILES_PATH}, agent::wait_for_dialog_exit};
+use crate::{message::Message, obex_utils::{ObexAgentManager1, ObexTransfer1, ObexClient1, ObexObjectPush1}, window::{DISPLAYING_DIALOG, CONFIRMATION_AUTHORIZATION, SEND_FILES_PATH, STORE_FOLDER}, agent::wait_for_dialog_exit};
 
 const SESSION_INTERFACE: &str = "org.bluez.obex.Session1";
 const TRANSFER_INTERFACE: &str = "org.bluez.obex.Transfer1";
@@ -55,6 +55,7 @@ fn handle_properties_updated(interface: String, changed_properties: PropMap, tra
                 	}
                 	else {
                     	sender.send(Message::PopupError("obex-transfer-complete-inbound".to_string(), adw::ToastPriority::Normal)).expect("cannot send message");
+                        move_to_store_folder();
                 	}
                     unsafe {
                     	BREAKING = true;
@@ -237,16 +238,26 @@ fn create_agent(cr: &mut Crossroads, sender: Sender<Message>) {
                 if spawn_dialog(filename.clone(), &sender) {
                     println!("transfer is: {:?}", transfer);
                     sender.send(Message::StartTransfer(transfer.to_string(), filename.clone(), 0.0, 0.0, mb, false)).expect("cannot send message");
-
+                    
+                    unsafe {
+                        CONFIRMATION_AUTHORIZATION = false;
+                    }
+                    
                     Ok((filename,))
                 }
                 else {
                     println!("rejected push");
                     let error = MethodErr::from(("org.bluez.obex.Error.Rejected", "Not Authorized"));
+                    unsafe {
+                        CONFIRMATION_AUTHORIZATION = false;
+                    }
                     Err(error)
                 }
             }
             else {
+                unsafe {
+                    CONFIRMATION_AUTHORIZATION = false;
+                }
                 println!("failed to authorize push");
                 Err(MethodErr::from(("org.bluez.obex.Error.Canceled", "Request Canceled")))
             }
@@ -283,6 +294,7 @@ async fn spawn_dialog(filename: String, sender: &Sender<Message>) -> bool {
 
     wait_for_dialog_exit().await;
 
+    std::thread::sleep(std::time::Duration::from_millis(500));
     unsafe {
         CONFIRMATION_AUTHORIZATION
     }
@@ -377,4 +389,31 @@ fn send_file(source_file: String, session_path: Path, sender: Sender<Message>) {
             }
         }
     }    
+}
+
+pub fn move_to_store_folder() {
+    let filename = unsafe {
+        CURRENT_FILE_NAME.clone()
+    };
+    let store_folder = unsafe {
+        STORE_FOLDER.clone()
+    };
+    let filepath = if let Some(cache_dir) = gtk::glib::user_cache_dir().to_str() {
+        cache_dir.to_string() + "/obexd/" + &filename
+    }
+    else {
+        println!("unable to save file to store folder, it should still remain in ~/.cache/obexd");
+        return;
+    };
+
+    let new_filepath = store_folder + &filename;
+
+    match std::fs::rename(filepath, new_filepath) {
+        Ok(()) => {
+            println!("file moved to directory");
+        },
+        Err(err) => {
+            println!("file was not moved due to {:?}", err);
+        },
+    }
 }

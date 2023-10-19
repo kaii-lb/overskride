@@ -542,9 +542,9 @@ impl OverskrideWindow {
                     let mut title = String::new();
                     let boxholder = gtk::Box::new(gtk::Orientation::Horizontal, 8);
                     
+                    toast.set_timeout(3);
                     match priority {
                         adw::ToastPriority::High => {
-                            toast.set_timeout(5);
                             // custom_title.set_css_classes(&["warning", state.as_str()]);
                             title += "<span font_weight='bold'>";
                             
@@ -553,7 +553,6 @@ impl OverskrideWindow {
                             boxholder.append(&icon);
                         },
                         _ => {
-                            toast.set_timeout(3);
                             title += "<span font_weight='regular'>";
                         }
                     }
@@ -939,7 +938,7 @@ impl OverskrideWindow {
                     popup.set_body(&subtitle);
                     popup.set_destroy_with_parent(true);
             
-                    popup.add_response("cancle", "Cancel");
+                    popup.add_response("cancel", "Cancel");
                     popup.add_response(&confirm.to_lowercase(), &confirm);
                     popup.set_response_appearance(&confirm.to_lowercase(), response_type);
                     popup.set_default_response(Some(&confirm.to_lowercase()));
@@ -1433,21 +1432,26 @@ impl OverskrideWindow {
         self.set_default_size(width, height);
         self.set_maximized(maximized);
 
-        // let file_save_location = self.imp().file_save_location.get();
-        // let mut store_folder = settings.string("store-folder").to_string();
+        let file_save_location = self.imp().file_save_location.get();
+        let mut store_folder = settings.string("store-folder").to_string();
 
-        // if store_folder.is_empty() {
-        //     store_folder = gtk::glib::user_special_dir(gtk::glib::UserDirectory::Downloads).expect("cannot get user download dir")
-        //         .to_str().unwrap_or("Unknown Directory").to_string();
+        if store_folder.is_empty() {
+            store_folder = gtk::glib::user_special_dir(gtk::glib::UserDirectory::Downloads).expect("cannot get user download dir")
+                .to_str().unwrap_or("Unknown Directory").to_string();
             
-        //     settings.set_string("store-folder", &store_folder).expect("cannot set store folder");
-        // }
-     
-        // file_save_location.set_text(&store_folder);
+            settings.set_string("store-folder", &store_folder).expect("cannot set store folder");
+        }
+        
+        if !store_folder.ends_with('/') {
+            store_folder += "/";
+        }
 
-        // unsafe {
-        //     STORE_FOLDER = store_folder;
-        // }
+        println!("store folder is: {}", &store_folder);
+        file_save_location.set_text(&store_folder);
+
+        unsafe {
+            STORE_FOLDER = store_folder;
+        }
     }
 
     #[tokio::main]
