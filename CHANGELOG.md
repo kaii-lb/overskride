@@ -8,4 +8,4 @@
 - added toasts for when a transfer succeeds/fails/starts
 - started on foundation for "save file to location" feature
 - cancelling outbound transfer *still* doesn't work
-- switching adapters now completely resets devices list (doubtful change)
+- switching adapters now reload devices list, so not funky cross-adapter shit happens
