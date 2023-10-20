@@ -12,6 +12,9 @@ sudo flatpak install -y ~/Downloads/overskride.flatpak
 rm ~/Downloads/overskride.flatpak
 ```
 
+# Nightly releases
+available at [the actions page](https://github.com/kaii-lb/overskride/actions)
+
 # Prerequisites for building
 - gtk4 and libadwaita (development packages)
 - rust
