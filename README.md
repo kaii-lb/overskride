@@ -3,19 +3,20 @@ A Bluetooth and Obex client that is straight to the point, DE/WM agnostic, and b
 
 ![Screenshot](/assets/images/overskride.png)
 
-# Prerequisites
-- gtk4 and libadwaita (development packages)
-- rust
-- cargo
-- bluez (should be installed by default on all distros)
-
 # How to install
 ```bash
 sudo systemctl enable --now bluetooth
 curl -sSL https://github.com/kaii-lb/overskride/releases/latest/download/overskride.flatpak -o ~/Downloads/overskride.flatpak
+sudo flatpak install org.gnome.Platform//45 # only if needed
 sudo flatpak install -y ~/Downloads/overskride.flatpak
 rm ~/Downloads/overskride.flatpak
 ```
+
+# Prerequisites for building
+- gtk4 and libadwaita (development packages)
+- rust
+- cargo
+- bluez (should be installed by default on all distros)
 
 # Compiling
 ```bash
