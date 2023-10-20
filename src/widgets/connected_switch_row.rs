@@ -23,6 +23,8 @@ mod imp {
         pub spinning: RefCell<bool>,
         #[property(set = Self::set_switch_active)]
         pub switch_active: RefCell<bool>,
+        #[property(get, set)]
+        pub has_obex: RefCell<bool>,
     }
 
     #[glib::object_subclass]

@@ -45,9 +45,11 @@ pub async fn set_device_active(address: bluer::Address, sender: Sender<Message>,
     sender.send(Message::SwitchActive(updated_state)).expect("cannot send message");
 
     if let Ok(()) = has_service(uuid!("00001105-0000-1000-8000-00805f9b34fb"), device).await {
+    	sender.send(Message::SwitchHasObexService(true)).expect("cannot send message");
         sender.send(Message::SwitchSendFileActive(updated_state)).expect("cannot send message");
     }
     else {
+      	sender.send(Message::SwitchHasObexService(false)).expect("cannot send message");
         sender.send(Message::SwitchSendFileActive(false)).expect("cannot send message");
     }
 	// sender.send(Message::SwitchActiveSpinner(false)).expect("cannot set spinner to show.");
@@ -135,10 +137,13 @@ pub async fn get_device_properties(address: bluer::Address, sender: Sender<Messa
     sender.send(Message::SwitchActive(is_active)).expect("cannot set device active in page.");
     sender.send(Message::SwitchBlocked(is_blocked)).expect("cannot set device blocked in page.");
     sender.send(Message::SwitchTrusted(is_trusted)).expect("cannot set device trusted in page.");
+
     if let Ok(()) = has_service(uuid!("00001105-0000-1000-8000-00805f9b34fb"), device).await {
+      	sender.send(Message::SwitchHasObexService(true)).expect("cannot send message");
         sender.send(Message::SwitchSendFileActive(is_active)).expect("cannot send message");
     }
     else {
+       	sender.send(Message::SwitchHasObexService(false)).expect("cannot send message");
         sender.send(Message::SwitchSendFileActive(false)).expect("cannot send message");
     }
     

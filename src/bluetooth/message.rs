@@ -85,4 +85,6 @@ pub enum Message {
     SwitchSendFileActive(bool),
     /// Sets the new [file storage location](String), doing some checks along the way
     SetFileStorageLocation(String),
+	/// Changes whether the current device has obex capabilites or not
+	SwitchHasObexService(bool),
 } 

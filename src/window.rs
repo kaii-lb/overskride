@@ -210,7 +210,12 @@ impl OverskrideWindow {
                     std::thread::sleep(std::time::Duration::from_millis(200));
                     connected_switch_row.set_switch_active(active);
 
-                    sender_for_receiver_clone.clone().send(Message::SwitchSendFileActive(active)).expect("cannot send message");
+					if connected_switch_row.has_obex() {
+                    	sender_for_receiver_clone.clone().send(Message::SwitchSendFileActive(active)).expect("cannot send message");
+					}
+					else {
+                    	sender_for_receiver_clone.clone().send(Message::SwitchSendFileActive(false)).expect("cannot send message");						
+					}
                 },
                 Message::SwitchActiveSpinner(spinning) => {
                     let connected_switch_row = clone.imp().connected_switch_row.get();
@@ -1085,6 +1090,10 @@ impl OverskrideWindow {
                     }
         
                 },
+                Message::SwitchHasObexService(state) => {
+                	let connected_switch_row = clone.imp().connected_switch_row.get();
+                	connected_switch_row.set_has_obex(state);
+                }
             }
         
             glib::ControlFlow::Continue
@@ -1633,3 +1642,5 @@ async fn add_child_row(device: bluer::Device) -> bluer::Result<DeviceActionRow> 
 // - add a transfer rate and time till completion for transfers
 // - add device in request yes no 
 // - add a check for devices that don't have obex receive capabilities
+// - fix with "if already equals" for entries
+// - add a color css to invalid location entries
