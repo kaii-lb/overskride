@@ -396,7 +396,7 @@ impl OverskrideWindow {
 
                         row.add_suffix(&suffix.clone());
                         row.set_activatable(true);
-                        row.connect_activated(move |row| { 
+                        row.connect_activated(move |_| { 
                             let mut index = 0;
                             if listbox_clone.clone().is_ok() {
                                 while let Some(row) = listbox_clone.clone().unwrap().row_at_index(index) {
@@ -414,8 +414,9 @@ impl OverskrideWindow {
                                 println!("current adapter name is: {}", CURRENT_ADAPTER.clone());
                             }
 
-                            row.activate_action("refresh-devices", None).expect("cannot refresh after adapter switch");
-                            sender_clone.send(Message::PopupError("bt-refresh-adapter-failed".to_string(), adw::ToastPriority::High)).expect("cannot send message");
+                            if let Err(_) = sender_clone.send(Message::RefreshDevicesList()) {
+                            	sender_clone.send(Message::PopupError("bt-refresh-adapter-failed".to_string(), adw::ToastPriority::High)).expect("cannot send message");
+                            }
                             suffix.show();
                         });
                         
