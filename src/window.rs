@@ -275,14 +275,15 @@ impl OverskrideWindow {
                         
                         if action_row.title() == name && action_row.get_bluer_address() == address {
                             listbox.remove(&action_row);
-                            if let Some(row) = listbox.selected_row() {
-								selected = row == action_row;
+                            if let Some(selected_row) = listbox.selected_row() {
+                            	let downcasted = selected_row.downcast::<DeviceActionRow>().expect("cannot downcast to action row.");
+								selected = downcasted.get_bluer_address() == action_row.get_bluer_address();
                             }
                         }
                         index += 1;
                     }
 
-                    if !selected {
+                    if selected {
                         let bluetooth_settings_row = clone.clone().imp().bluetooth_settings_row.get();
                         bluetooth_settings_row.emit_activate();
                     }

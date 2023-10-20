@@ -59,7 +59,7 @@
             "sources" : [
                 {
                     "type" : "git",
-                    "url" : "file:///home/kaii/Projects/overskride",
+					"url" : "file:///home/kaii/Projects/overskride",
                     "branch" : "main"
                 }
             ]
