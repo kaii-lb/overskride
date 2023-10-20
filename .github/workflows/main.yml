@@ -1,7 +1,7 @@
 on:
   push:
     tags:
-      - v*.*.*
+      - v0.*
   pull_request:
 name: CI
 jobs:
