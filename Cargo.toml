@@ -1,6 +1,6 @@
 [package]
 name = "overskride"
-version = "0.4.4"
+version = "0.4.5"
 edition = "2021"
 
 [dependencies]
@@ -14,4 +14,5 @@ gtk = { version = "0.7.2", package = "gtk4", features = ["blueprint"] }
 phf = { version = "0.11.2", features = ["phf_macros", "macros"] }
 tokio = { version = "1.32.0", features = ["full"] }
 tokio-util = "0.7.9"
+uuid = "1.5.0"
 

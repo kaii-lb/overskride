@@ -79,8 +79,10 @@ pub enum Message {
     UpdateTransfer(String, String, f32, String),
     /// Removes a transfer via the supplied [transfer](String) object and the [filename](String) incase of multiple files in same transfer
     RemoveTransfer(String, String),
-    /// Gets the file path of a file selected by the user 
-    GetFile(),
+    /// Gets the path of a selected file or folder, based on [filetype](gtk::FileChooserAction)
+    GetFile(gtk::FileChooserAction),
     /// Sets the sensitive state of the send file row, aka if it is interactable
     SwitchSendFileActive(bool),
+    /// Sets the new [file storage location](String), doing some checks along the way
+    SetFileStorageLocation(String),
 } 

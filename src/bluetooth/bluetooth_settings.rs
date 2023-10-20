@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 use gtk::glib::Sender;
 
-use crate::{message::Message, window::ADAPTERS_LUT};
+use crate::{message::Message, window::{ADAPTERS_LUT, DISPLAYING_DIALOG, SEND_FILES_PATH}, agent::wait_for_dialog_exit};
 
 #[tokio::main]
 pub async fn set_adapter_powered(adapter_name: String, sender: Sender<Message>) -> bluer::Result<()> {
@@ -117,4 +117,20 @@ pub async fn populate_adapter_expander() -> bluer::Result<HashMap<String, String
     }
 
     Ok(alias_name_hashmap)
+}
+
+#[tokio::main]
+pub async fn get_store_location_from_dialog(sender: Sender<Message>) {
+    unsafe {
+        DISPLAYING_DIALOG = true;
+    }
+    sender.send(Message::GetFile(gtk::FileChooserAction::SelectFolder)).expect("cannot send message");
+
+    wait_for_dialog_exit().await;
+
+    let path = unsafe {
+        (SEND_FILES_PATH[0]).to_string()
+    };
+
+    sender.send(Message::SetFileStorageLocation(path)).expect("cannot send message");
 }

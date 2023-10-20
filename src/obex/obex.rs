@@ -305,7 +305,7 @@ pub async fn start_send_file(destination: bluer::Address, source: bluer::Address
     unsafe{
         DISPLAYING_DIALOG = true;
     }
-    sender.send(Message::GetFile()).expect("cannot send message");
+    sender.send(Message::GetFile(gtk::FileChooserAction::Open)).expect("cannot send message");
 
     wait_for_dialog_exit().await;
 

@@ -29,6 +29,7 @@ use std::collections::HashMap;
 use std::rc::Rc;
 use std::str::FromStr;
 
+use crate::bluetooth_settings::get_store_location_from_dialog;
 use crate::device_action_row::DeviceActionRow;
 use crate::receiving_row::ReceivingRow;
 use crate::{bluetooth_settings, device, connected_switch_row::ConnectedSwitchRow};
@@ -108,6 +109,8 @@ mod imp {
 		pub send_file_row: TemplateChild<adw::ActionRow>,
         #[template_child]
         pub file_save_location: TemplateChild<adw::EntryRow>,
+        #[template_child]
+        pub choose_location_button: TemplateChild<gtk::Button>,
 
         pub settings: OnceCell<Settings>,
         pub display_pass_key_dialog: RefCell<Option<adw::MessageDialog>>,
@@ -206,6 +209,8 @@ impl OverskrideWindow {
 
                     std::thread::sleep(std::time::Duration::from_millis(200));
                     connected_switch_row.set_switch_active(active);
+
+                    sender_for_receiver_clone.clone().send(Message::SwitchSendFileActive(active)).expect("cannot send message");
                 },
                 Message::SwitchActiveSpinner(spinning) => {
                     let connected_switch_row = clone.imp().connected_switch_row.get();
@@ -415,7 +420,7 @@ impl OverskrideWindow {
                                 println!("current adapter name is: {}", CURRENT_ADAPTER.clone());
                             }
 
-                            if let Err(_) = sender_clone.send(Message::RefreshDevicesList()) {
+                            if sender_clone.send(Message::RefreshDevicesList()).is_err() {
                             	sender_clone.send(Message::PopupError("bt-refresh-adapter-failed".to_string(), adw::ToastPriority::High)).expect("cannot send message");
                             }
                             suffix.show();
@@ -535,6 +540,9 @@ impl OverskrideWindow {
                         s if s.to_lowercase().contains("refresh-adapter-failed") => {
                             "Unable to refresh devices list after adapter change"
                         },
+                        s if s.to_lowercase().contains("file-storage-not-valid") => {
+                            "Location is not valid, please try again"
+                        }
                         e => {
                             println!("unknown error: {}", e.clone());
                             "Unknown error occured"
@@ -1007,10 +1015,10 @@ impl OverskrideWindow {
 
                     receiving_popover.remove_row(transfer, filename);        
                 },
-                Message::GetFile() => {
+                Message::GetFile(action) => {
                     let dialog = gtk::FileChooserDialog::new(Some("Select File To Send"), 
                         Some(&clone), 
-                        gtk::FileChooserAction::Open, 
+                        action, 
                         &[("Cancel", gtk::ResponseType::Cancel),
                           ("Select", gtk::ResponseType::Accept)
                     ]);
@@ -1052,7 +1060,31 @@ impl OverskrideWindow {
                 Message::SwitchSendFileActive(state) => {
                     let send_file_row = clone.imp().send_file_row.get();
                     send_file_row.set_sensitive(state);
-                }
+                },
+                Message::SetFileStorageLocation(holder_location) => {
+                    if !std::path::Path::new(&holder_location).is_dir() {
+                        sender_for_receiver_clone.clone().send(Message::PopupError("file-storage-not-valid".to_string(), adw::ToastPriority::High)).expect("cannot send message");
+                    }
+                    else {
+                        let mut location = holder_location.clone();
+                        if !location.ends_with('/') {
+                            location += "/";
+                        }
+            
+                        unsafe {
+                            STORE_FOLDER = location.clone();
+                        }
+            
+                        let file_save_location = clone.imp().file_save_location.get();
+                        
+                        if file_save_location.text() != location {
+                            file_save_location.set_text(&location);
+                        }
+            
+                        clone.imp().settings.get().expect("cannot get settings for file save location").set_string("store-folder", &location).expect("cannot set store folder");
+                    }
+        
+                },
             }
         
             glib::ControlFlow::Continue
@@ -1380,31 +1412,42 @@ impl OverskrideWindow {
             let selected_row = main_listbox.selected_row();
 			let connected = self_clone5.imp().connected_switch_row.get().active();
 
-			if connected {
-	            let (destination, source) = if let Some(row) = selected_row {
-	                let action_row = row.downcast::<DeviceActionRow>().unwrap();
-	                let source = action_row.get_bluer_adapter_address();
-	                let destination = action_row.get_bluer_address();
-	                (destination, source)
-	            }
-	            else {
-	                (bluer::Address::any(),bluer::Address::any())
-	            };
+            if !connected {
+                sender10.send(Message::PopupError("obex-transfer-not-connected".to_string(), adw::ToastPriority::Normal)).expect("cannot send message");					    	
+                return;
+            }
 
-	            if destination != bluer::Address::any() {
-	                let sender_clone = sender10.clone();
-	                std::thread::spawn(move || {
-	                    obex::start_send_file(destination, source, sender_clone);
-	                });
-	            }
-	            else {
-	                println!("error while sending file, destination doesn't exist???");
-                    sender.send(Message::PopupError("obex-transfer-not-connected".to_string(), adw::ToastPriority::Normal)).expect("cannot send message");					    	
-	            }
-			}
-			else {
-	        	sender.send(Message::PopupError("obex-transfer-not-connected".to_string(), adw::ToastPriority::Normal)).expect("cannot send message");					    	
-			}
+            if let Some(row) = selected_row {
+                let action_row = row.downcast::<DeviceActionRow>().unwrap();
+                let source = action_row.get_bluer_adapter_address();
+                let destination = action_row.get_bluer_address();
+                
+                let sender_clone = sender10.clone();
+                std::thread::spawn(move || {
+                    obex::start_send_file(destination, source, sender_clone);
+                });
+            }
+            else {
+                println!("error while sending file, destination doesn't exist???");
+                sender10.send(Message::PopupError("obex-transfer-not-connected".to_string(), adw::ToastPriority::Normal)).expect("cannot send message");					    	
+            }
+        });
+
+        let file_save_location = self.imp().file_save_location.get();
+        let sender11 = sender.clone();
+        file_save_location.connect_apply(move |entry| {
+            let location = entry.text().to_string();
+            
+            sender11.send(Message::SetFileStorageLocation(location)).expect("cannot send message");
+        });
+
+        let choose_location_button = self.imp().choose_location_button.get();
+        let sender12 = sender.clone();
+        choose_location_button.connect_clicked(move |_| {
+            let sender_clone = sender12.clone();
+            std::thread::spawn(|| {
+                get_store_location_from_dialog(sender_clone);
+            });
         });
     }
 
@@ -1589,3 +1632,4 @@ async fn add_child_row(device: bluer::Device) -> bluer::Result<DeviceActionRow> 
 // - change renaming devices to be of addresses and not names
 // - add a transfer rate and time till completion for transfers
 // - add device in request yes no 
+// - add a check for devices that don't have obex receive capabilities

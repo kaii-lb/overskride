@@ -4,6 +4,7 @@ use bluer::{AdapterEvent, AdapterProperty, DeviceEvent, DeviceProperty};
 use futures::{pin_mut, stream::SelectAll, StreamExt};
 use gtk::glib::Sender;
 use tokio_util::sync::CancellationToken;
+use uuid::uuid;
 
 use crate::{message::Message, window::{DEVICES_LUT, CURRENT_ADDRESS, CONFIRMATION_AUTHORIZATION, DISPLAYING_DIALOG}, agent::{self, wait_for_dialog_exit}};
 
@@ -41,8 +42,14 @@ pub async fn set_device_active(address: bluer::Address, sender: Sender<Message>,
 
     println!("set state {} for device {}\n", updated_state, device.address());
 	sender.send(Message::SwitchActiveSpinner(false)).expect("cannot set spinner to show.");
-    sender.send(Message::SwitchSendFileActive(updated_state)).expect("cannot send message");
     sender.send(Message::SwitchActive(updated_state)).expect("cannot send message");
+
+    if let Ok(()) = has_service(uuid!("00001105-0000-1000-8000-00805f9b34fb"), device).await {
+        sender.send(Message::SwitchSendFileActive(updated_state)).expect("cannot send message");
+    }
+    else {
+        sender.send(Message::SwitchSendFileActive(false)).expect("cannot send message");
+    }
 	// sender.send(Message::SwitchActiveSpinner(false)).expect("cannot set spinner to show.");
     // connected_switch_row.set_active(!connected_switch_row.active());
     
@@ -128,7 +135,12 @@ pub async fn get_device_properties(address: bluer::Address, sender: Sender<Messa
     sender.send(Message::SwitchActive(is_active)).expect("cannot set device active in page.");
     sender.send(Message::SwitchBlocked(is_blocked)).expect("cannot set device blocked in page.");
     sender.send(Message::SwitchTrusted(is_trusted)).expect("cannot set device trusted in page.");
-    sender.send(Message::SwitchSendFileActive(is_active)).expect("cannot send message");
+    if let Ok(()) = has_service(uuid!("00001105-0000-1000-8000-00805f9b34fb"), device).await {
+        sender.send(Message::SwitchSendFileActive(is_active)).expect("cannot send message");
+    }
+    else {
+        sender.send(Message::SwitchSendFileActive(false)).expect("cannot send message");
+    }
     
     // println!("the devices properties have been gotten with state: {}", is_active);
 
@@ -174,6 +186,14 @@ pub async fn remove_device(address: bluer::Address, sender: Sender<Message>, ada
     Ok(())
 }
 
+pub async fn has_service(service: bluer::Uuid, device: bluer::Device) -> bluer::Result<()> {
+    if device.uuids().await?.unwrap_or_default().contains(&service) {
+        return Ok(());
+    }
+
+    Err(bluer::Error { kind: bluer::ErrorKind::DoesNotExist, message: "wanted service doesn't exist.".to_string()})
+}
+
 #[tokio::main]
 pub async fn stop_searching() { 
     unsafe {
@@ -182,6 +202,7 @@ pub async fn stop_searching() {
         }
     }
 }
+
 
 #[tokio::main]
 pub async fn get_devices_continuous(sender: Sender<Message>, adapter_name: String) -> bluer::Result<()> {

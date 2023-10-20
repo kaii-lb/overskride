@@ -49,11 +49,11 @@ glib-compile-schemas ~/.local/share/glib-2.0/schemas
 - Resizing support 
 - Sorting devices by rssi (signal strength)
 - Showing errors to user
+- Changing files storage location
 
 # What doesn't work
 - Audio profiles
 - Auto accept files
-- Changing files storage location (in the works)
 - Battery polling over bluetooth
 - Applet support aka system tray
 - Cancelling send file, for some reason

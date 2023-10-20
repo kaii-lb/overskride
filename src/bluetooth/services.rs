@@ -3,8 +3,8 @@ use bluer::Uuid;
 
 const SERVICES: phf::Map<&'static str, &'static str> = phf_map! {
 	"00001203-0000-1000-8000-00805f9b34fb" => "Generic Audio",
-	"00001108-0000-1000-8000-00805f9b34fb" => "Hands Free Profile",
-	"0000111e-0000-1000-8000-00805f9b34fb" => "Hands Free Profile",
+	"00001108-0000-1000-8000-00805f9b34fb" => "Hands Free",
+	"0000111e-0000-1000-8000-00805f9b34fb" => "Hands Free",
 	"00001112-0000-1000-8000-00805f9b34fb" => "Hands Free Profile Audio Gateway",
 	"0000111f-0000-1000-8000-00805f9b34fb" => "Hands Free Profile Audio Gateway",
 	"0000110d-0000-1000-8000-00805f9b34fb" => "Advanced Audio",
@@ -18,11 +18,11 @@ const SERVICES: phf::Map<&'static str, &'static str> = phf_map! {
 	"0000000f-0000-1000-8000-00805f9b34fb" => "Bluetooth Network Encapsulation Protocol",
 	"00002a50-0000-1000-8000-00805f9b34fb" => "Part Number and Product ID",
 	"0000180a-0000-1000-8000-00805f9b34fb" => "Device Information",
-	"00001801-0000-1000-8000-00805f9b34fb" => "Generic Attribute Profile",
+	"00001801-0000-1000-8000-00805f9b34fb" => "Generic Attribute",
 	"00001802-0000-1000-8000-00805f9b34fb" => "Immediate Alert",
 	"00001803-0000-1000-8000-00805f9b34fb" => "Link Loss",
 	"00001804-0000-1000-8000-00805f9b34fb" => "Transmit Power",
-	"0000112D-0000-1000-8000-00805f9b34fb" => "SIM Access Profile",
+	"0000112D-0000-1000-8000-00805f9b34fb" => "SIM Access",
 	"0000180d-0000-1000-8000-00805f9b34fb" => "Heart Rate",
 	"00002a37-0000-1000-8000-00805f9b34fb" => "Heart Rate Measurement", 
 	"00002a38-0000-1000-8000-00805f9b34fb" => "Body Sensor Location",
@@ -43,18 +43,18 @@ const SERVICES: phf::Map<&'static str, &'static str> = phf_map! {
 	"00001402-0000-1000-8000-00805f9b34fb" => "Health Device Sink",
 	"00001124-0000-1000-8000-00805f9b34fb" => "Human Interface Device",
 	"00001103-0000-1000-8000-00805f9b34fb" => "Dial-Up Networking Gateway",
-	"00001800-0000-1000-8000-00805f9b34fb" => "Generic Access Profile",
+	"00001800-0000-1000-8000-00805f9b34fb" => "Generic Access",
 	"00001200-0000-1000-8000-00805f9b34fb" => "Plug and Play",
 	"00001101-0000-1000-8000-00805f9b34fb" => "Serial Port",
 	"00001104-0000-1000-8000-00805f9b34fb" => "Obex Sync",
-	"00001105-0000-1000-8000-00805f9b34fb" => "Obex Object Push Profile",
+	"00001105-0000-1000-8000-00805f9b34fb" => "Obex Object Push",
 	"00001106-0000-1000-8000-00805f9b34fb" => "Obex File Transfer Protocol",
 	"0000112e-0000-1000-8000-00805f9b34fb" => "Phone Book Client Equipment",
 	"0000112f-0000-1000-8000-00805f9b34fb" => "Phone Book Server Equipment",
 	"00001130-0000-1000-8000-00805f9b34fb" => "Phone Book Access",
 	"00001132-0000-1000-8000-00805f9b34fb" => "Message Access Service",
 	"00001133-0000-1000-8000-00805f9b34fb" => "Message Notification Service",
-	"00001134-0000-1000-8000-00805f9b34fb" => "Message Access Profile",
+	"00001134-0000-1000-8000-00805f9b34fb" => "Message Access",
 };
 
 pub fn get_name_from_service(service: Uuid) -> Result<String, bluer::Error> {
@@ -62,7 +62,7 @@ pub fn get_name_from_service(service: Uuid) -> Result<String, bluer::Error> {
 
 	let name = SERVICES.get(uuid_slice.as_str());
 	if let Some(service_name) = name {
-		Ok(service_name.to_string() + "Profile")
+		Ok(service_name.to_string() + " Profile")
 	}
 	else {
 		Err(bluer::Error { kind: bluer::ErrorKind::Failed, message: "Failed to get name from UUID".to_string() })
