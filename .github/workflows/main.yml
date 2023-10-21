@@ -12,9 +12,8 @@ jobs:
       image: bilelmoussaoui/flatpak-github-actions:gnome-45
       options: --privileged
     steps:
-    - name: Build Flatpak Bundle
-      uses: actions/checkout@v4
-      uses: flatpak/flatpak-github-actions/flatpak-builder@v6
+    - uses: actions/checkout@v4
+    - uses: flatpak/flatpak-github-actions/flatpak-builder@v6
       with:
         bundle: overskride-nightly.flatpak
         manifest-path: io.github.kaii_lb.Overskride.json
