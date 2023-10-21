@@ -4,6 +4,13 @@ A Bluetooth and Obex client that is straight to the point, DE/WM agnostic, and b
 ![Screenshot](/assets/images/overskride.png)
 
 # How to install (recommended)
+- download the `.flatpak` from the latest build in the [the github actions page](https://github.com/kaii-lb/overskride/actions/)
+- save it to `~/Downloads/overskride-nightly.flatpak`
+- run `sudo flatpak install ~/Downloads/overskride-nightly.flatpak`
+- profit
+
+or you could: 
+
 ```bash
 sudo systemctl enable --now bluetooth
 curl -sSL https://nightly.link/kaii-lb/overskride/workflows/main/main/overskride-nightly-x86_64.zip -o ~/Downloads/overskride-nightly.zip
