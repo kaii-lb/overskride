@@ -1,4 +1,2 @@
-### Overskride Version 0.4.5
-- Storage location system now works
-- fixed being able to send files to devices which don't have receive capabilities (ie headphones)
-- a bit better "get file thru filechooser"
+### Overskride Version 0.4.6
+- renaming to duplicate names now adds an index to the dupe (eg: "headphones (1)")

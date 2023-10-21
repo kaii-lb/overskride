@@ -116,6 +116,8 @@ mod imp {
         pub display_pass_key_dialog: RefCell<Option<adw::MessageDialog>>,
         pub index: RefCell<u32>,
         pub timeout_signal_id: OnceCell<SignalHandlerId>,
+        pub unknown_previous_count: RefCell<u32>,
+        pub device_previous_count: RefCell<u32>,
     }
 
     #[glib::object_subclass]
@@ -222,7 +224,7 @@ impl OverskrideWindow {
                     
                     connected_switch_row.set_spinning(spinning);
                 },
-                Message::SwitchName(alias, optional_old_alias) => {
+                Message::SwitchName(alias, optional_old_alias, address) => {
                     let list_box = clone.imp().main_listbox.get();
                     let index = unsafe { 
                     	CURRENT_INDEX 
@@ -231,21 +233,25 @@ impl OverskrideWindow {
 
                     if optional_old_alias.is_none() {
                         if let Some(some_row) = list_box.row_at_index(index) {
-                            let action_row = some_row.downcast::<adw::ActionRow>().unwrap();
+                            let action_row = some_row.downcast::<DeviceActionRow>().unwrap();
                             action_row.set_title(alias.as_str());
                         }
                     }
                     else {
                         while let Some(row) = list_box.clone().row_at_index(listbox_index) {
                             //println!("{}", index);
-                            let action_row = row.downcast::<adw::ActionRow>().expect("cannot downcast to action row.");
+                            let action_row = row.downcast::<DeviceActionRow>().expect("cannot downcast to action row.");
                             //println!("{:?}", action_row.clone().title());
-                            if action_row.clone().title() == optional_old_alias.clone().unwrap() {
+                            if action_row.title() == optional_old_alias.clone().unwrap() && action_row.get_bluer_address() == address {
                                 action_row.set_title(alias.as_str());
                             }
 
                             listbox_index += 1;
                         }
+                    }
+                    let device_name_entry = clone.imp().device_name_entry.get();
+                    if device_name_entry.text() != alias {
+                    	device_name_entry.set_text(&alias);
                     }
                 },
                 Message::SwitchRssi(device_name, rssi) => {
@@ -266,7 +272,10 @@ impl OverskrideWindow {
                     }
                 },
                 Message::AddRow(device) => {
-                    let row = add_child_row(device);
+					let unknown_previous_count = clone.imp().unknown_previous_count.clone(); 
+					let device_previous_count = clone.imp().device_previous_count.clone(); 
+                    let row = add_child_row(device, unknown_previous_count, device_previous_count);
+                	
                     if let Ok(ok_row) = row {
                         let main_listbox = clone.imp().main_listbox.get();
                         main_listbox.append(&ok_row);
@@ -287,6 +296,20 @@ impl OverskrideWindow {
                             listbox.remove(&action_row);
                             if let Some(selected_row) = listbox.selected_row() {
                             	let downcasted = selected_row.downcast::<DeviceActionRow>().expect("cannot downcast to action row.");
+
+								if downcasted.title() == "Unknown Device" {
+									let count = clone.clone().imp().unknown_previous_count.clone();
+									if !*count.borrow() == 1 {
+										*count.borrow_mut() -= 1;	
+									} 
+								}
+								else {
+									let count = clone.clone().imp().device_previous_count.clone();
+									if !*count.borrow() == 1 {
+										*count.borrow_mut() -= 1;	
+									}
+								}
+                            	
 								selected = downcasted.get_bluer_address() == action_row.get_bluer_address();
                             }
                         }
@@ -1067,10 +1090,14 @@ impl OverskrideWindow {
                     send_file_row.set_sensitive(state);
                 },
                 Message::SetFileStorageLocation(holder_location) => {
+                    let file_save_location = clone.imp().file_save_location.get();
                     if !std::path::Path::new(&holder_location).is_dir() {
+                    	file_save_location.set_css_classes(&["error"]);
                         sender_for_receiver_clone.clone().send(Message::PopupError("file-storage-not-valid".to_string(), adw::ToastPriority::High)).expect("cannot send message");
                     }
                     else {
+                 		file_save_location.set_css_classes(&[""]);
+                    
                         let mut location = holder_location.clone();
                         if !location.ends_with('/') {
                             location += "/";
@@ -1080,8 +1107,6 @@ impl OverskrideWindow {
                             STORE_FOLDER = location.clone();
                         }
             
-                        let file_save_location = clone.imp().file_save_location.get();
-                        
                         if file_save_location.text() != location {
                             file_save_location.set_text(&location);
                         }
@@ -1150,12 +1175,6 @@ impl OverskrideWindow {
             let mut one = binding_one.as_str();
             let mut two = binding_two.as_str();
 
-            if one == "Unknown Device" {
-                return gtk::Ordering::Larger;
-            }
-            else if two == "Unknown Device" {
-                return gtk::Ordering::Smaller;
-            }
             
         	let one_str = one.to_lowercase();
             let two_str = two.to_lowercase();
@@ -1167,16 +1186,32 @@ impl OverskrideWindow {
             let rssi_result = rssi_one.cmp(&rssi_two);
             //println!("rssi result {:?}", rssi_result);
 
-            let final_result = if rssi_result == std::cmp::Ordering::Equal {
-                name_result
+            if one == "unknown device" {
+                if two == "unknown device" {
+                	return rssi_result.into();
+                }
+                else {
+           			return gtk::Ordering::Larger;	                	
+                }
+            }
+            else if two == "unknown device" {
+                if one == "unknown device" {
+                	return rssi_result.into();
+                }
+                else {
+           			return gtk::Ordering::Smaller;	                	
+                }
+            }
+
+            if rssi_result == std::cmp::Ordering::Equal {
+				name_result.into()
             }
             else {
-                rssi_result
-            };
+                rssi_result.into()
+            }
+
             // println!("rssi one {} rssi two {}", rssi_one, rssi_two);
-            // println!("rssi result {:?}", final_result);
-            
-            final_result.into()
+            // println!("rssi result {:?}", final_result); 
         });
         main_listbox.invalidate_sort();
         
@@ -1251,10 +1286,12 @@ impl OverskrideWindow {
         });
 
         let device_name_entry = self.imp().device_name_entry.get();
+        let device_previous_count = self.imp().device_previous_count.clone();
         let sender4 = sender.clone();
         device_name_entry.connect_apply(move |entry| {
             let sender_clone = sender4.clone();
-            let name = entry.text().to_string();
+            let name = entry.text().to_string().trim().to_string();
+            let count_clone = device_previous_count.clone();
             let address = unsafe { 
            		CURRENT_ADDRESS 
             };
@@ -1263,7 +1300,7 @@ impl OverskrideWindow {
             };
 
             std::thread::spawn(move || {
-                if let Err(err) = device::set_device_name(address, name, sender_clone.clone(), adapter_name) {
+                if let Err(err) = device::set_device_name(address, name, sender_clone.clone(), adapter_name, count_clone) {
                     let string = err.message;
                     sender_clone.send(Message::PopupError(string, adw::ToastPriority::High)).expect("cannot send message");
                 }
@@ -1550,11 +1587,11 @@ impl OverskrideWindow {
 }
 
 #[tokio::main]
-async fn add_child_row(device: bluer::Device) -> bluer::Result<DeviceActionRow> {
+async fn add_child_row(device: bluer::Device, unknown_previous_count: RefCell<u32>, device_previous_count: RefCell<u32>) -> bluer::Result<DeviceActionRow> {
     let child_row = DeviceActionRow::new();
     // println!("added device name is {:?}", device.name().await?);
 
-    let name = device.alias().await?;
+    let mut name = device.alias().await?;
     let address = device.address();
     let rssi = match device.rssi().await? {
         None => {
@@ -1567,30 +1604,67 @@ async fn add_child_row(device: bluer::Device) -> bluer::Result<DeviceActionRow> 
     
     child_row.set_bluer_address(address);
 
+    let mut devices_lut = unsafe {
+    	DEVICES_LUT.clone().unwrap()
+    };
+    
     if let Ok(bad_title) = bluer::Address::from_str(name.clone().replace('-', ":").as_str()) {
-        child_row.set_title("Unknown Device");
+    	let name = "Unknown Device (".to_string() + &*unknown_previous_count.borrow().to_string() + ")";
+        child_row.set_title(&name);
+		device.set_alias(name).await.expect("cannot set unknown device's alias");
+		*unknown_previous_count.borrow_mut() += 1;
+        
         // child_row.set_subtitle(bad_title.to_string().as_str());
         println!("broken device title is {:?}", bad_title);
     }
     else {
+		let mut count = 0;
+
+		for key in devices_lut.keys() {
+			if let Some(pair) = devices_lut.get_key_value(key) {
+				if pair.1 == &name {
+					println!("pair with val {} {}", pair.1, name.clone());
+					count += 1;
+				}
+			}
+		}
+
+		if count >= 1 {
+			if name.ends_with(')') {
+				name.truncate(name.len() - 4);
+			}
+			if *device_previous_count.borrow() == 0 {
+				*device_previous_count.borrow_mut() += 1;	
+			}
+			
+			let new_name = name.clone() + " (" + &*device_previous_count.borrow().to_string() + ")";
+			name = new_name;
+			
+			device.set_alias(name.clone()).await.expect("cannot set duplicate-name device's alias");
+			*device_previous_count.borrow_mut() += 1;
+		}        
         child_row.set_title(name.clone().as_str());
     }
     child_row.set_activatable(true);
     child_row.set_adapter_name(unsafe {CURRENT_ADAPTER.clone()});
+
     if let Ok(adapter) = bluer::Session::new().await?.adapter(unsafe {&CURRENT_ADAPTER.clone()}) {
         let address = adapter.address().await?;
         child_row.set_bluer_adapter_address(address);
     };
 
     child_row.set_rssi(rssi);   
-    
+
+    devices_lut.insert(address, name.clone());
+
     unsafe {
-        let mut devices_lut = DEVICES_LUT.clone().unwrap();
-        devices_lut.insert(address, name.clone());
         //println!("lut (add) is: {:?}", devices_lut);
+
         DEVICES_LUT = Some(devices_lut);
+
         //println!("big lut (add) is: {:?}", DEVICES_LUT.clone());
     } 
+    
 	let sender = unsafe { 
         CURRENT_SENDER.clone().unwrap() 
     };

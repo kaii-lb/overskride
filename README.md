@@ -3,17 +3,18 @@ A Bluetooth and Obex client that is straight to the point, DE/WM agnostic, and b
 
 ![Screenshot](/assets/images/overskride.png)
 
-# How to install
+# How to install (recommended)
 ```bash
 sudo systemctl enable --now bluetooth
-curl -sSL https://github.com/kaii-lb/overskride/releases/latest/download/overskride.flatpak -o ~/Downloads/overskride.flatpak
+curl -sSL https://nightly.link/kaii-lb/overskride/workflows/main/main/overskride-nightly-x86_64.zip -o ~/Downloads/overskride-nightly.zip
+unzip ~/Downloads/overskride-nightly.zip -d ~/Downloads/
 sudo flatpak install org.gnome.Platform//45 # only if needed
-sudo flatpak install -y ~/Downloads/overskride.flatpak
-rm ~/Downloads/overskride.flatpak
+sudo flatpak install -y ~/Downloads/overskride-nightly.flatpak
+rm ~/Downloads/overskride-nightly.flatpak
 ```
 
-# Nightly releases
-available at [the actions page](https://github.com/kaii-lb/overskride/actions)
+# Major releases (old, not the newest features)
+available at [releases page]( https://github.com/kaii-lb/overskride/releases/latest)
 
 # Prerequisites for building
 - gtk4 and libadwaita (development packages)

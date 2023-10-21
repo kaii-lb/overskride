@@ -1,5 +1,3 @@
-use std::collections::HashMap;
-
 use bluer::{AdapterEvent, AdapterProperty, DeviceEvent, DeviceProperty};
 use futures::{pin_mut, stream::SelectAll, StreamExt};
 use gtk::glib::Sender;
@@ -94,22 +92,48 @@ pub async fn set_device_trusted(address: bluer::Address, sender: Sender<Message>
 
 /// Sets the currently selected device's name, updateing the entry and listboxrow accordingly.
 #[tokio::main]
-pub async fn set_device_name(address: bluer::Address, name: String, sender: Sender<Message>, adapter_name: String) -> bluer::Result<()> {
+pub async fn set_device_name(address: bluer::Address, name: String, sender: Sender<Message>, adapter_name: String, device_previous_count: std::cell::RefCell<u32>) -> bluer::Result<()> {
 	let adapter = bluer::Session::new().await?.adapter(adapter_name.as_str())?;
 	let device = adapter.device(address)?;
 
     device.set_alias(name).await?;
-    let current_alias = device.alias().await?;
-	
-    let mut lut: HashMap<bluer::Address, String>;
+    let mut current_alias = device.alias().await?;
+
     unsafe {
-        lut = DEVICES_LUT.clone().unwrap();
+        let mut lut = DEVICES_LUT.clone().unwrap();
+		let mut count = 0;
+
+		for key in lut.keys() {
+			if let Some(pair) = lut.get_key_value(key) {
+				if pair.1 == &current_alias && pair.0 != &address {
+					println!("pair with val {} {}", pair.1, current_alias.clone());
+					count += 1;
+				}
+			}
+		}
+
+		if count >= 1 {
+			if current_alias.ends_with(')') {
+				current_alias.truncate(current_alias.len() - 4);
+			}
+			if *device_previous_count.borrow() == 0 {
+				*device_previous_count.borrow_mut() += 1;	
+			}
+			
+			let new_name = current_alias.clone() + " (" + &*device_previous_count.borrow().to_string() + ")";
+			current_alias = new_name;
+			
+			device.set_alias(current_alias.clone()).await.expect("cannot set duplicate-name device's alias");
+			*device_previous_count.borrow_mut() += 1;
+		}
+        
         lut.remove(&address);
         lut.insert(address, current_alias.clone());
         DEVICES_LUT = Some(lut);
     }
 
-	sender.send(Message::SwitchName(current_alias, None)).expect("cannot set device name.");
+	sender.send(Message::SwitchName(current_alias, None, address)).expect("cannot set device name.");
+	sender.send(Message::InvalidateSort()).expect("cannot set device name.");
 
     Ok(())
 }
@@ -348,8 +372,8 @@ pub async fn get_devices_continuous(sender: Sender<Message>, adapter_name: Strin
                         };
                         
                         if addr == current_address {
-                            std::thread::sleep(std::time::Duration::from_secs_f32(0.5));
-                            sender_clone.send(Message::SwitchName(name.clone(), None)).expect("cannot send message");
+                            std::thread::sleep(std::time::Duration::from_secs_f32(0.01));
+                            sender_clone.send(Message::SwitchName(name.clone(), None, addr)).expect("cannot send message");
                             sender_clone.send(Message::SwitchPage(Some(name.clone()), None)).expect("cannot send message");
                         }
                         else {
@@ -360,7 +384,7 @@ pub async fn get_devices_continuous(sender: Sender<Message>, adapter_name: Strin
                             let empty = String::new();
                             let old_alias = hashmap.get(&addr).unwrap_or(&empty);
 
-                            sender_clone.send(Message::SwitchName(name.clone(), Some(old_alias.to_string()))).expect("cannot send message");
+                            sender_clone.send(Message::SwitchName(name.clone(), Some(old_alias.to_string()), addr)).expect("cannot send message");
                         }
                     },
                     DeviceProperty::Icon(icon) => {

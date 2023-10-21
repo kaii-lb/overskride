@@ -11,7 +11,7 @@ pub enum Message {
     /// Changes the connected swtich's spinner spinning state to `bool`
     SwitchActiveSpinner(bool),
     /// Changes the active devices's name to [alias](String) if no [old_alias](Option<String>) is provided, otherwise it looks for a matching row
-    SwitchName(String, Option<String>),
+    SwitchName(String, Option<String>, bluer::Address),
     /// Changes the supplied device's (`name: String`) RSSI to the supplied value (`rssi: i32`)
     SwitchRssi(String, i32),
     /// Moves between pages, ie changes the values of the rows and icons to `page: Option<String>` and `icon: Option<String>`
