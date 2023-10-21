@@ -1007,7 +1007,7 @@ impl OverskrideWindow {
                 	main_listbox.invalidate_sort();	
                 },
                 Message::RefreshDevicesList() => {
-                    gtk::prelude::WidgetExt::activate_action(&clone, "win.refresh-devices", None).expect("cannot refresh devices list");
+                    gtk::prelude::WidgetExt::activate_action(&clone, "refresh-devices", None).expect("cannot refresh devices list");
                 },
                 Message::StartTransfer(transfer, filename, percent, current, filesize, outbound) => {
                     let receiving_popover = clone.imp().receiving_popover.get();
@@ -1752,3 +1752,4 @@ async fn add_child_row(device: bluer::Device, unknown_previous_count: RefCell<u3
 // - add device in request yes no 
 // - add a check for location existence befor receiving file
 // - add a loop for if obex and bluetooth agents fail
+// - add a check for the FUCK error on startup, telling about enabling bluetooth and stuff

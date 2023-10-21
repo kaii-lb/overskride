@@ -106,6 +106,18 @@ impl OverskrideApplication {
             .version(VERSION)
             .developers(vec!["kaii", "Email: imkaiilb@gmail.com<imkaiilb@gmail.com>", "Github: kaii-lb https://github.com/kaii-lb"])
             .copyright("© 2023 kaii")
+            .release_notes("
+            <ol>
+                <li>renaming to duplicate names now adds an index to the dupe</li>
+                <li>auto accept from trusted devices now works</li>
+                <li>added warning for auto accept</li>
+                <li>identified issue where obex agent gets removed after 1 complete transfer</li>
+                <li>fixed issue where a non-identifiable download dir causes a crash</li>
+                <li>added a 'whats new' to the about window</li>
+            </ol>
+            ")
+            .issue_url("https://github.com/kaii-lb/overskride/issues")
+            .website("https://github.com/kaii-lb/overskride")
             .build();
 
         about.present();
