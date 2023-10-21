@@ -183,9 +183,20 @@ pub async fn wait_for_dialog_exit() {
     unsafe {
         loop {
             if !DISPLAYING_DIALOG {
-				// std::thread::sleep(std::time::Duration::from_secs(1));
+				std::thread::sleep(std::time::Duration::from_secs(1));
                 break;
             }
         }
     }
 }
+
+#[tokio::main]
+pub async fn register_bluetooth_agent(sender: Sender<Message>) -> bluer::Result<()> {
+	let session = bluer::Session::new().await?;
+	let agent = register_agent(&session, true, false, sender.clone()).await?;	
+   	println!("registered agent standalone {:?}", agent);
+
+   	loop {
+   		std::thread::sleep(std::time::Duration::from_secs(1));
+   	}
+} 

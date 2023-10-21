@@ -6,8 +6,11 @@ use dbus_crossroads::Crossroads;
 use gtk::glib::Sender;
 use std::{time::Duration, collections::HashMap, sync::Mutex};
 use dbus::channel::MatchingReceiver;
+use std::str::FromStr;
 
-use crate::{message::Message, obex_utils::{ObexAgentManager1, ObexTransfer1, ObexClient1, ObexObjectPush1}, window::{DISPLAYING_DIALOG, CONFIRMATION_AUTHORIZATION, SEND_FILES_PATH, STORE_FOLDER}, agent::wait_for_dialog_exit};
+use crate::{message::Message, obex_utils::{ObexAgentManager1, ObexTransfer1, ObexClient1, ObexObjectPush1}, 
+	window::{DISPLAYING_DIALOG, CONFIRMATION_AUTHORIZATION, SEND_FILES_PATH, STORE_FOLDER, AUTO_ACCEPT_FROM_TRUSTED, CURRENT_ADAPTER},
+	agent::wait_for_dialog_exit};
 
 const SESSION_INTERFACE: &str = "org.bluez.obex.Session1";
 const TRANSFER_INTERFACE: &str = "org.bluez.obex.Transfer1";
@@ -15,10 +18,10 @@ const TRANSFER_INTERFACE: &str = "org.bluez.obex.Transfer1";
 static mut SESSION_BUS: Mutex<Option<Connection>> = Mutex::new(None);
 static mut CURRENT_SESSION: String = String::new();
 static mut CURRENT_TRANSFER: String = String::new();
-static mut BREAKING: bool = false;
 static mut CURRENT_FILE_SIZE: u64 = 0;
 static mut CURRENT_FILE_NAME: String = String::new();
 static mut CURRENT_SENDER: Option<Sender<Message>> = None;
+static mut BREAKING: bool = false;
 static mut OUTBOUND: bool = false;
 pub static mut CANCEL: bool = false;
 
@@ -40,43 +43,35 @@ fn handle_properties_updated(interface: String, changed_properties: PropMap, tra
             match dummy_status {
                 "active" => {
                 	if unsafe { OUTBOUND } {
-                    	sender.send(Message::PopupError("obex-transfer-active-outbound".to_string(), adw::ToastPriority::Normal)).expect("cannot send message");                		
+                    	sender.send(Message::PopupError("obex-transfer-active-outbound".to_string(), adw::ToastPriority::Normal)).expect("cannot send message");
+                    	unsafe { BREAKING = false; }                		
                 	}
                 	else {
                     	sender.send(Message::PopupError("obex-transfer-active-inbound".to_string(), adw::ToastPriority::Normal)).expect("cannot send message");
                 	}
-                    unsafe {
-                    	BREAKING = false;
-                    }
                 },
                 "complete" => {
                 	if unsafe { OUTBOUND } {
                     	sender.send(Message::PopupError("obex-transfer-complete-outbound".to_string(), adw::ToastPriority::Normal)).expect("cannot send message");                		
+                    	unsafe { BREAKING = true; }                		
                 	}
                 	else {
                     	sender.send(Message::PopupError("obex-transfer-complete-inbound".to_string(), adw::ToastPriority::Normal)).expect("cannot send message");
                         move_to_store_folder();
                 	}
-                    unsafe {
-                    	BREAKING = true;
-                    }
                 },
                 "error" => {
                 	if unsafe { OUTBOUND } {
                     	sender.send(Message::PopupError("obex-transfer-error-outbound".to_string(), adw::ToastPriority::Normal)).expect("cannot send message");
+                    	unsafe { BREAKING = true; }                		
                 	}
                 	else {
                     	sender.send(Message::PopupError("obex-transfer-error-inbound".to_string(), adw::ToastPriority::Normal)).expect("cannot send message");
                 	}
-                    unsafe {
-                    	BREAKING = true;
-                    }                    
                 },
                 message => {
                     sender.send(Message::PopupError(message.to_string(), adw::ToastPriority::Normal)).expect("cannot send message");
-                    unsafe {
-                    	BREAKING = false;
-                    }
+                  	unsafe { BREAKING = false; }                		
                 }
             }
 
@@ -186,7 +181,7 @@ fn serve(conn: &mut Connection, cr: Option<Crossroads>) -> Result<(), dbus::Erro
 
     // Serve clients forever.
     unsafe {
-        while !BREAKING { 
+        loop { 
             // println!("serving");
             conn.process(std::time::Duration::from_millis(1000))?;
             if CANCEL {
@@ -209,8 +204,6 @@ fn serve(conn: &mut Connection, cr: Option<Crossroads>) -> Result<(), dbus::Erro
             }
         }
     }
-
-    Ok(())
 }
 
 fn create_agent(cr: &mut Crossroads, sender: Sender<Message>) {
@@ -218,13 +211,14 @@ fn create_agent(cr: &mut Crossroads, sender: Sender<Message>) {
         b.method("AuthorizePush", ("transfer",), ("filename",), move |_, _, (transfer,): (Path,)| {
             println!("authorizing...");
             let conn = Connection::new_session().expect("cannot create connection.");
-            let props = conn.with_proxy("org.bluez.obex", transfer.clone(), std::time::Duration::from_secs(1)).get_all(TRANSFER_INTERFACE);
+            let props = conn.with_proxy("org.bluez.obex", transfer.clone(), std::time::Duration::from_secs(5)).get_all(TRANSFER_INTERFACE);
 
             if let Ok(all_props) = props {
                 // let filename = "/home/kaii/Downloads/file_test.mp4";
                 let filename = all_props.get("Name").expect("cannot get name of file.").0.as_str().unwrap().to_owned();
                 let filesize_holder = &*all_props.get("Size").expect("cannot get file size.").0;
                 let filesize = filesize_holder.as_u64().unwrap_or(9999);
+				let session = all_props.get("Session").expect("cannot get session for receive").0.as_str().unwrap_or("");
                 
                 println!("all props is: {:?}", all_props);
 
@@ -235,10 +229,27 @@ fn create_agent(cr: &mut Crossroads, sender: Sender<Message>) {
                 }
                 let mb = ((filesize as f32 / 1000000.0) * 100.0).round() / 100.0;
 
-                if spawn_dialog(filename.clone(), &sender) {
+				let sender_props = conn.with_proxy("org.bluez.obex", session, std::time::Duration::from_secs(5)).get_all(SESSION_INTERFACE).unwrap();
+				let device = sender_props.get("Destination").expect("cannot get sender device").0.as_str().unwrap_or("00:00:00:00:00:00");
+
+				let (device_name, device_trusted) = if let Ok(props) = get_device_props(device) {
+					props
+				}
+				else {
+					return Err(MethodErr::from(("org.bluez.obex.Error.Canceled", "Request Canceled")));
+				};
+									
+				if unsafe { AUTO_ACCEPT_FROM_TRUSTED } && device_trusted {
                     println!("transfer is: {:?}", transfer);
                     sender.send(Message::StartTransfer(transfer.to_string(), filename.clone(), 0.0, 0.0, mb, false)).expect("cannot send message");
                     
+					return Ok((filename,));
+				}
+
+                if spawn_dialog(filename.clone(), &sender, device_name) {
+                    println!("transfer is: {:?}", transfer);
+                    sender.send(Message::StartTransfer(transfer.to_string(), filename.clone(), 0.0, 0.0, mb, false)).expect("cannot send message");
+
                     unsafe {
                         CONFIRMATION_AUTHORIZATION = false;
                     }
@@ -279,11 +290,11 @@ fn create_agent(cr: &mut Crossroads, sender: Sender<Message>) {
 }
 
 #[tokio::main]
-async fn spawn_dialog(filename: String, sender: &Sender<Message>) -> bool {
+async fn spawn_dialog(filename: String, sender: &Sender<Message>, device_name: String) -> bool {
     println!("file receive request incoming!");
 
     let title = "File Transfer Incoming".to_string();
-    let subtitle = "Accept <span font_weight='bold' color='#78aeed'>".to_string() + &filename + "</span> from a device";
+    let subtitle = "Accept <span font_weight='bold' color='#78aeed'>".to_string() + &filename + "</span> from <span font_weight='bold'>" + &device_name + "</span>";
     let confirm = "Accept".to_string();
     let response_type = adw::ResponseAppearance::Suggested;
 
@@ -392,6 +403,10 @@ fn send_file(source_file: String, session_path: Path, sender: Sender<Message>) {
 }
 
 pub fn move_to_store_folder() {
+	if unsafe { OUTBOUND } {
+		return;	
+	}
+	
     let filename = unsafe {
         CURRENT_FILE_NAME.clone()
     };
@@ -416,4 +431,16 @@ pub fn move_to_store_folder() {
             println!("file was not moved due to {:?}", err);
         },
     }
+}
+
+#[tokio::main]
+async fn get_device_props(address_slice: &str) -> bluer::Result<(String, bool)> {
+	let adapter = bluer::Session::new().await?.adapter(unsafe { &CURRENT_ADAPTER })?;
+	let address = bluer::Address::from_str(address_slice).unwrap_or(bluer::Address::any());
+	let device = adapter.device(address)?;
+
+	let trusted = device.is_trusted().await?;
+	let name = device.alias().await?;
+
+	Ok((name, trusted))
 }

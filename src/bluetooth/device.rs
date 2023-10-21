@@ -4,7 +4,7 @@ use gtk::glib::Sender;
 use tokio_util::sync::CancellationToken;
 use uuid::uuid;
 
-use crate::{message::Message, window::{DEVICES_LUT, CURRENT_ADDRESS, CONFIRMATION_AUTHORIZATION, DISPLAYING_DIALOG}, agent::{self, wait_for_dialog_exit}};
+use crate::{message::Message, window::{DEVICES_LUT, CURRENT_ADDRESS, CONFIRMATION_AUTHORIZATION, DISPLAYING_DIALOG}, agent::wait_for_dialog_exit};
 
 static mut CANCELLATION_TOKEN: Option<CancellationToken> = None;
 /// Set the associated with `address` device's state, between connected and not 
@@ -249,11 +249,7 @@ pub async fn get_devices_continuous(sender: Sender<Message>, adapter_name: Strin
 
     let mut all_change_events = SelectAll::new();
 
-	let session = bluer::Session::new().await?;
 	let sender_clone = sender.clone();
-
-	let agent = agent::register_agent(&session, true, false, sender_clone.clone()).await?;	
-	println!("registered agent during discovery {:?}", agent);
 
     let cancellation_token = CancellationToken::new();
     unsafe {

@@ -25,6 +25,10 @@
 			<default>""</default>
 			<summary>where the received files are stored</summary>
 		</key>
-</schema>
+		<key name="first-auto-accept" type="b">
+			<default>true</default>
+			<summary>one time auto accept indicator</summary>
+		</key>		
+	</schema>
 </schemalist>
 

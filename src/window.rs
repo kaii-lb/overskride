@@ -36,12 +36,14 @@ use crate::{bluetooth_settings, device, connected_switch_row::ConnectedSwitchRow
 use crate::message::Message;
 use crate::services::get_name_from_service;
 use crate::obex::{register_obex_agent, self};
+use crate::agent::register_bluetooth_agent;
 
 // U N S A F E T Y 
 static mut CURRENT_INDEX: i32 = 0;
 static mut CURRENT_SENDER: Option<Sender<Message>> = None;
 static mut RSSI_LUT: Option<HashMap<String, i32>> = None;
 static mut ORIGINAL_ADAPTER: String = String::new();
+static mut FIRST_AUTO_ACCEPT: bool = true;
 pub static mut CURRENT_ADDRESS: bluer::Address = bluer::Address::any();
 pub static mut CURRENT_ADAPTER: String = String::new();
 pub static mut DEVICES_LUT: Option<HashMap<bluer::Address, String>> = None;
@@ -52,6 +54,7 @@ pub static mut PASS_KEY: u32 = 0;
 pub static mut CONFIRMATION_AUTHORIZATION: bool = false;
 pub static mut STORE_FOLDER: String = String::new();
 pub static mut SEND_FILES_PATH: Vec<String> = vec![];
+pub static mut AUTO_ACCEPT_FROM_TRUSTED: bool = false;
 
 mod imp {
     use crate::{receiving_popover::ReceivingPopover, receiving_row::ReceivingRow};
@@ -111,6 +114,8 @@ mod imp {
         pub file_save_location: TemplateChild<adw::EntryRow>,
         #[template_child]
         pub choose_location_button: TemplateChild<gtk::Button>,
+        #[template_child]
+        pub auto_accept_trusted_row: TemplateChild<adw::SwitchRow>,
 
         pub settings: OnceCell<Settings>,
         pub display_pass_key_dialog: RefCell<Option<adw::MessageDialog>>,
@@ -1495,6 +1500,27 @@ impl OverskrideWindow {
                 get_store_location_from_dialog(sender_clone);
             });
         });
+
+        let auto_accept_trusted_row = self.imp().auto_accept_trusted_row.get();
+        let sender13 = sender.clone();
+        auto_accept_trusted_row.connect_activated(move |row| {
+
+        	unsafe {
+				if FIRST_AUTO_ACCEPT {
+					let title = "Warning!".to_string();
+					let subtitle = "Enabling auto accept from trusted devices <span font_weight='bold'>may put your device at risk</span>, as anyone with a device you labled as \"trusted\" will be able to freely send you files".to_string();
+					let confirm = "I Understand".to_string();
+					let response_type = adw::ResponseAppearance::Destructive;
+					sender13.send(Message::RequestYesNo(title, subtitle, confirm, response_type)).expect("cannot send message");
+					FIRST_AUTO_ACCEPT = false;
+					CONFIRMATION_AUTHORIZATION = false;
+				}
+
+        		AUTO_ACCEPT_FROM_TRUSTED = !row.is_active();
+        		println!("auto accept is {}", AUTO_ACCEPT_FROM_TRUSTED);
+        	}	
+        });
+        auto_accept_trusted_row.set_active(unsafe { AUTO_ACCEPT_FROM_TRUSTED });
     }
 
     fn save_settings(&self) -> Result<(), glib::BoolError> {
@@ -1507,6 +1533,7 @@ impl OverskrideWindow {
         settings.set_int("window-width", size.0)?;
         settings.set_int("window-height", size.1)?;
         settings.set_boolean("window-maximized", self.is_maximized())?;
+        settings.set_boolean("first-auto-accept", unsafe { FIRST_AUTO_ACCEPT })?;
 
         Ok(())
     }
@@ -1517,6 +1544,7 @@ impl OverskrideWindow {
         let width = settings.int("window-width");
         let height = settings.int("window-height");
         let maximized = settings.boolean("window-maximized");
+		let first_auto_accept = settings.boolean("first-auto-accept");
 
         // println!("new size is {:?}", (width, height));
 
@@ -1527,10 +1555,16 @@ impl OverskrideWindow {
         let mut store_folder = settings.string("store-folder").to_string();
 
         if store_folder.is_empty() {
-            store_folder = gtk::glib::user_special_dir(gtk::glib::UserDirectory::Downloads).expect("cannot get user download dir")
-                .to_str().unwrap_or("Unknown Directory").to_string();
-            
-            settings.set_string("store-folder", &store_folder).expect("cannot set store folder");
+            if let Some(download_dir) = gtk::glib::user_special_dir(gtk::glib::UserDirectory::Downloads) {
+            	let holder = download_dir.to_str().unwrap_or("Unknown Directory").to_string();
+                store_folder = holder;
+            	settings.set_string("store-folder", &store_folder).expect("cannot set store folder");
+            }
+            else {
+            	let holder = gtk::glib::home_dir().to_str().unwrap_or("Unknown Directory").to_string();
+                store_folder = holder;
+            	settings.set_string("store-folder", &store_folder).expect("cannot set store folder");
+            }
         }
         
         if !store_folder.ends_with('/') {
@@ -1542,6 +1576,7 @@ impl OverskrideWindow {
 
         unsafe {
             STORE_FOLDER = store_folder;
+            FIRST_AUTO_ACCEPT = first_auto_accept;
         }
     }
 
@@ -1577,8 +1612,12 @@ impl OverskrideWindow {
             lut.insert(alias.to_string(), CURRENT_ADAPTER.to_string());
             ADAPTERS_LUT = Some(lut);
 
+			let clone = sender.clone();
             std::thread::spawn(move || {
-                register_obex_agent(sender.clone()).expect("cannot register obex agent");
+                register_obex_agent(clone.clone()).expect("cannot register obex agent");
+            });
+            std::thread::spawn(move || {
+				register_bluetooth_agent(sender.clone()).expect("cannot register bluetooth agent");
             });
         }
         
@@ -1708,13 +1747,8 @@ async fn add_child_row(device: bluer::Device, unknown_previous_count: RefCell<u3
 // - background running, with a status taskbar thingy wtv its name is
 // - add a currently connected icon to the main listbox rows
 // - add battery reporting thingy 
-// - add auto accept files and tell how dangerous it is
-// - add move file to directory when received 
 // - create a new stackpage for every device and allow user to go back and force with nice animations
 // - find out what is causing hang on start
-// - change renaming devices to be of addresses and not names
 // - add a transfer rate and time till completion for transfers
 // - add device in request yes no 
-// - add a check for devices that don't have obex receive capabilities
-// - fix with "if already equals" for entries
-// - add a color css to invalid location entries
+// - add a check for location existence befor receiving file

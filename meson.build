@@ -1,13 +1,11 @@
 project('overskride', 'rust', 
-          version: '0.4.5',
+          version: '0.4.6',
     meson_version: '>= 0.62.0',
   default_options: [ 'warning_level=2', 'werror=false', ],
 )
 
 i18n = import('i18n')
 gnome = import('gnome')
-
-
 
 subdir('data')
 subdir('src')

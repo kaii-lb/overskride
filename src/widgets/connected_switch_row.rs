@@ -67,7 +67,7 @@ mod imp {
             *self.active.borrow_mut() = active;
             self.spinner.set_spinning(true);
         }
- 
+ 		
         /// return the current state of the row's spinner, ie: spinning, or not visible.
         fn get_row_spinning(&self) -> bool {
             self.spinner.is_spinning()
@@ -80,6 +80,7 @@ mod imp {
 
         fn set_switch_active(&self, active: bool) {
             self.switch.set_active(active);
+            *self.active.borrow_mut() = active;
         }
 
     }
