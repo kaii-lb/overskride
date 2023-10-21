@@ -1740,7 +1740,6 @@ async fn add_child_row(device: bluer::Device, unknown_previous_count: RefCell<u3
 
 
 // TODO
-// - move bluetooth agent functionality to a seperate thread to avoid remaking agent on refresh
 // - add a more info button to the end of "device properties"
 // - use fxhashmap for even faster lookups
 // - add option to auto trust device on pair (include warning about how dangerous it is)
@@ -1752,3 +1751,4 @@ async fn add_child_row(device: bluer::Device, unknown_previous_count: RefCell<u3
 // - add a transfer rate and time till completion for transfers
 // - add device in request yes no 
 // - add a check for location existence befor receiving file
+// - add a loop for if obex and bluetooth agents fail
