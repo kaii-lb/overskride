@@ -246,6 +246,12 @@ fn create_agent(cr: &mut Crossroads, sender: Sender<Message>) {
 					return Ok((filename,));
 				}
 
+				if !gtk::glib::user_cache_dir().exists() {
+                    sender.clone().send(Message::PopupError("file-storage-cache-invalid".to_string(), adw::ToastPriority::High)).expect("cannot send message");
+
+  					return Err(MethodErr::from(("org.bluez.obex.Error.Canceled", "Request Canceled")));
+                }	
+
                 if spawn_dialog(filename.clone(), &sender, device_name) {
                     println!("transfer is: {:?}", transfer);
                     sender.send(Message::StartTransfer(transfer.to_string(), filename.clone(), 0.0, 0.0, mb, false)).expect("cannot send message");

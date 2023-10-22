@@ -298,7 +298,6 @@ impl OverskrideWindow {
                         // println!("{:?}", action_row.clone());
                         
                         if action_row.title() == name && action_row.get_bluer_address() == address {
-                            listbox.remove(&action_row);
                             if let Some(selected_row) = listbox.selected_row() {
                             	let downcasted = selected_row.downcast::<DeviceActionRow>().expect("cannot downcast to action row.");
 
@@ -314,9 +313,15 @@ impl OverskrideWindow {
 										*count.borrow_mut() -= 1;	
 									}
 								}
-                            	
-								selected = downcasted.get_bluer_address() == action_row.get_bluer_address();
+
+                            	if downcasted.get_bluer_address() == action_row.get_bluer_address() && downcasted.title() == action_row.title() {
+                            		selected = true;
+                            	}
+                            	else {
+                            		selected = false;
+                            	}
                             }
+                           	listbox.remove(&action_row);
                         }
                         index += 1;
                     }
@@ -575,7 +580,10 @@ impl OverskrideWindow {
                         },
                         s if s.to_lowercase().contains("file-storage-not-valid") => {
                             "Location is not valid, please try again"
-                        }
+                        },
+                        s if s.to_lowercase().contains("file-storage-cache-invalid") => {
+                        	"File cache location is invalid, are you sure ~/.cache (or equivalent) exists?"	
+                        },
                         e => {
                             println!("unknown error: {}", e.clone());
                             "Unknown error occured"
@@ -1648,10 +1656,10 @@ async fn add_child_row(device: bluer::Device, unknown_previous_count: RefCell<u3
     };
     
     if let Ok(bad_title) = bluer::Address::from_str(name.clone().replace('-', ":").as_str()) {
+		*unknown_previous_count.borrow_mut() += 1;
     	let name = "Unknown Device (".to_string() + &*unknown_previous_count.borrow().to_string() + ")";
         child_row.set_title(&name);
 		device.set_alias(name).await.expect("cannot set unknown device's alias");
-		*unknown_previous_count.borrow_mut() += 1;
         
         // child_row.set_subtitle(bad_title.to_string().as_str());
         println!("broken device title is {:?}", bad_title);
@@ -1746,10 +1754,8 @@ async fn add_child_row(device: bluer::Device, unknown_previous_count: RefCell<u3
 // - background running, with a status taskbar thingy wtv its name is
 // - add a currently connected icon to the main listbox rows
 // - add battery reporting thingy 
-// - create a new stackpage for every device and allow user to go back and force with nice animations
+// - create a new stackpage for every device and allow user to go back and force with nice animations (idk if its a good idea)
 // - find out what is causing hang on start
 // - add a transfer rate and time till completion for transfers
-// - add device in request yes no 
-// - add a check for location existence befor receiving file
 // - add a loop for if obex and bluetooth agents fail
 // - add a check for the FUCK error on startup, telling about enabling bluetooth and stuff
