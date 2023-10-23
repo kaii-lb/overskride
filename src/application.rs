@@ -108,12 +108,9 @@ impl OverskrideApplication {
             .copyright("© 2023 kaii")
             .release_notes("
             <ol>
-                <li>renaming to duplicate names now adds an index to the dupe</li>
-                <li>auto accept from trusted devices now works</li>
-                <li>added warning for auto accept</li>
-                <li>identified issue where obex agent gets removed after 1 complete transfer</li>
-                <li>fixed issue where a non-identifiable download dir causes a crash</li>
-                <li>added a 'whats new' to the about window</li>
+                <li>Reverted index for duplicate names</li>
+                <li>Not allowed to name dupes anymore</li>
+                <li>New devices with dupe names still show up as dupe</li>
             </ol>
             ")
             .issue_url("https://github.com/kaii-lb/overskride/issues")

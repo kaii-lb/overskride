@@ -87,4 +87,6 @@ pub enum Message {
     SetFileStorageLocation(String),
 	/// Changes whether the current device has obex capabilites or not
 	SwitchHasObexService(bool),
+	/// Sets the "valid" state of the device name
+	SetNameValid(bool),
 } 

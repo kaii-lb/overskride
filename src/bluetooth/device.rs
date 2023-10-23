@@ -92,49 +92,39 @@ pub async fn set_device_trusted(address: bluer::Address, sender: Sender<Message>
 
 /// Sets the currently selected device's name, updateing the entry and listboxrow accordingly.
 #[tokio::main]
-pub async fn set_device_name(address: bluer::Address, name: String, sender: Sender<Message>, adapter_name: String, device_previous_count: std::cell::RefCell<u32>) -> bluer::Result<()> {
+pub async fn set_device_name(address: bluer::Address, name: String, sender: Sender<Message>, adapter_name: String) -> bluer::Result<()> {
 	let adapter = bluer::Session::new().await?.adapter(adapter_name.as_str())?;
 	let device = adapter.device(address)?;
+    let mut lut = unsafe {
+    	DEVICES_LUT.clone().unwrap()
+    };
 
-    device.set_alias(name).await?;
-    let mut current_alias = device.alias().await?;
+    let set_name = name.trim().to_string();
+
+    for key in lut.keys() {
+		if let Some(pair) = lut.get_key_value(key) {
+			if pair.1.trim() == set_name && pair.0 != &address {
+                sender.send(Message::SetNameValid(false)).expect("cannot send message");
+				return Err(bluer::Error { kind: bluer::ErrorKind::AlreadyExists, message: "device-name-exists".to_string() });
+			}
+		}
+	}
+
+
+    device.set_alias(set_name).await?;
+    let current_alias = device.alias().await?;
 
     unsafe {
-        let mut lut = DEVICES_LUT.clone().unwrap();
-		let mut count = 0;
-
-		for key in lut.keys() {
-			if let Some(pair) = lut.get_key_value(key) {
-				if pair.1 == &current_alias && pair.0 != &address {
-					println!("pair with val {} {}", pair.1, current_alias.clone());
-					count += 1;
-				}
-			}
-		}
-
-		if count >= 1 {
-			if current_alias.ends_with(')') {
-				current_alias.truncate(current_alias.len() - 4);
-			}
-			if *device_previous_count.borrow() == 0 {
-				*device_previous_count.borrow_mut() += 1;	
-			}
-			
-			let new_name = current_alias.clone() + " (" + &*device_previous_count.borrow().to_string() + ")";
-			current_alias = new_name;
-			
-			device.set_alias(current_alias.clone()).await.expect("cannot set duplicate-name device's alias");
-			*device_previous_count.borrow_mut() += 1;
-		}
-        
         lut.remove(&address);
         lut.insert(address, current_alias.clone());
-        DEVICES_LUT = Some(lut);
+        DEVICES_LUT = Some(lut);           
     }
 
 	sender.send(Message::SwitchName(current_alias, None, address)).expect("cannot set device name.");
-	sender.send(Message::InvalidateSort()).expect("cannot set device name.");
+ 	sender.send(Message::SetNameValid(true)).expect("cannot send message");
 
+	std::thread::sleep(std::time::Duration::from_millis(500));
+	sender.send(Message::InvalidateSort()).expect("cannot set device name.");
     Ok(())
 }
 
@@ -161,6 +151,7 @@ pub async fn get_device_properties(address: bluer::Address, sender: Sender<Messa
     sender.send(Message::SwitchActive(is_active)).expect("cannot set device active in page.");
     sender.send(Message::SwitchBlocked(is_blocked)).expect("cannot set device blocked in page.");
     sender.send(Message::SwitchTrusted(is_trusted)).expect("cannot set device trusted in page.");
+   	sender.send(Message::SetNameValid(true)).expect("cannot send message");
 
     if let Ok(()) = has_service(uuid!("00001105-0000-1000-8000-00805f9b34fb"), device).await {
       	sender.send(Message::SwitchHasObexService(true)).expect("cannot send message");
