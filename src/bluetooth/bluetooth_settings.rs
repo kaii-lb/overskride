@@ -11,7 +11,7 @@ pub async fn set_adapter_powered(adapter_name: String, sender: Sender<Message>) 
 
     adapter.set_powered(!current).await?;
     
-    let powered =  adapter.is_powered().await?;
+    let powered = adapter.is_powered().await?;
     
     if powered {
         sender.send(Message::RefreshDevicesList()).expect("can't send message");

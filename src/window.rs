@@ -1016,7 +1016,7 @@ impl OverskrideWindow {
                 	main_listbox.invalidate_sort();	
                 },
                 Message::RefreshDevicesList() => {
-                    gtk::prelude::WidgetExt::activate_action(&clone, "refresh-devices", None).expect("cannot refresh devices list");
+                    gtk::prelude::WidgetExt::activate_action(&clone, "win.refresh-devices", None).expect("cannot refresh devices list");
                 },
                 Message::StartTransfer(transfer, filename, percent, current, filesize, outbound) => {
                     let receiving_popover = clone.imp().receiving_popover.get();
@@ -1147,38 +1147,6 @@ impl OverskrideWindow {
         
             glib::ControlFlow::Continue
         });        
-
-        
-        let refresh_action = gtk::gio::SimpleAction::new("refresh-devices", None);
-        let sender0 = sender.clone();
-        refresh_action.connect_activate(move |_, _| {                        
-            device::stop_searching();
-            std::thread::sleep(std::time::Duration::from_millis(100));
-            
-            let sender = sender0.clone();
-            let adapter_name = unsafe {
-                CURRENT_ADAPTER.clone()
-            };
-            std::thread::spawn(move || {
-                let mut can_send = true;
-                if let Err(err) = device::get_devices_continuous(sender.clone(), adapter_name) {
-                    let string = err.message;
-                    
-                    can_send = false;
-
-                    sender.send(Message::PopupError(string, adw::ToastPriority::High)).expect("cannot send message");
-                    sender.send(Message::UpdateListBoxImage()).expect("cannot send message");
-                }
-                println!("can send: {}", can_send);
-                std::thread::sleep(std::time::Duration::from_millis(100));
-                if can_send {
-                    sender.send(Message::PopupError("br-adapter-refreshed".to_string(), adw::ToastPriority::Normal)).expect("can't send message");
-                }
-            });
-            // println!("trying to available devices");
-        });
-        self.add_action(&refresh_action);
-        refresh_action.activate(None);
         
         let main_listbox = self.imp().main_listbox.get();
 
@@ -1238,6 +1206,37 @@ impl OverskrideWindow {
             // println!("rssi result {:?}", final_result); 
         });
         main_listbox.invalidate_sort();
+
+		let refresh_action = gtk::gio::SimpleAction::new("refresh-devices", None);
+        let sender0 = sender.clone();
+        refresh_action.connect_activate(move |_, _| {                        
+            device::stop_searching();
+            std::thread::sleep(std::time::Duration::from_millis(100));
+            
+            let sender = sender0.clone();
+            let adapter_name = unsafe {
+                CURRENT_ADAPTER.clone()
+            };
+            std::thread::spawn(move || {
+                let mut can_send = true;
+                if let Err(err) = device::get_devices_continuous(sender.clone(), adapter_name) {
+                    let string = err.message;
+                    
+                    can_send = false;
+
+                    sender.send(Message::PopupError(string, adw::ToastPriority::High)).expect("cannot send message");
+                    sender.send(Message::UpdateListBoxImage()).expect("cannot send message");
+                }
+                println!("can send: {}", can_send);
+                std::thread::sleep(std::time::Duration::from_millis(100));
+                if can_send {
+                    sender.send(Message::PopupError("br-adapter-refreshed".to_string(), adw::ToastPriority::Normal)).expect("can't send message");
+                }
+            });
+            // println!("trying to available devices");
+        });
+        self.add_action(&refresh_action);
+        refresh_action.activate(None);
         
         let connected_switch_row = self.imp().connected_switch_row.get();
         let sender1 = sender.clone();

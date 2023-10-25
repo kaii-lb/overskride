@@ -42,9 +42,13 @@ mod imp {
                     let argv = [std::ffi::OsStr::new("pkexec"), std::ffi::OsStr::new("systemctl"), std::ffi::OsStr::new("enable"),
                     std::ffi::OsStr::new("--now"), std::ffi::OsStr::new("bluetooth")];
 
-                    gtk::gio::Subprocess::newv(&argv, gtk::gio::SubprocessFlags::STDERR_PIPE).expect("cannot enable bluetooth by pkexec");
+					let argv2 = [std::ffi::OsStr::new("pkexec"), std::ffi::OsStr::new("systemctl"), std::ffi::OsStr::new("start"),
+                    std::ffi::OsStr::new("bluetooth")];
                     
-                    let toast = adw::Toast::new("applying command through pkexec");
+                    gtk::gio::Subprocess::newv(&argv, gtk::gio::SubprocessFlags::STDERR_PIPE).expect("cannot enable bluetooth by pkexec");
+                    gtk::gio::Subprocess::newv(&argv2, gtk::gio::SubprocessFlags::STDERR_PIPE).expect("cannot enable bluetooth by pkexec");
+                    
+                    let toast = adw::Toast::new("applying commands through pkexec");
                     toast.set_timeout(5);
 
                     toast_overlay.add_toast(toast);
