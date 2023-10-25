@@ -34,7 +34,7 @@ pub async fn set_device_active(address: bluer::Address, sender: Sender<Message>,
    	}
    	else {
         device.connect().await?;
-        device.connect_profile(&uuid!("0000111e-0000-1000-8000-00805f9b34fb")).await?;
+        // device.connect_profile(&uuid!("0000111e-0000-1000-8000-00805f9b34fb")).await?;
    	}
 
     let updated_state = device.is_connected().await?;
