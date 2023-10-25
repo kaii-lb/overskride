@@ -15,7 +15,7 @@ or you could:
 
 ```bash
 sudo systemctl enable --now bluetooth
-curl -sSL https://nightly.link/kaii-lb/overskride/workflows/main/v0.4.8/overskride-nightly-x86_64.zip -o ~/Downloads/overskride-nightly.zip
+curl -sSL https://nightly.link/kaii-lb/overskride/workflows/main/v0.4.9/overskride-nightly-x86_64.zip -o ~/Downloads/overskride-nightly.zip
 unzip ~/Downloads/overskride-nightly.zip -d ~/Downloads/
 sudo flatpak install org.gnome.Platform//45 # only if needed
 sudo flatpak install -y ~/Downloads/overskride-nightly.flatpak
