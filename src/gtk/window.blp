@@ -37,14 +37,11 @@ template $OverskrideWindow: Adw.ApplicationWindow {
       	
         [top]
         Adw.HeaderBar {
-          show-title: false;
-
-          [center]
-          Adw.WindowTitle title {
+          title-widget: Adw.WindowTitle title {
             halign: center;
             margin-start: 24;
             title: "Sidebar";
-          }
+          };
 
           [start]
           MenuButton show_popup_button {
@@ -156,14 +153,11 @@ template $OverskrideWindow: Adw.ApplicationWindow {
       content: Adw.ToolbarView {
         [top]
         Adw.HeaderBar headerbar {
-          show-title: false;
-
-          [center]
-          Adw.WindowTitle window_title {
+          title-widget: Adw.WindowTitle window_title {
             halign: center;
             margin-start: 24;
             title: "Overskride";
-          }
+          };
           
           Box {
             ToggleButton show_sidebar_button {
@@ -181,7 +175,7 @@ template $OverskrideWindow: Adw.ApplicationWindow {
           }
         }
 
-        Stack main_stack{
+        Stack main_stack {
           valign: start;
           halign: fill;
           transition-type: slide_left_right;

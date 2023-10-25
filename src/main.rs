@@ -32,6 +32,7 @@ mod window;
 #[path = "widgets/device_action_row.rs"] mod device_action_row;
 #[path = "widgets/receiving_popover.rs"] mod receiving_popover;
 #[path = "widgets/receiving_row.rs"] mod receiving_row;
+#[path = "widgets/startup_error_message.rs"] mod startup_error_message;
 
 
 use self::application::OverskrideApplication;

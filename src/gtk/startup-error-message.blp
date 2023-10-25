@@ -1,0 +1,66 @@
+using Gtk 4.0;
+using Adw 1;
+
+template $StartupErrorMessage : Adw.ApplicationWindow {
+  height-request: 400;
+  width-request: 400;
+  
+  Adw.ToastOverlay error_toast_overlay {
+    Adw.ToolbarView {
+      [top]
+      Adw.HeaderBar {
+        title-widget: Adw.WindowTitle {
+          title: "Error";
+        };
+      }
+      
+      content: Box {
+        valign: center;
+        orientation: vertical;
+        //spacing: 28;
+        
+        Adw.StatusPage {
+          valign: start;
+          icon-name: "heart-broken-symbolic";    
+          title: "An Error Occurred";     
+          description: "this usually happens when the bluetooth service is disabled";       
+          
+          Button run_enable_bluetooth_button {
+            //orientation: vertical;
+            styles ["card"]
+            valign: center;
+            halign: center;
+            
+            Box {
+              orientation: vertical;
+              margin-top: 16;
+              margin-bottom: 16;
+              margin-start: 16;
+              margin-end: 16;
+              
+              Label {                
+                label: "in order to fix it, you could try:";
+                use-markup: true;
+                justify: center;
+              }
+              Label {
+                margin-top: 4;
+                margin-bottom: 4;
+                
+                label: "`sudo systemctl enable --now bluetooth`";
+                use-markup: true;
+                justify: center;
+              }
+              Label {
+                label: "or install the <span font_weight='bold' color='#78aeed'>bluez</span> package for your distro\n and run the above command, then restart <span font_weight='bold' color='#78aeed'>Overskride</span>";
+                use-markup: true;
+                justify: center;
+              }
+            }
+          }
+        }
+      };
+    }
+  }
+  
+}

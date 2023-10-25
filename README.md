@@ -60,10 +60,10 @@ glib-compile-schemas ~/.local/share/glib-2.0/schemas
 - Sorting devices by rssi (signal strength)
 - Showing errors to user
 - Changing files storage location
+- Auto accept files
 
 # What doesn't work
 - Audio profiles
-- Auto accept files
 - Battery polling over bluetooth
 - Applet support aka system tray
 - Cancelling send file, for some reason

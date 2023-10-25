@@ -10,5 +10,5 @@ cp /home/kaii/Projects/overskride/data/io.github.kaii_lb.Overskride.gschema.xml 
 cp /home/kaii/Projects/overskride/data/icons/hicolor/scalable/apps/io.github.kaii_lb.Overskride.svg overskride/usr/share/icons/hicolor/scalable/apps/
 cp /home/kaii/Projects/overskride/data/icons/hicolor/symbolic/apps/io.github.kaii_lb.Overskride-symbolic.svg overskride/usr/share/icons/hicolor/symbolic/apps/
 
-zip -r overskride.zip overskride/
-cp overskride.zip ../../
+7z a overskride.7z overskride/
+cp overskride.7z ../../

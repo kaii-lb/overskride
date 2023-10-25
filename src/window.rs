@@ -33,6 +33,7 @@ use crate::bluetooth_settings::get_store_location_from_dialog;
 use crate::device_action_row::DeviceActionRow;
 use crate::receiving_row::ReceivingRow;
 use crate::{bluetooth_settings, device, connected_switch_row::ConnectedSwitchRow};
+use crate::startup_error_message::StartupErrorMessage;
 use crate::message::Message;
 use crate::services::get_name_from_service;
 use crate::obex::{register_obex_agent, self};
@@ -116,6 +117,8 @@ mod imp {
         pub choose_location_button: TemplateChild<gtk::Button>,
         #[template_child]
         pub auto_accept_trusted_row: TemplateChild<adw::SwitchRow>,
+        #[template_child]
+        pub sidebar_content_box: TemplateChild<gtk::Box>,
 
         pub settings: OnceCell<Settings>,
         pub display_pass_key_dialog: RefCell<Option<adw::MessageDialog>>,
@@ -194,7 +197,24 @@ impl OverskrideWindow {
     fn setup(&self) {
         let (sender, receiver) = glib::MainContext::channel::<Message>(glib::Priority::default());
         
-        self.pre_setup(sender.clone()).expect("cannot start presetup, something got REALLY fucked");
+        if let Err(err) = self.pre_setup(sender.clone()) {
+            println!("ERROR: cannot start presetup, something got REALLY fucked");
+            println!("error is: {:?}", err);
+            
+            let clone = self.clone();
+            let message = StartupErrorMessage::new();
+
+            message.set_transient_for(Some(&clone));
+            message.set_modal(true);
+
+            // clone.set_sensitive(false);
+            message.connect_destroy(move |_| {
+                gtk::prelude::WidgetExt::activate_action(&clone, "app.quit", None).expect("cannot exit app on message close");        
+            });
+
+            message.show();
+            return;
+        }
 
         let sender_for_receiver_clone = sender.clone();
         let self_clone = self.clone();
