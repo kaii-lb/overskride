@@ -68,3 +68,4 @@ glib-compile-schemas ~/.local/share/glib-2.0/schemas
 - Applet support aka system tray
 - Cancelling send file, for some reason
 - More info about device
+- Transfer rate and time to completion
