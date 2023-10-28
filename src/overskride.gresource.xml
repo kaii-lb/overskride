@@ -8,6 +8,7 @@
     <file preprocess="xml-stripblanks">gtk/receiving-popover.ui</file>
     <file preprocess="xml-stripblanks">gtk/receiving-row.ui</file>
     <file preprocess="xml-stripblanks">gtk/startup-error-message.ui</file>
+    <file preprocess="xml-stripblanks">gtk/selectable-row.ui</file>
     <file>gtk/style.css</file>
   </gresource>
   <gresource prefix="/io/github/kaii_lb/Overskride/icons/scalable/apps/">

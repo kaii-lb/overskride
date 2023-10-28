@@ -89,4 +89,12 @@ pub enum Message {
 	SwitchHasObexService(bool),
 	/// Sets the "valid" state of the device name
 	SetNameValid(bool),
+    /// Adds the given profiles to the profiles list selector for a device
+    PopulateAudioProfilesList(HashMap<String, String>),
+    /// Toggles the audio profiles list according to the given `bool`
+    SwitchAudioProfilesList(bool),
+    /// Sets the active audio profile in the expander list, deselecting everything else
+    SetActiveAudioProfile(String),
+    /// Switches the "expanded" state of the audio profile expander
+    SwitchAudioProfileExpanded(bool),
 } 

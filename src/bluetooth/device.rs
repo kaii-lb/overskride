@@ -4,7 +4,7 @@ use gtk::glib::Sender;
 use tokio_util::sync::CancellationToken;
 use uuid::uuid;
 
-use crate::{message::Message, window::{DEVICES_LUT, CURRENT_ADDRESS, CONFIRMATION_AUTHORIZATION, DISPLAYING_DIALOG}, agent::wait_for_dialog_exit};
+use crate::{message::Message, window::{DEVICES_LUT, CURRENT_ADDRESS, CONFIRMATION_AUTHORIZATION, DISPLAYING_DIALOG}, agent::wait_for_dialog_exit, audio_profiles::AudioProfiles};
 
 static mut CANCELLATION_TOKEN: Option<CancellationToken> = None;
 /// Set the associated with `address` device's state, between connected and not 
@@ -12,7 +12,7 @@ static mut CANCELLATION_TOKEN: Option<CancellationToken> = None;
 /// A little funky and needs fixing but works for now.
 #[tokio::main]
 pub async fn set_device_active(address: bluer::Address, sender: Sender<Message>, adapter_name: String) -> bluer::Result<()> {
-	let adapter = bluer::Session::new().await?.adapter(adapter_name.as_str())?;
+    let adapter = bluer::Session::new().await?.adapter(adapter_name.as_str())?;
 	let device = adapter.device(address)?;
 
 	sender.send(Message::SwitchActiveSpinner(true)).expect("cannot set spinner to show.");
@@ -27,19 +27,19 @@ pub async fn set_device_active(address: bluer::Address, sender: Sender<Message>,
 		// println!("agent is: {:?}\n", agent);
 		 
    		device.pair().await?;
-
+           
    		device.connect().await?;
         device.connect().await?;
 		// drop(agent);
    	}
    	else {
         device.connect().await?;
-        // device.connect_profile(&uuid!("0000111e-0000-1000-8000-00805f9b34fb")).await?;
    	}
 
-    let updated_state = device.is_connected().await?;
+       let updated_state = device.is_connected().await?;
 
-    println!("set state {} for device {}\n", updated_state, device.address());
+    
+       println!("set state {} for device {}\n", updated_state, device.address());
 	sender.send(Message::SwitchActiveSpinner(false)).expect("cannot set spinner to show.");
     sender.send(Message::SwitchActive(updated_state)).expect("cannot send message");
 
@@ -53,6 +53,27 @@ pub async fn set_device_active(address: bluer::Address, sender: Sender<Message>,
     }
 	// sender.send(Message::SwitchActiveSpinner(false)).expect("cannot set spinner to show.");
     // connected_switch_row.set_active(!connected_switch_row.active());
+    
+    sender.send(Message::SwitchAudioProfileExpanded(false)).expect("cannot send message");
+    sender.send(Message::SwitchAudioProfilesList(false)).expect("cannot send message");
+    if let Ok(profiles) = AudioProfiles::new(address.to_string()) {
+        let active = profiles.active_profile;
+        let profiles_map = profiles.profiles;
+
+        if !profiles_map.is_empty() {
+            sender.send(Message::PopulateAudioProfilesList(profiles_map)).expect("cannot send message");
+            sender.send(Message::SwitchAudioProfilesList(true)).expect("cannot send message");
+            sender.send(Message::SetActiveAudioProfile(active)).expect("cannot send message");
+        }
+        else {
+            sender.send(Message::SwitchAudioProfilesList(false)).expect("cannot send message");
+            sender.send(Message::SwitchAudioProfileExpanded(false)).expect("cannot send message");
+        }
+    }
+    else {
+        sender.send(Message::SwitchAudioProfilesList(false)).expect("cannot send message");
+        sender.send(Message::SwitchAudioProfileExpanded(false)).expect("cannot send message");
+    }
     
     Ok(())
 }
@@ -153,16 +174,37 @@ pub async fn get_device_properties(address: bluer::Address, sender: Sender<Messa
     sender.send(Message::SwitchBlocked(is_blocked)).expect("cannot set device blocked in page.");
     sender.send(Message::SwitchTrusted(is_trusted)).expect("cannot set device trusted in page.");
    	sender.send(Message::SetNameValid(true)).expect("cannot send message");
+    sender.send(Message::SwitchAudioProfileExpanded(false)).expect("cannot send message");
+    sender.send(Message::SwitchAudioProfilesList(false)).expect("cannot send message");
 
     if let Ok(()) = has_service(uuid!("00001105-0000-1000-8000-00805f9b34fb"), device).await {
-      	sender.send(Message::SwitchHasObexService(true)).expect("cannot send message");
+        sender.send(Message::SwitchHasObexService(true)).expect("cannot send message");
         sender.send(Message::SwitchSendFileActive(is_active)).expect("cannot send message");
     }
     else {
-       	sender.send(Message::SwitchHasObexService(false)).expect("cannot send message");
+        sender.send(Message::SwitchHasObexService(false)).expect("cannot send message");
         sender.send(Message::SwitchSendFileActive(false)).expect("cannot send message");
     }
-    
+
+    if let Ok(profiles) = AudioProfiles::new(address.to_string()) {
+        let active = profiles.active_profile;
+        let profiles_map = profiles.profiles;
+
+        if !profiles_map.is_empty() {
+            sender.send(Message::PopulateAudioProfilesList(profiles_map)).expect("cannot send message");
+            sender.send(Message::SwitchAudioProfilesList(true)).expect("cannot send message");
+            sender.send(Message::SetActiveAudioProfile(active)).expect("cannot send message");
+        }
+        else {
+            sender.send(Message::SwitchAudioProfilesList(false)).expect("cannot send message");
+            sender.send(Message::SwitchAudioProfileExpanded(false)).expect("cannot send message");
+        }
+    }
+    else {
+        sender.send(Message::SwitchAudioProfilesList(false)).expect("cannot send message");
+        sender.send(Message::SwitchAudioProfileExpanded(false)).expect("cannot send message");
+    }
+
     // println!("the devices properties have been gotten with state: {}", is_active);
 
     Ok(())

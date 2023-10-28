@@ -29,9 +29,11 @@ use std::collections::HashMap;
 use std::rc::Rc;
 use std::str::FromStr;
 
+use crate::audio_profiles;
 use crate::bluetooth_settings::get_store_location_from_dialog;
 use crate::device_action_row::DeviceActionRow;
 use crate::receiving_row::ReceivingRow;
+use crate::selectable_row::SelectableRow;
 use crate::{bluetooth_settings, device, connected_switch_row::ConnectedSwitchRow};
 use crate::startup_error_message::StartupErrorMessage;
 use crate::message::Message;
@@ -119,6 +121,8 @@ mod imp {
         pub auto_accept_trusted_row: TemplateChild<adw::SwitchRow>,
         #[template_child]
         pub sidebar_content_box: TemplateChild<gtk::Box>,
+        #[template_child]
+        pub audio_profile_expander: TemplateChild<adw::ExpanderRow>,
 
         pub settings: OnceCell<Settings>,
         pub display_pass_key_dialog: RefCell<Option<adw::MessageDialog>>,
@@ -136,6 +140,7 @@ mod imp {
             ConnectedSwitchRow::ensure_type();
             ReceivingPopover::ensure_type();
             ReceivingRow::ensure_type();
+            SelectableRow::ensure_type();
 
             klass.bind_template();
             /*klass.install_action("win.refresh_devices", None, move |win, _, _| {
@@ -407,7 +412,7 @@ impl OverskrideWindow {
 
                     let hashmap_clone = hashmap.clone();
                     for alias in adapter_aliases.clone() {
-                        let row = adw::ActionRow::new();
+                        let row = SelectableRow::new();
                         let val = hashmap_clone.get(&alias).cloned();
                         let holder = unsafe {
                         	ORIGINAL_ADAPTER.to_string()
@@ -419,34 +424,27 @@ impl OverskrideWindow {
 
                         row.set_title(alias.as_str());
                                                 
-                        let suffix = gtk::Box::new(gtk::Orientation::Horizontal, 0);
-                        let icon = gtk::Image::new();
-                        icon.set_icon_name(Some("check-plain-symbolic"));
-                        suffix.append(&icon);
-                        
                         unsafe {
                             if CURRENT_ADAPTER == name.clone() {
-                                suffix.show();
+                                row.set_selected(true);
                             }
                             else {
-                                suffix.hide();
+                                row.set_selected(false);
                             }
                         } 
 
                         let listbox_clone = listbox.clone();
                         let sender_clone = sender_for_receiver_clone.clone();
 
-                        row.add_suffix(&suffix.clone());
                         row.set_activatable(true);
-                        row.connect_activated(move |_| { 
+                        row.connect_activated(move |row| { 
                             let mut index = 0;
                             if listbox_clone.clone().is_ok() {
                                 while let Some(row) = listbox_clone.clone().unwrap().row_at_index(index) {
                                     //println!("{}", index);
-                                    let action_row = row.downcast::<adw::ActionRow>().expect("cannot downcast to action row.");
+                                    let action_row = row.downcast::<SelectableRow>().expect("cannot downcast to action row.");
                                     //println!("{:?}", action_row.clone().title());
-                                    action_row.first_child().unwrap().last_child().unwrap().last_child().unwrap().hide();
-
+                                    action_row.set_selected(false);
                                     index += 1;
                                 }
                             }
@@ -459,7 +457,7 @@ impl OverskrideWindow {
                             if sender_clone.send(Message::RefreshDevicesList()).is_err() {
                             	sender_clone.send(Message::PopupError("bt-refresh-adapter-failed".to_string(), adw::ToastPriority::High)).expect("cannot send message");
                             }
-                            suffix.show();
+                            row.set_selected(true);
                         });
                         
                         default_controller_expander.add_row(&row);                        
@@ -1143,6 +1141,112 @@ impl OverskrideWindow {
           	        	device_name_entry.set_css_classes(&["error"]);
           	        }
                 },
+                Message::PopulateAudioProfilesList(hashmap) => {
+                    let audio_profile_expander = clone.imp().audio_profile_expander.get();
+                    let unknown = &"Unknown Profile".to_string();
+                    
+                    audio_profile_expander.set_expanded(false);
+                    audio_profile_expander.connect_enable_expansion_notify(|expander| {
+                        let address = unsafe {
+                            CURRENT_ADDRESS.clone().to_string()
+                        };
+                        let mut index = 0;
+                        let mut last_profile = String::new();
+
+                        let listbox = expander.last_child().unwrap().downcast::<gtk::Box>().unwrap()
+                            .last_child().unwrap().downcast::<gtk::Revealer>().unwrap().last_child().unwrap().downcast::<gtk::ListBox>(); 
+
+                        if let Ok(list) = listbox.clone() {
+                            while let Some(row) = list.row_at_index(index) {
+                                // println!("{}", index);
+                                let selectable_row = row.downcast::<SelectableRow>().expect("cannot downcast to action row.");
+                                // println!("{:?}", action_row.clone());
+                                
+                                if selectable_row.selected() {
+                                    last_profile = selectable_row.profile();
+                                }
+                                index += 1;
+                            }
+                        }
+
+                        let target_profile = if expander.enables_expansion() {
+                            last_profile
+                        }
+                        else {
+                            "off".to_string()
+                        };
+
+                        std::thread::spawn(|| {
+                            audio_profiles::device_set_profile(address, target_profile);
+                        });
+                    });
+                    
+                    let listbox = audio_profile_expander.last_child().unwrap().downcast::<gtk::Box>().unwrap()
+                        .last_child().unwrap().downcast::<gtk::Revealer>().unwrap().last_child().unwrap().downcast::<gtk::ListBox>(); 
+                
+                    if listbox.clone().is_ok() {
+                        while let Some(supposed_row) = listbox.clone().unwrap().last_child() {
+                            listbox.clone().unwrap().remove(&supposed_row);
+                        }
+                    }
+                        
+                    for profile in hashmap.keys() {
+                        let description = hashmap.get(profile).unwrap_or(unknown);
+
+                        let child = SelectableRow::new();
+                        child.set_title(description);
+                        child.set_profile(profile.as_str());
+
+                        let sender_clone = sender_for_receiver_clone.clone();
+                        
+                        child.set_activatable(true);
+                        child.connect_activated(move |row| {
+                            let profile = row.profile();
+                            let address = unsafe {
+                                CURRENT_ADDRESS.clone().to_string()
+                            };
+
+                            std::thread::spawn(|| {
+                                audio_profiles::device_set_profile(address, profile);
+                            });
+                            sender_clone.send(Message::SetActiveAudioProfile(row.profile())).expect("canont send message");
+                            // println!("set active profile");
+                        });
+
+                        audio_profile_expander.add_row(&child);
+                    }
+                },
+                Message::SwitchAudioProfilesList(state) => {
+                    let audio_profile_expander = clone.imp().audio_profile_expander.get();
+                    audio_profile_expander.set_sensitive(state);
+                },
+                Message::SetActiveAudioProfile(profile) => {
+                    let audio_profile_expander = clone.imp().audio_profile_expander.get();
+                    let mut index = 0;
+                    
+                    let listbox = audio_profile_expander.last_child().unwrap().downcast::<gtk::Box>().unwrap()
+                        .last_child().unwrap().downcast::<gtk::Revealer>().unwrap().last_child().unwrap().downcast::<gtk::ListBox>(); 
+
+                    if let Ok(list) = listbox.clone() {
+                        while let Some(row) = list.row_at_index(index) {
+                            // println!("{}", index);
+                            let selectable_row = row.downcast::<SelectableRow>().expect("cannot downcast to action row.");
+                            // println!("{:?}", action_row.clone());
+                            
+                            if selectable_row.profile() == profile {
+                                selectable_row.set_selected(true);
+                            }
+                            else {
+                                selectable_row.set_selected(false)
+                            }
+                            index += 1;
+                        }
+                    }
+                },
+                Message::SwitchAudioProfileExpanded(state) => {
+                    let audio_profile_expander = clone.imp().audio_profile_expander.get();
+                    audio_profile_expander.set_expanded(state);
+                }
             }
         
             glib::ControlFlow::Continue

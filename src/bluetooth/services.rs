@@ -4,9 +4,9 @@ use bluer::Uuid;
 const SERVICES: phf::Map<&'static str, &'static str> = phf_map! {
 	"00001203-0000-1000-8000-00805f9b34fb" => "Generic Audio",
 	"00001108-0000-1000-8000-00805f9b34fb" => "Hands Free",
-	"0000111e-0000-1000-8000-00805f9b34fb" => "Hands Free",
-	"00001112-0000-1000-8000-00805f9b34fb" => "Hands Free Profile Audio Gateway",
-	"0000111f-0000-1000-8000-00805f9b34fb" => "Hands Free Profile Audio Gateway",
+	"0000111e-0000-1000-8000-00805f9b34fb" => "Hands Free Headset",
+	"00001112-0000-1000-8000-00805f9b34fb" => "Hands Free Audio Gateway",
+	"0000111f-0000-1000-8000-00805f9b34fb" => "Hands Free Audio Gateway",
 	"0000110d-0000-1000-8000-00805f9b34fb" => "Advanced Audio",
 	"0000110a-0000-1000-8000-00805f9b34fb" => "A2DP Source",
 	"0000110b-0000-1000-8000-00805f9b34fb" => "A2DP Sink",
@@ -56,6 +56,7 @@ const SERVICES: phf::Map<&'static str, &'static str> = phf_map! {
 	"00001133-0000-1000-8000-00805f9b34fb" => "Message Notification Service",
 	"00001134-0000-1000-8000-00805f9b34fb" => "Message Access",
 };
+
 
 pub fn get_name_from_service(service: Uuid) -> Result<String, bluer::Error> {
 	let uuid_slice = service.to_string();

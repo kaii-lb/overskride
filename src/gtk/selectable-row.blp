@@ -1,0 +1,16 @@
+using Gtk 4.0;
+using Adw 1;
+
+template $SelectableRow : Adw.ActionRow {
+  activatable: true;
+
+  [suffix]
+  Box {
+    spacing: 16;
+
+    Image check_icon {
+      icon-name: "check-plain-symbolic";
+      visible: false;
+    }
+  }
+}
