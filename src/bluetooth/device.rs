@@ -4,14 +4,18 @@ use gtk::glib::Sender;
 use tokio_util::sync::CancellationToken;
 use uuid::uuid;
 
-use crate::{message::Message, window::{DEVICES_LUT, CURRENT_ADDRESS, CONFIRMATION_AUTHORIZATION, DISPLAYING_DIALOG}, agent::wait_for_dialog_exit, audio_profiles::AudioProfiles};
+use crate::{message::Message, window::{DEVICES_LUT, CURRENT_ADDRESS, CONFIRMATION_AUTHORIZATION, DISPLAYING_DIALOG}, agent::wait_for_dialog_exit, audio_profiles::AudioProfiles, battery::CANCEL_BATTERY_CHECK};
 
 static mut CANCELLATION_TOKEN: Option<CancellationToken> = None;
+
 /// Set the associated with `address` device's state, between connected and not 
 /// connected depending on what was already the case.
 /// A little funky and needs fixing but works for now.
 #[tokio::main]
 pub async fn set_device_active(address: bluer::Address, sender: Sender<Message>, adapter_name: String) -> bluer::Result<()> {
+    let address_string = address.clone().to_string();
+    let adapter_string = adapter_name.clone();
+    
     let adapter = bluer::Session::new().await?.adapter(adapter_name.as_str())?;
 	let device = adapter.device(address)?;
 
@@ -39,23 +43,25 @@ pub async fn set_device_active(address: bluer::Address, sender: Sender<Message>,
        let updated_state = device.is_connected().await?;
 
     
-       println!("set state {} for device {}\n", updated_state, device.address());
+    println!("set state {} for device {}\n", updated_state, device.address());
 	sender.send(Message::SwitchActiveSpinner(false)).expect("cannot set spinner to show.");
     sender.send(Message::SwitchActive(updated_state)).expect("cannot send message");
 
-    if let Ok(()) = has_service(uuid!("00001105-0000-1000-8000-00805f9b34fb"), device).await {
-    	sender.send(Message::SwitchHasObexService(true)).expect("cannot send message");
-        sender.send(Message::SwitchSendFileActive(updated_state)).expect("cannot send message");
-    }
-    else {
-      	sender.send(Message::SwitchHasObexService(false)).expect("cannot send message");
-        sender.send(Message::SwitchSendFileActive(false)).expect("cannot send message");
-    }
 	// sender.send(Message::SwitchActiveSpinner(false)).expect("cannot set spinner to show.");
     // connected_switch_row.set_active(!connected_switch_row.active());
     
+    let sender_clone = sender.clone();
+    std::thread::spawn(move || {
+        let clone = sender_clone.clone();
+        unsafe {
+            CANCEL_BATTERY_CHECK = true;
+        }
+        crate::battery::get_battery_for_device(address_string, adapter_string, clone);
+    });
+
     sender.send(Message::SwitchAudioProfileExpanded(false)).expect("cannot send message");
     sender.send(Message::SwitchAudioProfilesList(false)).expect("cannot send message");
+
     if let Ok(profiles) = AudioProfiles::new(address.to_string()) {
         let active = profiles.active_profile;
         let profiles_map = profiles.profiles;
@@ -73,6 +79,15 @@ pub async fn set_device_active(address: bluer::Address, sender: Sender<Message>,
     else {
         sender.send(Message::SwitchAudioProfilesList(false)).expect("cannot send message");
         sender.send(Message::SwitchAudioProfileExpanded(false)).expect("cannot send message");
+    }
+
+	if let Ok(()) = has_service(uuid!("00001105-0000-1000-8000-00805f9b34fb"), device).await {
+    	sender.send(Message::SwitchHasObexService(true)).expect("cannot send message");
+        sender.send(Message::SwitchSendFileActive(updated_state)).expect("cannot send message");
+    }
+    else {
+      	sender.send(Message::SwitchHasObexService(false)).expect("cannot send message");
+        sender.send(Message::SwitchSendFileActive(false)).expect("cannot send message");
     }
     
     Ok(())
@@ -153,7 +168,10 @@ pub async fn set_device_name(address: bluer::Address, name: String, sender: Send
 /// Gets the the device associates with `address`, and then retrieves the properties of that device.
 #[tokio::main]
 pub async fn get_device_properties(address: bluer::Address, sender: Sender<Message>, adapter_name: String) -> bluer::Result<()> {
-    let adapter = bluer::Session::new().await?.adapter(adapter_name.as_str())?;
+    let adapter_string = adapter_name.clone();
+    let address_string = address.clone().to_string();
+
+    let adapter = bluer::Session::new().await?.adapter(&adapter_name)?;
 	let device = adapter.device(address)?;
 
     let is_active = device.is_connected().await?;
@@ -177,14 +195,15 @@ pub async fn get_device_properties(address: bluer::Address, sender: Sender<Messa
     sender.send(Message::SwitchAudioProfileExpanded(false)).expect("cannot send message");
     sender.send(Message::SwitchAudioProfilesList(false)).expect("cannot send message");
 
-    if let Ok(()) = has_service(uuid!("00001105-0000-1000-8000-00805f9b34fb"), device).await {
-        sender.send(Message::SwitchHasObexService(true)).expect("cannot send message");
-        sender.send(Message::SwitchSendFileActive(is_active)).expect("cannot send message");
-    }
-    else {
-        sender.send(Message::SwitchHasObexService(false)).expect("cannot send message");
-        sender.send(Message::SwitchSendFileActive(false)).expect("cannot send message");
-    }
+    let sender_clone = sender.clone();
+    std::thread::spawn(move || {
+        let clone = sender_clone.clone();
+        unsafe {
+            CANCEL_BATTERY_CHECK = true;
+        }
+        crate::battery::get_battery_for_device(address_string, adapter_string, clone);
+    });
+
 
     if let Ok(profiles) = AudioProfiles::new(address.to_string()) {
         let active = profiles.active_profile;
@@ -203,6 +222,15 @@ pub async fn get_device_properties(address: bluer::Address, sender: Sender<Messa
     else {
         sender.send(Message::SwitchAudioProfilesList(false)).expect("cannot send message");
         sender.send(Message::SwitchAudioProfileExpanded(false)).expect("cannot send message");
+    }
+
+	if let Ok(()) = has_service(uuid!("00001105-0000-1000-8000-00805f9b34fb"), device).await {
+        sender.send(Message::SwitchHasObexService(true)).expect("cannot send message");
+        sender.send(Message::SwitchSendFileActive(is_active)).expect("cannot send message");
+    }
+    else {
+        sender.send(Message::SwitchHasObexService(false)).expect("cannot send message");
+        sender.send(Message::SwitchSendFileActive(false)).expect("cannot send message");
     }
 
     // println!("the devices properties have been gotten with state: {}", is_active);

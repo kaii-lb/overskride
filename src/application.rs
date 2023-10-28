@@ -108,9 +108,10 @@ impl OverskrideApplication {
             .copyright("© 2023 kaii")
             .release_notes("
             <ol>
-                <li>Reverted index for duplicate names</li>
-                <li>Not allowed to name dupes anymore</li>
-                <li>New devices with dupe names still show up as dupe</li>
+                <li>Audio profile support</li>
+                <li>Bluetooth battery polling</li>
+                <li>Metric fuck ton of bug fixes</li>
+                <li>Non working outbound transfer cancel</li>
             </ol>
             ")
             .issue_url("https://github.com/kaii-lb/overskride/issues")

@@ -187,7 +187,7 @@ template $OverskrideWindow: Adw.ApplicationWindow {
               styles ["flat"]
               kinetic-scrolling: true;
               overlay-scrolling: true;
-              margin-bottom: 86;
+              margin-bottom: 40;
               
               Adw.Clamp {
                 orientation: horizontal;
@@ -259,7 +259,7 @@ template $OverskrideWindow: Adw.ApplicationWindow {
 
                   Adw.PreferencesGroup {
                     title: "Device Properties";
-                    description: "Information about the bluetooth device.";
+                    description: "Information about this bluetooth device.";
 
                     Adw.EntryRow device_name_entry {
                       title: "Device Name";
@@ -272,6 +272,29 @@ template $OverskrideWindow: Adw.ApplicationWindow {
                     }
                     Adw.SwitchRow blocked_row {
                       title: "Blocked";
+                    }
+                  }
+
+                  Adw.PreferencesGroup {
+                    title: "Status Information";
+                    description: "The current state of this device";
+
+                    $BatteryLevelIndicator battery_level_indicator {
+                      styles ["linked"]
+                    }
+
+                    Adw.ActionRow {
+                      title: "More Info";
+                      activatable: true; 
+                      sensitive: false;
+
+                      [suffix]
+                      Box {
+                        Image {
+                          styles ["dim-label"]
+                          icon-name: "right-symbolic";
+                        }
+                      }
                     }
                   }
 
@@ -293,7 +316,7 @@ template $OverskrideWindow: Adw.ApplicationWindow {
               kinetic-scrolling: true;
               overlay-scrolling: true;
               valign: start;
-              // margin-bottom: 86;
+              margin-bottom: 40;
               
               child: Adw.Clamp {
                 orientation: horizontal;

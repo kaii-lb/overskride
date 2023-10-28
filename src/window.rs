@@ -60,7 +60,7 @@ pub static mut SEND_FILES_PATH: Vec<String> = vec![];
 pub static mut AUTO_ACCEPT_FROM_TRUSTED: bool = false;
 
 mod imp {
-    use crate::{receiving_popover::ReceivingPopover, receiving_row::ReceivingRow};
+    use crate::{receiving_popover::ReceivingPopover, receiving_row::ReceivingRow, battery_indicator::BatteryLevelIndicator};
 
     use super::*;
 
@@ -123,6 +123,8 @@ mod imp {
         pub sidebar_content_box: TemplateChild<gtk::Box>,
         #[template_child]
         pub audio_profile_expander: TemplateChild<adw::ExpanderRow>,
+        #[template_child]
+        pub battery_level_indicator: TemplateChild<BatteryLevelIndicator>,
 
         pub settings: OnceCell<Settings>,
         pub display_pass_key_dialog: RefCell<Option<adw::MessageDialog>>,
@@ -141,6 +143,7 @@ mod imp {
             ReceivingPopover::ensure_type();
             ReceivingRow::ensure_type();
             SelectableRow::ensure_type();
+            BatteryLevelIndicator::ensure_type();
 
             klass.bind_template();
             /*klass.install_action("win.refresh_devices", None, move |win, _, _| {
@@ -1191,10 +1194,12 @@ impl OverskrideWindow {
                     }
                         
                     for profile in hashmap.keys() {
-                        let description = hashmap.get(profile).unwrap_or(unknown);
+                        let holder = hashmap.get(profile).unwrap_or(unknown);
+                        let description = &holder.replace('&', "&amp;");
 
                         let child = SelectableRow::new();
                         child.set_title(description);
+                        child.set_use_markup(true);
                         child.set_profile(profile.as_str());
 
                         let sender_clone = sender_for_receiver_clone.clone();
@@ -1246,7 +1251,12 @@ impl OverskrideWindow {
                 Message::SwitchAudioProfileExpanded(state) => {
                     let audio_profile_expander = clone.imp().audio_profile_expander.get();
                     audio_profile_expander.set_expanded(state);
-                }
+                },
+                Message::UpdateBatteryLevel(level) => {
+                    let battery_level_indicator = clone.imp().battery_level_indicator.get();
+
+                    battery_level_indicator.set_battery_level(level);
+                },
             }
         
             glib::ControlFlow::Continue

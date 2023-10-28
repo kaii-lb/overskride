@@ -9,6 +9,7 @@
     <file preprocess="xml-stripblanks">gtk/receiving-row.ui</file>
     <file preprocess="xml-stripblanks">gtk/startup-error-message.ui</file>
     <file preprocess="xml-stripblanks">gtk/selectable-row.ui</file>
+    <file preprocess="xml-stripblanks">gtk/battery-indicator.ui</file>
     <file>gtk/style.css</file>
   </gresource>
   <gresource prefix="/io/github/kaii_lb/Overskride/icons/scalable/apps/">
@@ -32,5 +33,6 @@
     <file alias="cross-large-symbolic.svg">icons/symbolic/actions/cross-large-symbolic.svg</file>
     <file alias="skull-symbolic.svg">icons/symbolic/actions/skull-symbolic.svg</file>
     <file alias="heart-broken-symbolic.svg">icons/symbolic/actions/heart-broken-symbolic.svg</file>
+    <file alias="right-symbolic.svg">icons/symbolic/actions/right-symbolic.svg</file>
   </gresource>
 </gresources>

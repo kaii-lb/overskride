@@ -27,6 +27,7 @@ mod window;
 #[path = "bluetooth/agent.rs"] mod agent;
 #[path = "bluetooth/services.rs"] mod services;
 #[path = "bluetooth/audio_profiles.rs"] mod audio_profiles;
+#[path = "bluetooth/battery.rs"] mod battery;
 #[path = "obex/obex.rs"] mod obex;
 #[path = "obex/obex_utils.rs"] mod obex_utils;
 #[path = "widgets/connected_switch_row.rs"] mod connected_switch_row;
@@ -35,6 +36,7 @@ mod window;
 #[path = "widgets/receiving_row.rs"] mod receiving_row;
 #[path = "widgets/startup_error_message.rs"] mod startup_error_message;
 #[path = "widgets/selectable_row.rs"] mod selectable_row;
+#[path = "widgets/battery_indicator.rs"] mod battery_indicator;
 
 
 use self::application::OverskrideApplication;

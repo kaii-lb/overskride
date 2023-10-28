@@ -97,4 +97,6 @@ pub enum Message {
     SetActiveAudioProfile(String),
     /// Switches the "expanded" state of the audio profile expander
     SwitchAudioProfileExpanded(bool),
+    /// Updates the `LeverBar` of the device to match the battery level reported
+    UpdateBatteryLevel(i8),
 } 

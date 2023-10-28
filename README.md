@@ -61,9 +61,10 @@ glib-compile-schemas ~/.local/share/glib-2.0/schemas
 - Showing errors to user
 - Changing files storage location
 - Auto accept files
+- Audio profiles
+- Battery polling over bluetooth (enable experimental bluetooth options)
 
 # What doesn't work
-- Audio profiles
-- Battery polling over bluetooth
 - Applet support aka system tray
 - Cancelling send file, for some reason
+- More info about device

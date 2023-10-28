@@ -1,0 +1,32 @@
+using Gtk 4.0;
+using Adw 1;
+
+template $BatteryLevelIndicator : Adw.PreferencesRow {
+	activatable: false;
+	tooltip-text: "this is an approximation";
+	Box {
+		orientation: vertical;
+		halign: fill;
+		valign: center;
+		//spacing: 14;
+		// margin-bottom: 24;
+
+		Label battery_label {
+			halign: start;
+			margin-start: 14;
+			margin-top: 8;
+			label: _("Battery: 45%");
+		}
+
+		LevelBar level_bar {
+			mode: continuous;
+			margin-start:14;
+			margin-end:14;
+			margin-bottom: 14;
+			margin-top: 8;
+			min-value:0;
+			max-value:100;
+			value: 45;
+		}
+	}
+}
