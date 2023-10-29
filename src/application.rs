@@ -106,6 +106,7 @@ impl OverskrideApplication {
             .version(VERSION)
             .developers(vec!["kaii", "Email: imkaiilb@gmail.com<imkaiilb@gmail.com>", "Github: kaii-lb https://github.com/kaii-lb"])
             .copyright("© 2023 kaii")
+            .license_type(gtk::License::Gpl30)
             .release_notes("
             <ol>
                 <li>Audio profile support</li>
