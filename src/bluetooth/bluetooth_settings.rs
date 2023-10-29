@@ -3,6 +3,7 @@ use gtk::glib::Sender;
 
 use crate::{message::Message, window::{ADAPTERS_LUT, DISPLAYING_DIALOG, SEND_FILES_PATH}, agent::wait_for_dialog_exit};
 
+/// sets the current adapter's powered state, updating the UI
 #[tokio::main]
 pub async fn set_adapter_powered(adapter_name: String, sender: Sender<Message>) -> bluer::Result<()> {
     let adapter = bluer::Session::new().await?.adapter(adapter_name.as_str())?;
@@ -22,6 +23,7 @@ pub async fn set_adapter_powered(adapter_name: String, sender: Sender<Message>) 
     Ok(())
 }
 
+/// Makes or un-makes this adapter visible to other devices
 #[tokio::main]
 pub async fn set_adapter_discoverable(adapter_name: String, sender: Sender<Message>) -> bluer::Result<()> {
     let adapter = bluer::Session::new().await?.adapter(adapter_name.as_str())?;
@@ -38,6 +40,7 @@ pub async fn set_adapter_discoverable(adapter_name: String, sender: Sender<Messa
     Ok(())
 }
 
+/// get the adapter  properties, updating the UI heavily
 #[tokio::main]
 pub async fn get_adapter_properties(adapters_hashmap: HashMap<String, String>, sender: Sender<Message>, adapter_name: String) -> bluer::Result<()> {
     let adapter = bluer::Session::new().await?.adapter(adapter_name.as_str())?;
@@ -57,6 +60,9 @@ pub async fn get_adapter_properties(adapters_hashmap: HashMap<String, String>, s
     Ok(())
 }
 
+/// set the adapter name, (its actually the alias, name is hardcoded)
+/// alias: "laptop 1", name: "hci0"
+/// don't change name, thats bad, change alias instead
 #[tokio::main]
 pub async fn set_adapter_name(alias: String, adapter_name: String, sender: Sender<Message>) -> bluer::Result<()> {
     let adapter = bluer::Session::new().await?.adapter(adapter_name.as_str())?;
@@ -65,10 +71,14 @@ pub async fn set_adapter_name(alias: String, adapter_name: String, sender: Sende
     //println!("old alias is: {}", old_alias.to_string());
 
     adapter.set_alias(alias.clone()).await?;
+    
+    // wait for alias to change
     std::thread::sleep(std::time::Duration::from_secs(1));
+    
     let new_alias = adapter.alias().await?;
     println!("new adapter alias is: {} compared to {}", new_alias, alias);
 
+    // update the lut with the new info
     unsafe {
         let mut lut = ADAPTERS_LUT.clone().unwrap();
         let bluetooth_name = adapter.name().to_string();
@@ -83,6 +93,7 @@ pub async fn set_adapter_name(alias: String, adapter_name: String, sender: Sende
     Ok(())
 }
 
+/// sets the discoverable timeout of this adapter
 #[tokio::main]
 pub async fn set_timeout_duration(timeout: u32, adapter_name: String, sender: Sender<Message>) -> bluer::Result<()> {
     let adapter = bluer::Session::new().await?.adapter(adapter_name.as_str())?;
@@ -96,7 +107,7 @@ pub async fn set_timeout_duration(timeout: u32, adapter_name: String, sender: Se
 
     Ok(())
 }
-
+/// adds every adapter with its alias and name to a hashmap, returning that hashmap
 #[tokio::main]
 pub async fn populate_adapter_expander() -> bluer::Result<HashMap<String, String>> {
     let current_session = bluer::Session::new().await?;
@@ -119,6 +130,7 @@ pub async fn populate_adapter_expander() -> bluer::Result<HashMap<String, String
     Ok(alias_name_hashmap)
 }
 
+/// wrapper to get the file save location from a file picker
 #[tokio::main]
 pub async fn get_store_location_from_dialog(sender: Sender<Message>) {
     unsafe {

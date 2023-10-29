@@ -9,6 +9,7 @@ use gtk::prelude::WidgetExt;
 mod imp {
     use super::*;    
 
+    /// a custom type that has a checkmark next to the row, showing it if the row is selected, hiding it if not
     #[derive(Properties, Default, gtk::CompositeTemplate)]
     #[template(resource = "/io/github/kaii_lb/Overskride/gtk/selectable-row.ui")]
     #[properties(wrapper_type = super::SelectableRow)]
@@ -50,6 +51,7 @@ mod imp {
     impl PreferencesRowImpl for SelectableRow {}
     
     impl SelectableRow {
+        /// adds a checkmark next to the row if selected, removes it if not
         pub fn set_row_selected(&self, active: bool) {
             *self.selected.borrow_mut() = active;
             let check_icon = self.check_icon.get();

@@ -9,6 +9,7 @@ use crate::receiving_row::ReceivingRow;
 mod imp {
     use super::*;    
 
+    /// holds all the current transfer ongoing allowing the user easy management of them
     #[derive(Default, gtk::CompositeTemplate)]
     #[template(resource = "/io/github/kaii_lb/Overskride/gtk/receiving-popover.ui")]
     pub struct ReceivingPopover {
@@ -69,6 +70,7 @@ impl ReceivingPopover {
         self.imp().default_row.get().set_visible(false);
     }
 
+    /// remove the row from this popover, using the transfer and filename as guidance
     pub fn remove_row(&self, transfer: String, filename: String) {
         let listbox = self.imp().listbox.get();
 

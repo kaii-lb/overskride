@@ -8,6 +8,7 @@ mod imp {
 
     use super::*;    
 
+    /// a custom error message if the startup failed, showing the user a way to fix the error
     #[derive(Default, gtk::CompositeTemplate)]
     #[template(resource = "/io/github/kaii_lb/Overskride/gtk/startup-error-message.ui")]
     pub struct StartupErrorMessage {

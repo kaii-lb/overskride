@@ -11,6 +11,7 @@ use crate::obex::CANCEL;
 mod imp {
     use super::*;    
 
+    /// custom type for a transfer UI, many methods to allow easy manipulation of a transfers state
     #[derive(Properties, Default, gtk::CompositeTemplate)]
     #[template(resource = "/io/github/kaii_lb/Overskride/gtk/receiving-row.ui")]
     #[properties(wrapper_type = super::ReceivingRow)]
@@ -100,7 +101,7 @@ glib::wrapper! {
 }
 
 impl ReceivingRow {
-    /// creates a new `ReceivingRow`
+    /// creates a new `ReceivingRow` from a transfer, filename, size and if its sending or receiving
     pub fn new(transfer: String, filename: String, filesize: f32, outbound: bool) -> Self {
         Object::builder()
             .property("transfer", transfer)
@@ -114,6 +115,7 @@ impl ReceivingRow {
         self.imp().extra_label.get().label().to_string()
     }
 
+    /// extra is the little text at the bottom of the transfer, this sets it
     pub fn set_extra(&self, percent: f32, current_mb: f32, filesize_mb: f32) {
         let percentage = percent.to_string() + "% | ";
 
@@ -126,16 +128,19 @@ impl ReceivingRow {
         self.imp().extra_label.get().set_label(&extra);
     }
 
+    // changes the extra to the error string
     pub fn set_error(&self, error: String) {
         let final_string = "<small>".to_string() + &error + "</small>";
         self.imp().extra_label.get().set_label(&final_string);
     }
 
+    /// changes the transfers icon based on if the transfer is done, error, or still running
     pub fn set_active_icon(&self, icon_name: String, filesize: f32) -> bool {
         let cancel_button = self.imp().cancel_button.get();
         let self_destruct: bool;
 
         let icon = match icon_name.as_str() {
+            // make icon an X and tell user its complete
             "complete" => {
                 cancel_button.set_sensitive(false);
                 self_destruct = true;
@@ -145,6 +150,7 @@ impl ReceivingRow {
                 
                 "check-plain-symbolic"
             },
+            // make icon a skull and tell user transfer got bent
             "error" => {
                 cancel_button.set_sensitive(false);
                 self_destruct = true;
@@ -154,6 +160,7 @@ impl ReceivingRow {
 
                 "skull-symbolic"
             },
+            // notify user of "special case", this is most likely its still running
             e => {
                 if !e.is_empty() {
                     println!("special icon case: {}", e);

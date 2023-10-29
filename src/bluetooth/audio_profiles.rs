@@ -11,7 +11,9 @@ pub struct AudioProfiles {
 }
 
 impl AudioProfiles {
+	/// create a new pulse audio connection to a certain device, then returns the current active profile and the other profiles this device supports
 	pub fn new(address: String) -> Result<Self, Error> {
+		// bla bla make new connection yes very fancy
 		let mut proplist = Proplist::new().unwrap();
 		proplist.set_str(pulseaudio::proplist::properties::APPLICATION_NAME, "Overskride")
 			.unwrap();
@@ -49,6 +51,8 @@ impl AudioProfiles {
 			}
 		}
 
+		// pulse audio bluetooth names start with "bluez_card." and instead of : its _ 
+		// so like bluez_card.XX_XX_XX_XX_XX_XX
 		let card_name = "bluez_card.".to_string() + &address.replace(':', "_");
 
 		let clonable_map = Rc::new(RefCell::new(HashMap::<String, String>::new()));
@@ -59,6 +63,7 @@ impl AudioProfiles {
 		let error = Rc::new(RefCell::new(false));
 		let error_clone = error.clone();
 
+		// gets the active profile and available profiles of this "card" (its really a device but wtv)
 		let state = context.borrow().introspect().get_card_info_by_name(&card_name, move |card_info_result| {
 			match card_info_result {
 				pulseaudio::callbacks::ListResult::Item(item) => {	
@@ -98,6 +103,7 @@ impl AudioProfiles {
 			}
 		});
 
+		// process pulse audio requests until the done, if error then return an error
 		loop {
 			mainloop.borrow_mut().iterate(false);
 			std::thread::sleep(std::time::Duration::from_secs(1));
@@ -117,13 +123,17 @@ impl AudioProfiles {
 		let active = clonable_active_profile.borrow().clone();
 		let mut profiles = clonable_map.borrow_mut().clone();
 
+		// remove the "off" profile as thats what the expander switch is for
 		profiles.remove("off");
 
+		// return the active profile with the rest of the profiles
 		Ok(AudioProfiles { active_profile: active, profiles })
 	}
 }	
 
+/// sets the profile for a given device
 pub fn device_set_profile(address: String, profile: String) {
+	// more connection shit 
 	let mut proplist = Proplist::new().unwrap();
 	proplist.set_str(pulseaudio::proplist::properties::APPLICATION_NAME, "Overskride")
 		.unwrap();
@@ -170,6 +180,8 @@ pub fn device_set_profile(address: String, profile: String) {
 
 	println!("{} {}", &card_name, &profile);
 
+	// sets the card profile, then updates the state and the done-ness of this funtion
+	// should move to using the returned "Operation" value instead of weird ass borrows
 	context.borrow().introspect().set_card_profile_by_name(&card_name, &profile, Some(Box::new(move |state| {
 		*clone.borrow_mut() = state;
 		*done_clone.borrow_mut() = true;

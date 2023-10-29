@@ -10,6 +10,7 @@ use adw::prelude::WidgetExt;
 mod imp {
     use super::*;
 
+    /// a preference row that is actually a level bar showing colored level and % of device battery
     #[derive(Properties, Default, gtk::CompositeTemplate)]
     #[template(resource = "/io/github/kaii_lb/Overskride/gtk/battery-indicator.ui")]
     #[properties(wrapper_type = super::BatteryLevelIndicator)]
@@ -42,6 +43,8 @@ mod imp {
     impl ObjectImpl for BatteryLevelIndicator {
         fn constructed(&self) {
             self.parent_constructed();
+            
+            // this makes it so the level bar color changes dependign on percentage
             self.level_bar.add_offset_value("full", 100.0);
             self.level_bar.add_offset_value("three-quarters", 75.0);
             self.level_bar.add_offset_value("half", 50.0);
@@ -55,6 +58,7 @@ mod imp {
     impl PreferencesRowImpl for BatteryLevelIndicator {}
 
     impl BatteryLevelIndicator {
+        // set the battery level to either the percent or unavailable depending on the value
         fn set_battery_level_from_i8(&self, level: i8) {
             let level = level.clamp(-1, 100);
             let levelbar = self.level_bar.get();

@@ -8,6 +8,7 @@ use std::cell::RefCell;
 mod imp {
     use super::*;    
 
+    /// an adw::SwitchRow but with the ability to show a spinning icon next to it
     #[derive(Properties, Default, gtk::CompositeTemplate)]
     #[template(resource = "/io/github/kaii_lb/Overskride/gtk/connected-switch-row.ui")]
     #[properties(wrapper_type = super::ConnectedSwitchRow)]

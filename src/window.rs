@@ -205,6 +205,9 @@ impl OverskrideWindow {
     fn setup(&self) {
         let (sender, receiver) = glib::MainContext::channel::<Message>(glib::Priority::default());
         
+        // if pre setup is an error, get the hell out, show error to user
+        // suggest solutions
+        // then profit
         if let Err(err) = self.pre_setup(sender.clone()) {
             println!("ERROR: cannot start presetup, something got REALLY fucked");
             println!("error is: {:?}", err);
@@ -243,6 +246,7 @@ impl OverskrideWindow {
                     std::thread::sleep(std::time::Duration::from_millis(200));
                     connected_switch_row.set_switch_active(active);
 
+					// is this redundant? we'll never know
 					if connected_switch_row.has_obex() {
                     	sender_for_receiver_clone.clone().send(Message::SwitchSendFileActive(active)).expect("cannot send message");
 					}
@@ -262,12 +266,15 @@ impl OverskrideWindow {
                     };
                     let mut listbox_index = 0;
 
+                    // if the old alias exists then just get the row directly
                     if optional_old_alias.is_none() {
                         if let Some(some_row) = list_box.row_at_index(index) {
                             let action_row = some_row.downcast::<DeviceActionRow>().unwrap();
                             action_row.set_title(alias.as_str());
                         }
                     }
+                    // else loop over each row till finding the one that matches and change its name
+                    // useful if other device changes name when not selected
                     else {
                         while let Some(row) = list_box.clone().row_at_index(listbox_index) {
                             //println!("{}", index);
@@ -280,6 +287,8 @@ impl OverskrideWindow {
                             listbox_index += 1;
                         }
                     }
+                    // don't set text if the text is already set
+                    // #philosophy 
                     let device_name_entry = clone.imp().device_name_entry.get();
                     if device_name_entry.text() != alias {
                     	device_name_entry.set_text(&alias);
@@ -289,12 +298,14 @@ impl OverskrideWindow {
                     let list_box = clone.imp().main_listbox.get();
                     let mut listbox_index = 0;
                     
+                    // loop over main listbox and get row that matches, updating its rssi
                     while let Some(row) = list_box.row_at_index(listbox_index) {
                         let action_row = row.downcast::<DeviceActionRow>().expect("cannot downcast to device action row.");
                         
                         // println!("device {}, with rssi {} changed", device_name.clone(), rssi);
 
                         if action_row.title() == device_name {
+                            // not sure why those two aren't in the same function
                             action_row.set_rssi(rssi);
                             action_row.update_rssi_icon();
                         }
@@ -316,6 +327,7 @@ impl OverskrideWindow {
                     let mut index = 0;
                     let mut selected = true;
 
+                    // loop over main listbox and remove the row that matches
                     while let Some(row) = listbox.row_at_index(index) {
                         // println!("{}", index);
                         let action_row = row.downcast::<DeviceActionRow>().expect("cannot downcast to action row.");
@@ -332,12 +344,14 @@ impl OverskrideWindow {
                         index += 1;
                     }
 
+                    // if the removed device is the same as the currently selected one, return to the settings page
                     if selected {
                         let bluetooth_settings_row = clone.clone().imp().bluetooth_settings_row.get();
                         bluetooth_settings_row.emit_activate();
                     }
                 },
                 Message::SwitchPage(alias, icon_name) => {
+                    // doesn't actually switch a page just updates values in the same page
                     let entry_row = clone.imp().device_name_entry.get();
                     let device_title = clone.imp().device_title.get();
                     let device_icon = clone.imp().device_icon.get();
@@ -347,6 +361,7 @@ impl OverskrideWindow {
 	                    device_title.set_text(name.as_str());
                     }
 
+					// make all icons symbolic because colors are ew
 					if let Some(icon) = icon_name {
 	                    let final_icon_name = icon.clone() + "-symbolic";
 
@@ -381,6 +396,8 @@ impl OverskrideWindow {
                     
                     let listbox = revealer.last_child().unwrap().downcast::<gtk::ListBox>().unwrap();
                     
+                    // loop over all adapter rows and change the alias to the new one 
+                    // alias is not the same as name, alias: "laptop 1", name: "hci0"
                     let mut index = 0;
                     while let Some(row) = listbox.row_at_index(index) {
                         let action_row = row.downcast::<adw::ActionRow>().expect("cannot downcast to action row.");
@@ -405,6 +422,7 @@ impl OverskrideWindow {
                     let listbox = default_controller_expander.last_child().unwrap().downcast::<gtk::Box>().unwrap()
                         .last_child().unwrap().downcast::<gtk::Revealer>().unwrap().last_child().unwrap().downcast::<gtk::ListBox>(); 
 
+                    // remove all rows in expander
                     if listbox.clone().is_ok() {
                         while let Some(supposed_row) = listbox.clone().unwrap().last_child() {
                             listbox.clone().unwrap().remove(&supposed_row);
@@ -413,6 +431,7 @@ impl OverskrideWindow {
 
                     let adapter_aliases: Vec<String> = hashmap.clone().keys().cloned().collect();
 
+                    // create a new row for each adapter and add it to the expander
                     let hashmap_clone = hashmap.clone();
                     for alias in adapter_aliases.clone() {
                         let row = SelectableRow::new();
@@ -439,8 +458,10 @@ impl OverskrideWindow {
                         let listbox_clone = listbox.clone();
                         let sender_clone = sender_for_receiver_clone.clone();
 
+                        // on row click, set the current adapter to this one and refresh the devices list
                         row.set_activatable(true);
                         row.connect_activated(move |row| { 
+                            // should move this to the sender message of the audio expander
                             let mut index = 0;
                             if listbox_clone.clone().is_ok() {
                                 while let Some(row) = listbox_clone.clone().unwrap().row_at_index(index) {
@@ -1034,6 +1055,7 @@ impl OverskrideWindow {
                 Message::UpdateTransfer(transfer, filename, current_mb, status) => {
                     let receiving_popover = clone.imp().receiving_popover.get();
 
+                    // loops over the transfers then selects the one that matches, updating it accordingly
                     if let Some(row) = receiving_popover.get_row_by_transfer(transfer.clone(), filename.clone()) {
                         let filesize = row.filesize();
                         let fraction = current_mb / filesize * 100.0;
@@ -1044,6 +1066,7 @@ impl OverskrideWindow {
                         row.set_extra(fraction.round(), current_mb, filesize);
                         let nuked = row.set_active_icon(status, current_mb);
 
+                        // if row is canceled or error, remove it in a minute
                         if nuked {
                             let cloned = sender_for_receiver_clone.clone();
                             std::thread::spawn(move || {
@@ -1059,6 +1082,7 @@ impl OverskrideWindow {
                     receiving_popover.remove_row(transfer, filename);        
                 },
                 Message::GetFile(action) => {
+                    // spawn a file chooser and get the chosen files
                     let dialog = gtk::FileChooserDialog::new(Some("Select File To Send"), 
                         Some(&clone), 
                         action, 
@@ -1074,6 +1098,7 @@ impl OverskrideWindow {
                         DISPLAYING_DIALOG = true;
                     }
 
+                    // wait for exit then collect all files, if no files selected reset the file list
                     dialog.run_async(|file_chooser, response| {
                         let mut all_files: Vec<String> = vec![];
 
@@ -1105,6 +1130,7 @@ impl OverskrideWindow {
                     send_file_row.set_sensitive(state);
                 },
                 Message::SetFileStorageLocation(holder_location) => {
+                    // if the path is not a directly, do not set anything and communicate to user
                     let file_save_location = clone.imp().file_save_location.get();
                     if !std::path::Path::new(&holder_location).is_dir() {
                     	file_save_location.set_css_classes(&["error"]);
@@ -1113,6 +1139,7 @@ impl OverskrideWindow {
                     else {
                  		file_save_location.set_css_classes(&[""]);
                     
+                        // for file names to remain *file names*
                         let mut location = holder_location.clone();
                         if !location.ends_with('/') {
                             location += "/";
@@ -1135,6 +1162,7 @@ impl OverskrideWindow {
                 	connected_switch_row.set_has_obex(state);
                 },
                 Message::SetNameValid(state) => {
+                    // if the name is invalid this should be reported back to user thru colors on the entry
           	        let device_name_entry = clone.imp().device_name_entry.get();
 
           	        if state {
@@ -1148,6 +1176,7 @@ impl OverskrideWindow {
                     let audio_profile_expander = clone.imp().audio_profile_expander.get();
                     let unknown = &"Unknown Profile".to_string();
                     
+                    // unexpand the expander then see loop to see which profile was last selected (could be better)
                     audio_profile_expander.set_expanded(false);
                     audio_profile_expander.connect_enable_expansion_notify(|expander| {
                         let address = unsafe {
@@ -1172,6 +1201,7 @@ impl OverskrideWindow {
                             }
                         }
 
+                        // if the expander can be expanded (ie it isn't off), then select the last profile, else turn off audio to that device
                         let target_profile = if expander.enables_expansion() {
                             last_profile
                         }
@@ -1184,15 +1214,18 @@ impl OverskrideWindow {
                         });
                     });
                     
+                    // trauma
                     let listbox = audio_profile_expander.last_child().unwrap().downcast::<gtk::Box>().unwrap()
                         .last_child().unwrap().downcast::<gtk::Revealer>().unwrap().last_child().unwrap().downcast::<gtk::ListBox>(); 
                 
+                    // remove all child rows
                     if listbox.clone().is_ok() {
                         while let Some(supposed_row) = listbox.clone().unwrap().last_child() {
                             listbox.clone().unwrap().remove(&supposed_row);
                         }
                     }
-                        
+                    
+                    // add each profile to the expander, then select the active on
                     for profile in hashmap.keys() {
                         let holder = hashmap.get(profile).unwrap_or(unknown);
                         let description = &holder.replace('&', "&amp;");
@@ -1204,6 +1237,7 @@ impl OverskrideWindow {
 
                         let sender_clone = sender_for_receiver_clone.clone();
                         
+                        // on row click select this profile
                         child.set_activatable(true);
                         child.connect_activated(move |row| {
                             let profile = row.profile();
@@ -1229,9 +1263,11 @@ impl OverskrideWindow {
                     let audio_profile_expander = clone.imp().audio_profile_expander.get();
                     let mut index = 0;
                     
+                    // absolutely traumatizing way of getting the listbox of an expander row
                     let listbox = audio_profile_expander.last_child().unwrap().downcast::<gtk::Box>().unwrap()
                         .last_child().unwrap().downcast::<gtk::Revealer>().unwrap().last_child().unwrap().downcast::<gtk::ListBox>(); 
 
+                    // loop over all the devices and check which one matches out profile
                     if let Ok(list) = listbox.clone() {
                         while let Some(row) = list.row_at_index(index) {
                             // println!("{}", index);
@@ -1267,6 +1303,7 @@ impl OverskrideWindow {
         // smaller => one before two
         // larger => two before one
         // equal => theyre equal
+        // how this works is beyond me (yes, i wrote it)
         main_listbox.set_sort_func(|row_one, row_two| {
         	let actionrow_one = row_one.clone().downcast::<DeviceActionRow>().unwrap();
         	let actionrow_two = row_two.clone().downcast::<DeviceActionRow>().unwrap();
@@ -1321,6 +1358,9 @@ impl OverskrideWindow {
         });
         main_listbox.invalidate_sort();
 
+		// refresh devices action, possibly most important action here
+		// refreshes the main list, checks if we can send a "refreshed list" message to the user
+		// so no weird "adapter off" then "refreshed list" messages happen
 		let refresh_action = gtk::gio::SimpleAction::new("refresh-devices", None);
         let sender0 = sender.clone();
         refresh_action.connect_activate(move |_, _| {                        
@@ -1352,6 +1392,8 @@ impl OverskrideWindow {
         self.add_action(&refresh_action);
         refresh_action.activate(None);
         
+        // try to connect to a device, this will fail often because bluetooth
+        // it also updates the "loading spinner" on the row itself
         let connected_switch_row = self.imp().connected_switch_row.get();
         let sender1 = sender.clone();
         connected_switch_row.set_activatable(true);
@@ -1380,6 +1422,8 @@ impl OverskrideWindow {
             });
         });
         
+        // block this device from doing anything pretty much
+        // debating if blocked devices should appear in the list again or not
         let blocked_row = self.imp().blocked_row.get();
         let sender2 = sender.clone();
         blocked_row.connect_activated(move |row| {
@@ -1401,6 +1445,7 @@ impl OverskrideWindow {
             });
         });
 
+        // sets the devices trusted state (for auto accept files)
         let trusted_row = self.imp().trusted_row.get();
         let sender3 = sender.clone();
         trusted_row.connect_activated(move |row| {
@@ -1422,6 +1467,7 @@ impl OverskrideWindow {
             });
         });
 
+        // change the currently selected devices name 
         let device_name_entry = self.imp().device_name_entry.get();
         let sender4 = sender.clone();
         device_name_entry.connect_apply(move |entry| {
@@ -1442,6 +1488,8 @@ impl OverskrideWindow {
             });
         });
 
+        // remove the currently selected device
+        // should add "undo"
         let remove_device_button = self.imp().remove_device_button.get();
         let sender4 = sender.clone();
         remove_device_button.connect_clicked(move |_| {
@@ -1461,6 +1509,7 @@ impl OverskrideWindow {
             });
         });
 
+        // turn adapter on or off
         let powered_switch_row = self.imp().powered_switch_row.get();
         let sender5 = sender.clone();
         powered_switch_row.connect_activated(move |_| {
@@ -1478,6 +1527,7 @@ impl OverskrideWindow {
             });
         });
 
+        // switches the current adapters discoverable state, making it visible to nearby devices
         let discoverable_switch_row = self.imp().discoverable_switch_row.get();
        	let sender6 = sender.clone();
        	discoverable_switch_row.connect_activated(move |_| {
@@ -1495,6 +1545,7 @@ impl OverskrideWindow {
             });
         });
 
+        // change the adapter name, should always work (if not get professional help)
         let adapter_name_entry = self.imp().adapter_name_entry.get();
         let sender7 = sender.clone();
         adapter_name_entry.connect_apply(move |entry| {
@@ -1512,6 +1563,8 @@ impl OverskrideWindow {
             });
         });
 
+        // sets the discoverable timeout of the adapter
+        // signal is for not going into infinite loop when set from code
         let timeout_adjustment = self.imp().timeout_time_adjustment.get();
         let sender8 = sender.clone();
         let id = timeout_adjustment.connect_value_changed(move |adjustment| {
@@ -1531,6 +1584,7 @@ impl OverskrideWindow {
         });
         self.imp().timeout_signal_id.set(id).expect("cannot set timeout signal id");
 
+        // switch to settings page deselecting any devices
         let bluetooth_settings_row = self.imp().bluetooth_settings_row.get();
         let sender9 = sender.clone();
         let self_clone3 = self.clone();
@@ -1553,9 +1607,11 @@ impl OverskrideWindow {
                 }
             });
             
+            // unselect any selected devices
             let main_listbox = self_clone3.imp().main_listbox.get();
             main_listbox.unselect_all();
             
+            // select the bluetooth settings page on startup
             let main_stack = self_clone3.imp().main_stack.get();
             let pages = main_stack.pages();
             pages.select_item(1, true);
@@ -1567,6 +1623,7 @@ impl OverskrideWindow {
         });
         bluetooth_settings_row.emit_activate();
 
+        // show or hide the sidebar
         let split_view = self.imp().split_view.get();
         let self_clone4 = self.clone();
         split_view.connect_show_sidebar_notify(move |view| {
@@ -1585,6 +1642,7 @@ impl OverskrideWindow {
             show_sidebar_button.set_active(active);
         });
 
+        // choose the file to be sent to the selected device
         let choose_file_button = self.imp().choose_file_button.get();
         let sender10 = sender.clone();
         let self_clone5 = self.clone();
@@ -1597,7 +1655,8 @@ impl OverskrideWindow {
                 sender10.send(Message::PopupError("obex-transfer-not-connected".to_string(), adw::ToastPriority::Normal)).expect("cannot send message");					    	
                 return;
             }
-
+                
+            // get the currently selected device from the main listbox, and its adapter, then send the file from the picked out list of files
             if let Some(row) = selected_row {
                 let action_row = row.downcast::<DeviceActionRow>().unwrap();
                 let source = action_row.get_bluer_adapter_address();
@@ -1614,6 +1673,7 @@ impl OverskrideWindow {
             }
         });
 
+        // set the file save location from text input
         let file_save_location = self.imp().file_save_location.get();
         let sender11 = sender.clone();
         file_save_location.connect_apply(move |entry| {
@@ -1622,6 +1682,7 @@ impl OverskrideWindow {
             sender11.send(Message::SetFileStorageLocation(location)).expect("cannot send message");
         });
 
+        // set the file save location from a file picker
         let choose_location_button = self.imp().choose_location_button.get();
         let sender12 = sender.clone();
         choose_location_button.connect_clicked(move |_| {
@@ -1634,7 +1695,7 @@ impl OverskrideWindow {
         let auto_accept_trusted_row = self.imp().auto_accept_trusted_row.get();
         let sender13 = sender.clone();
         auto_accept_trusted_row.connect_activated(move |row| {
-
+            // if its the first auto accept the user has done, warn about how dangerous it is
         	unsafe {
 				if FIRST_AUTO_ACCEPT {
 					let title = "Warning!".to_string();
@@ -1653,6 +1714,7 @@ impl OverskrideWindow {
         auto_accept_trusted_row.set_active(unsafe { AUTO_ACCEPT_FROM_TRUSTED });
     }
 
+    /// on app exit, save the current settings
     fn save_settings(&self) -> Result<(), glib::BoolError> {
         let size = (self.size(gtk::Orientation::Horizontal), self.size(gtk::Orientation::Vertical));
         // let size = self.SIZE
@@ -1668,6 +1730,7 @@ impl OverskrideWindow {
         Ok(())
     }
 
+    /// loads settings from save in gsettings
     fn preload_settings(&self) {
         let settings = self.imp().settings.get().expect("cannot get settings, setup improperly?");
         
@@ -1684,6 +1747,7 @@ impl OverskrideWindow {
         let file_save_location = self.imp().file_save_location.get();
         let mut store_folder = settings.string("store-folder").to_string();
 
+        // if the store folder doesn't exist, try to get the download dir, if not then set to the (definitely findable) home dir
         if store_folder.is_empty() {
             if let Some(download_dir) = gtk::glib::user_special_dir(gtk::glib::UserDirectory::Downloads) {
             	let holder = download_dir.to_str().unwrap_or("Unknown Directory").to_string();
@@ -1697,30 +1761,34 @@ impl OverskrideWindow {
             }
         }
         
+        // so the filename doesn't get fucked
         if !store_folder.ends_with('/') {
             store_folder += "/";
         }
 
         println!("store folder is: {}", &store_folder);
         file_save_location.set_text(&store_folder);
-
+        
         unsafe {
             STORE_FOLDER = store_folder;
             FIRST_AUTO_ACCEPT = first_auto_accept;
         }
     }
 
+    // first thing called when app launches, sets it up so it can be used basically
     #[tokio::main]
     async fn pre_setup(&self, sender: Sender<Message>) -> bluer::Result<()> {
         let settings = self.imp().settings.get().unwrap();
 
-        unsafe { 
+        unsafe {
+            // makes a new sender, devices lut, rssi lut, and updates the current adapter name in gsettings 
             CURRENT_SENDER = Some(sender.clone());
             DEVICES_LUT = Some(HashMap::new());
             RSSI_LUT = Some(HashMap::new());
             let name = settings.string("current-adapter-name").to_string();
             let session = bluer::Session::new().await?;
 
+            // if current adapter doesn't exist, get the default adapter instead (first run/error stuff)
             if name.is_empty() {
                 let adapter = session.default_adapter().await?;
                 CURRENT_ADAPTER = adapter.name().to_string();
@@ -1740,8 +1808,10 @@ impl OverskrideWindow {
             self.imp().timeout_time_adjustment.get().set_value(adapter.discoverable_timeout().await?.into());
 
             lut.insert(alias.to_string(), CURRENT_ADAPTER.to_string());
+            // update available adapters lut
             ADAPTERS_LUT = Some(lut);
 
+			// start the bluetooth and obex agents in seperate threads, so theyre always available to receive input
 			let clone = sender.clone();
             std::thread::spawn(move || {
                 register_obex_agent(clone.clone()).expect("cannot register obex agent");
@@ -1755,6 +1825,7 @@ impl OverskrideWindow {
     }    
 }
 
+/// Creates a new [DeviceActionRow](DeviceActionRow) from a device, includes all needed info in the row
 #[tokio::main]
 async fn add_child_row(device: bluer::Device) -> bluer::Result<DeviceActionRow> {
     let child_row = DeviceActionRow::new();
@@ -1771,8 +1842,11 @@ async fn add_child_row(device: bluer::Device) -> bluer::Result<DeviceActionRow> 
         }
     };
     
+    // set the address of this device
     child_row.set_bluer_address(address);
 
+    // check for LE devices or other stuff that doesn't have a name, instead an address like "XX-XX-XX-XX-XX-XX"
+    // then replace with "Unknown Device" because its cleaner
     if let Ok(bad_title) = bluer::Address::from_str(name.clone().replace('-', ":").as_str()) {
     	name = "Unknown Device".to_string();
         child_row.set_title("Unknown Device");
@@ -1785,15 +1859,19 @@ async fn add_child_row(device: bluer::Device) -> bluer::Result<DeviceActionRow> 
     }
     
     child_row.set_activatable(true);
+    // sets the adapter that this device was connected to with
     child_row.set_adapter_name(unsafe {CURRENT_ADAPTER.clone()});
 
+    // sets the adapter address for ease of access
     if let Ok(adapter) = bluer::Session::new().await?.adapter(unsafe {&CURRENT_ADAPTER.clone()}) {
         let address = adapter.address().await?;
         child_row.set_bluer_adapter_address(address);
     };
 
+    // change the RSSI icon of the device
     child_row.set_rssi(rssi);   
 
+    // update the device lookup table with the new info
     unsafe {
     	let mut devices_lut = DEVICES_LUT.clone().unwrap();
         devices_lut.insert(address, name.clone());
@@ -1808,6 +1886,7 @@ async fn add_child_row(device: bluer::Device) -> bluer::Result<DeviceActionRow> 
     sender.send(Message::InvalidateSort()).expect("cannot send message");
     sender.send(Message::SwitchRssi(name.clone(), rssi)).expect("cannot send message");
 
+    // on click
     child_row.connect_activated(move |row| {        
         unsafe {
             CURRENT_INDEX = row.index();
@@ -1819,7 +1898,8 @@ async fn add_child_row(device: bluer::Device) -> bluer::Result<DeviceActionRow> 
         let sender_clone = sender.clone();
 
         // println!("row address {} with adapter {}", address.clone(), adapter_name.clone());
-
+        
+        // try to retrieve device properties and update UI
         std::thread::spawn(move || {
             let sender_clone_clone = sender_clone.clone(); // lmao i love rust
 
@@ -1843,7 +1923,10 @@ async fn add_child_row(device: bluer::Device) -> bluer::Result<DeviceActionRow> 
 // - add option to auto trust device on pair (include warning about how dangerous it is)
 // - background running, with a status taskbar thingy wtv its name is
 // - add a currently connected icon to the main listbox rows
-// - create a new stackpage for every device and allow user to go back and force with nice animations (idk if its a good idea)
+// - create a new stackpage for every device and allow user to go back and force with nice animations (idk if its a good idea) (or two pages an alternate)
 // - find out what is causing hang on start
 // - add a transfer rate and time till completion for transfers
 // - add a loop for if obex and bluetooth agents fail
+// - add a sender to move_file_to_location
+// - drop proxy in send file if cancelling doesn't work
+// - make new battery implementation

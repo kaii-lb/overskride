@@ -32,6 +32,7 @@ pub static mut CANCEL: bool = false;
 //     a == b
 // }
 
+/// Checks if the properties match the [transfer interface](TRANSFER_INTERFACE) and updates various UI elements accordingly
 fn handle_properties_updated(interface: String, changed_properties: PropMap, transfer: String) {
     if interface == TRANSFER_INTERFACE {
         let sender = unsafe {
@@ -40,6 +41,7 @@ fn handle_properties_updated(interface: String, changed_properties: PropMap, tra
         let status = if let Some(status_holder) = &changed_properties.get_key_value("Status") {
             let dummy_status = status_holder.1.0.as_str().unwrap();
             
+            // self explanatory, but it tells the user about whats happening with the transfer
             match dummy_status {
                 "active" => {
                 	if unsafe { OUTBOUND } {
@@ -83,6 +85,7 @@ fn handle_properties_updated(interface: String, changed_properties: PropMap, tra
             ""
         }; 
 
+        // convert from bytes to megabytes 
         let value = if let Some(val) = changed_properties.get_key_value("Transferred") {
             let transferred = val.1.0.as_u64();
 
@@ -101,12 +104,16 @@ fn handle_properties_updated(interface: String, changed_properties: PropMap, tra
         else {
             0.0
         };
+        // updates the transfer with the specified values
         sender.send(Message::UpdateTransfer(transfer, unsafe { CURRENT_FILE_NAME.clone() }, value, status.to_string())).expect("cannot send message");
     }
 }
 
+/// Is run when a new interface gets added, i.e. a new connection to dbus on the specified path or a new session
 fn handle_interface_added(path: &Path, interfaces: &HashMap<String, PropMap>) {
     for interface in interfaces {
+        
+        // if interface is a session interface then set those variables accordingly
         if interface.0 == SESSION_INTERFACE && path.contains("server") {
             println!("started session: {:?}", interface.0);
             unsafe {
@@ -115,6 +122,7 @@ fn handle_interface_added(path: &Path, interfaces: &HashMap<String, PropMap>) {
                 CURRENT_SESSION = holder.clone();
             }
         }
+        // if the interface is a transfer then handle the properties updated signal
         else if interface.0 == TRANSFER_INTERFACE && path.contains("server") && path.contains("transfer"){
             let conn: &mut Connection;
             unsafe { 
@@ -142,6 +150,7 @@ fn handle_interface_added(path: &Path, interfaces: &HashMap<String, PropMap>) {
     }
 }
 
+/// Register a new obex agent to dbus, allowing files to be received
 pub fn register_obex_agent(sender: Sender<Message>) -> Result<(), dbus::Error> {
     let conn: &mut Connection;
     unsafe {
@@ -152,6 +161,7 @@ pub fn register_obex_agent(sender: Sender<Message>) -> Result<(), dbus::Error> {
     
     let proxy = conn.with_proxy("org.bluez.obex", "/", Duration::from_millis(5000));
 
+    // matches the signal of a new object getting added to the dbus interface (ie an agent)
     proxy.match_signal(|signal: ObjectManagerInterfacesAdded, _: &Connection, _: &dbus::Message| {
         handle_interface_added(&signal.object, &signal.interfaces);
         // println!("caught signal! {:?}", signal);
@@ -171,6 +181,7 @@ pub fn register_obex_agent(sender: Sender<Message>) -> Result<(), dbus::Error> {
     Ok(())
 }
 
+/// Infinitely processes dbus requests until canceled
 fn serve(conn: &mut Connection, cr: Option<Crossroads>) -> Result<(), dbus::Error> {
 	if let Some(mut crossroads) = cr {
 	    conn.start_receive(dbus::message::MatchRule::new_method_call(), Box::new(move |msg, conn| {
@@ -193,6 +204,7 @@ fn serve(conn: &mut Connection, cr: Option<Crossroads>) -> Result<(), dbus::Erro
                 	println!("error while canceling transfer {:?}", err.message());
 				}
 
+                // update transfer UI with the filename and transferred amoutn
                 let filename = proxy2.filename().unwrap_or("".to_string());
                 let transferred = (proxy2.transferred().unwrap_or(0) as f32 / 1000000.0).round() * 100.0;
                 sender.send(Message::UpdateTransfer(CURRENT_TRANSFER.clone(), filename.clone(), transferred, "error".to_string())).expect("cannot send message");
@@ -206,6 +218,7 @@ fn serve(conn: &mut Connection, cr: Option<Crossroads>) -> Result<(), dbus::Erro
     }
 }
 
+/// This functions describes the methods an agent has, creates an object of that agent, and inserts it into a crossroads instance
 fn create_agent(cr: &mut Crossroads, sender: Sender<Message>) {
     let agent = cr.register("org.bluez.obex.Agent1", |b| {
         b.method("AuthorizePush", ("transfer",), ("filename",), move |_, _, (transfer,): (Path,)| {
@@ -214,7 +227,7 @@ fn create_agent(cr: &mut Crossroads, sender: Sender<Message>) {
             let props = conn.with_proxy("org.bluez.obex", transfer.clone(), std::time::Duration::from_secs(5)).get_all(TRANSFER_INTERFACE);
 
             if let Ok(all_props) = props {
-                // let filename = "/home/kaii/Downloads/file_test.mp4";
+                // lots of fuckery but its self explanatory
                 let filename = all_props.get("Name").expect("cannot get name of file.").0.as_str().unwrap().to_owned();
                 let filesize_holder = &*all_props.get("Size").expect("cannot get file size.").0;
                 let filesize = filesize_holder.as_u64().unwrap_or(9999);
@@ -227,8 +240,9 @@ fn create_agent(cr: &mut Crossroads, sender: Sender<Message>) {
                     CURRENT_FILE_SIZE = filesize;
                		OUTBOUND = false;
                 }
-                let mb = ((filesize as f32 / 1000000.0) * 100.0).round() / 100.0;
+                let mb = ((filesize as f32 / 1000000.0) * 100.0).round() / 100.0; // to megabytes
 
+				// get the target device, if it doesn't exist panic ensues
 				let sender_props = conn.with_proxy("org.bluez.obex", session, std::time::Duration::from_secs(5)).get_all(SESSION_INTERFACE).unwrap();
 				let device = sender_props.get("Destination").expect("cannot get sender device").0.as_str().unwrap_or("00:00:00:00:00:00");
 
@@ -238,7 +252,8 @@ fn create_agent(cr: &mut Crossroads, sender: Sender<Message>) {
 				else {
 					return Err(MethodErr::from(("org.bluez.obex.Error.Canceled", "Request Canceled")));
 				};
-									
+				
+				// if user sets auto accept from trusted, immediately accept the transfer without confirmation		
 				if unsafe { AUTO_ACCEPT_FROM_TRUSTED } && device_trusted {
                     println!("transfer is: {:?}", transfer);
                     sender.send(Message::StartTransfer(transfer.to_string(), filename.clone(), 0.0, 0.0, mb, false)).expect("cannot send message");
@@ -246,12 +261,14 @@ fn create_agent(cr: &mut Crossroads, sender: Sender<Message>) {
 					return Ok((filename,));
 				}
 
+				// if the ~/.cache directory doesn't exist, return as we have no where to store the file
 				if !gtk::glib::user_cache_dir().exists() {
                     sender.clone().send(Message::PopupError("file-storage-cache-invalid".to_string(), adw::ToastPriority::High)).expect("cannot send message");
 
   					return Err(MethodErr::from(("org.bluez.obex.Error.Canceled", "Request Canceled")));
                 }	
 
+                // spawn a dialog returning the accepted bool, no accepted => reject transfer
                 if spawn_dialog(filename.clone(), &sender, device_name) {
                     println!("transfer is: {:?}", transfer);
                     sender.send(Message::StartTransfer(transfer.to_string(), filename.clone(), 0.0, 0.0, mb, false)).expect("cannot send message");
@@ -280,6 +297,7 @@ fn create_agent(cr: &mut Crossroads, sender: Sender<Message>) {
             }
         });
 
+        // these are never called, not sure why they exist
         b.method("Cancel", (), (), move |_, _, _: ()| {
             println!("Cancelling...");
             Ok(())
@@ -295,6 +313,7 @@ fn create_agent(cr: &mut Crossroads, sender: Sender<Message>) {
     cr.insert("/overskride/agent", &[agent], ());
 }
 
+/// Spawns a new dialog asking the user to allow or reject a file transfer from a device
 #[tokio::main]
 async fn spawn_dialog(filename: String, sender: &Sender<Message>, device_name: String) -> bool {
     println!("file receive request incoming!");
@@ -317,9 +336,11 @@ async fn spawn_dialog(filename: String, sender: &Sender<Message>, device_name: S
     }
 }
 
+/// Wrapper function handling the adapter and target device, looping over all the files needing to be sent and sending them on by one
 #[tokio::main]
 pub async fn start_send_file(destination: bluer::Address, source: bluer::Address, sender: Sender<Message>) {
     unsafe{
+        // horrible way but it works, this is for waiting to exit from the dialog
         DISPLAYING_DIALOG = true;
     }
     sender.send(Message::GetFile(gtk::FileChooserAction::Open)).expect("cannot send message");
@@ -330,6 +351,7 @@ pub async fn start_send_file(destination: bluer::Address, source: bluer::Address
         SEND_FILES_PATH.clone()
     };
     
+    // if calling on an empty transfer, get out
     if file_paths.is_empty() {
         return;
     }
@@ -337,6 +359,7 @@ pub async fn start_send_file(destination: bluer::Address, source: bluer::Address
     let conn = Connection::new_session().expect("cannot create send connection");
     let proxy = conn.with_proxy("org.bluez.obex", "/org/bluez/obex", std::time::Duration::from_secs(5));
 
+    // describes the properties of the transfer, like the origin and target devices
     let mut hashmap = PropMap::new();
     
     hashmap.insert("Target".to_string(),Variant(Box::new("OPP".to_string())));
@@ -352,6 +375,7 @@ pub async fn start_send_file(destination: bluer::Address, source: bluer::Address
     };
     println!("send session is: {:?}, with filepaths {:?}", send_session, file_paths);
 
+    // for every file, try to send it to the target device
     for file in file_paths {
         println!("file to be sent is {}", file);
         send_file(file.clone(), send_session.clone(), sender.clone());
@@ -359,15 +383,18 @@ pub async fn start_send_file(destination: bluer::Address, source: bluer::Address
     println!("done sending files");
 }
 
+/// Sends a specified file from the file path to a target device, updating the UI in the process
 fn send_file(source_file: String, session_path: Path, sender: Sender<Message>) {
     let conn = Connection::new_session().expect("cannot create send session");
     let proxy = conn.with_proxy("org.bluez.obex", session_path, std::time::Duration::from_secs(1));
 
+    // return the path and properties
     let output = proxy.send_file(source_file.as_str()).unwrap();
 
     println!("send transfer path is: {:?}", output.0.clone());
     println!("send properties are: {:?}\n", output.1);
 
+	// create a new proxy to the transfer path for easier processing of properties
 	let transfer_proxy = conn.with_proxy("org.bluez.obex", output.0.clone(), std::time::Duration::from_secs(5));
 
 	unsafe {
@@ -375,6 +402,7 @@ fn send_file(source_file: String, session_path: Path, sender: Sender<Message>) {
 		OUTBOUND = true;
 	}
 	
+    // changes filesize from bytes(?) to megabytes, then starts a transfer with the filename and size 
     let mb = ((transfer_proxy.size().unwrap_or(999) as f32 / 1000000.0) * 100.0).round() / 100.0;	
     sender.send(Message::StartTransfer(output.0.clone().to_string(), transfer_proxy.filename().unwrap_or("Unknown File".to_string()), 0.0, 0.0, mb, true)).expect("cannot send message");
 
@@ -385,29 +413,39 @@ fn send_file(source_file: String, session_path: Path, sender: Sender<Message>) {
 
     unsafe {
         while !BREAKING { 
-            // println!("serving {}", BREAKING);
+            // process dbus requests to that path
             conn.process(std::time::Duration::from_millis(1000)).expect("cannot process request");
-            if CANCEL {
+            
+            // stop sending this file
+            if CANCEL { 
                 let sender = CURRENT_SENDER.clone().unwrap();
 
+				// try to cancel the transfer
 				if let Err(err) = transfer_proxy.cancel() {
                     sender.send(Message::PopupError("obex-transfer-cancel-not-authorized".to_string(), adw::ToastPriority::Normal)).expect("cannot send message");					
 					println!("error while canceling transfer {:?}", err.message());
 				}                	
 
+                // update the UI with how much of the file got transferred
                 let filename = proxy.filename().unwrap_or("".to_string());
                 let transferred = (proxy.transferred().unwrap_or(0) as f32 / 1000000.0).round() * 100.0;
                 sender.send(Message::UpdateTransfer(CURRENT_TRANSFER.clone(), filename.clone(), transferred, "error".to_string())).expect("cannot send message");
 
                 CANCEL = false;
 
-                std::thread::sleep(std::time::Duration::from_secs(60));
-                sender.send(Message::RemoveTransfer(CURRENT_TRANSFER.clone(), filename)).expect("cannot send message");
+                // remove the transfer from the list after 1 minute
+                std::thread::spawn(move || {
+                    std::thread::sleep(std::time::Duration::from_secs(60));
+                    sender.send(Message::RemoveTransfer(CURRENT_TRANSFER.clone(), filename)).expect("cannot send message");
+                });
             }
         }
     }    
 }
 
+/// Moves a received file to where the user needs it to be
+/// needed because returning a file path in the agent's "AuthorizePush" method won't work because bluetooth :D
+/// needs to take in a "sender" and notify user if file fails to move
 pub fn move_to_store_folder() {
 	if unsafe { OUTBOUND } {
 		return;	
@@ -419,6 +457,7 @@ pub fn move_to_store_folder() {
     let store_folder = unsafe {
         STORE_FOLDER.clone()
     };
+    // default path of stored file by obexd
     let filepath = if let Some(cache_dir) = gtk::glib::user_cache_dir().to_str() {
         cache_dir.to_string() + "/obexd/" + &filename
     }
@@ -429,6 +468,7 @@ pub fn move_to_store_folder() {
 
     let new_filepath = store_folder + &filename;
 
+    // move file to location and handle error
     match std::fs::rename(filepath, new_filepath) {
         Ok(()) => {
             println!("file moved to directory");
@@ -439,6 +479,7 @@ pub fn move_to_store_folder() {
     }
 }
 
+/// Gets the name and trusted value of a specified device
 #[tokio::main]
 async fn get_device_props(address_slice: &str) -> bluer::Result<(String, bool)> {
 	let adapter = bluer::Session::new().await?.adapter(unsafe { &CURRENT_ADAPTER })?;

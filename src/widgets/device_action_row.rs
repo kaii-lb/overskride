@@ -8,6 +8,7 @@ use std::cell::RefCell;
 mod imp {
     use super::*;    
 
+    /// an action row adapted to hold a lot of info about this device and its adapter
     #[derive(Properties, Default, gtk::CompositeTemplate)]
     #[template(resource = "/io/github/kaii_lb/Overskride/gtk/device-action-row.ui")]
     #[properties(wrapper_type = super::DeviceActionRow)]
@@ -83,6 +84,7 @@ impl DeviceActionRow {
         *self.imp().adapter_address.borrow_mut() = address;
     }
 
+    /// updates the rssi icon of this row to one of the preset icons depending on current rssi
     pub fn update_rssi_icon(&self) {
         let icon_name = match *self.imp().rssi.borrow() {
             0 => {

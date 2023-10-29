@@ -21,7 +21,8 @@ impl<'a, T: blocking::BlockingSender, C: ::std::ops::Deref<Target=T>> OrgBluezBa
     }
 }
 
-pub fn handle_properties_updated(sender: Sender<Message>) {
+// if battery state changes, then update the UI
+fn handle_properties_updated(sender: Sender<Message>) {
     let conn = Connection::new_system().unwrap();
     let proxy = conn.with_proxy("org.bluez", unsafe {&PATH}, std::time::Duration::from_millis(5000));
     
@@ -34,6 +35,7 @@ pub fn handle_properties_updated(sender: Sender<Message>) {
     sender.send(Message::UpdateBatteryLevel(reported)).expect("cannot send message");
 }
 
+/// Gets (and continues getting) the battery level of a device until it is canceled
 pub fn get_battery_for_device(address: String, adapter: String, sender: Sender<Message>) {
     unsafe {
         if address == LAST_ADDRESS {
@@ -45,6 +47,8 @@ pub fn get_battery_for_device(address: String, adapter: String, sender: Sender<M
         }
     }
 
+	// to get the path to this device make it so the full path is 
+	// something like "/org/bluez/dev_XX_XX_XX_XX_XX_XX"
 	let fixed_address = "dev_".to_string() + &address.replace(':', "_");
 	let path = "/org/bluez/".to_string() + &adapter + "/" + &fixed_address;
 	unsafe {
@@ -62,6 +66,9 @@ pub fn get_battery_for_device(address: String, adapter: String, sender: Sender<M
 	    true
     }).expect("can't match signal");
 
+    // send a first reported battery to the UI as we don't want to wait for the battery to change to let the user know what it is
+    // as that could take an unreasonably long time with the dbus implementation
+    // should add a fallback (or maybe make this the fallback) with a better get battery method
     let first_reported = if let Ok(val) = proxy.percentage() {
         val as i8
     }
@@ -71,6 +78,7 @@ pub fn get_battery_for_device(address: String, adapter: String, sender: Sender<M
     
     sender.send(Message::UpdateBatteryLevel(first_reported)).expect("cannot send message");
     
+    // get battery till cancled
     loop {
         conn.process(std::time::Duration::from_millis(1000)).expect("cannot process battery check request");
         unsafe {
