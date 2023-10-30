@@ -127,7 +127,7 @@ pub async fn set_device_trusted(address: bluer::Address, sender: Sender<Message>
     Ok(())
 }
 
-/// Sets the currently selected device's name, updateing the entry and listboxrow accordingly.
+/// Sets the currently selected device's name, updating the entry and listboxrow accordingly.
 #[tokio::main]
 pub async fn set_device_name(address: bluer::Address, name: String, sender: Sender<Message>, adapter_name: String) -> bluer::Result<()> {
 	let adapter = bluer::Session::new().await?.adapter(adapter_name.as_str())?;
@@ -463,7 +463,7 @@ pub async fn get_devices_continuous(sender: Sender<Message>, adapter_name: Strin
                         sender_clone.send(Message::InvalidateSort()).expect("cannot send message");
                     },
                     event => {
-                        println!("unhandeled device event: {:?}", event);
+                        println!("unhandled device event: {:?}", event);
                     },
                 }
             }

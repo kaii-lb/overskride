@@ -536,13 +536,13 @@ impl OverskrideWindow {
                             "Connection failed, lmp protocol error"
                         },
                         s if s.to_lowercase().contains("canceled") => {
-                            "Connection was cancled due to unforseen circumstances"
+                            "Connection was canceled due to unforeseen circumstances"
                         },
                         s if s.to_lowercase().contains("unknown-error") => {
                             "Connection failed, no idea why tho"
                         },
                         s if s.to_lowercase().contains("invalid-arguments") => {
-                            "Invalid arguements provided"
+                            "Invalid arguments provided"
                         },
                         s if s.to_lowercase().contains("not-powered") || s.to_lowercase().contains("resource not ready") => {
                             "Adapter is not powered"
@@ -609,7 +609,7 @@ impl OverskrideWindow {
                         },
                         e => {
                             println!("unknown error: {}", e.clone());
-                            "Unknown error occured"
+                            "Unknown error occurred"
                         },
                     };
 
@@ -673,7 +673,7 @@ impl OverskrideWindow {
                     // popup.set_modal(true);
                     popup.set_destroy_with_parent(true);
                     
-                    popup.add_response("cancle", "Cancel");
+                    popup.add_response("cancel", "Cancel");
                     popup.add_response("confirm", "Confirm");
                     popup.set_response_appearance("confirm", adw::ResponseAppearance::Suggested);
                     popup.set_default_response(Some("confirm"));
@@ -753,7 +753,7 @@ impl OverskrideWindow {
                     // popup.set_modal(true);
                     popup.set_destroy_with_parent(true);
             
-                    popup.add_response("cancle", "Cancel");
+                    popup.add_response("cancel", "Cancel");
                     popup.add_response("confirm", "Confirm");
                     popup.set_response_appearance("confirm", adw::ResponseAppearance::Suggested);
                     popup.set_default_response(Some("confirm"));
@@ -860,7 +860,7 @@ impl OverskrideWindow {
                     // popup.set_modal(true);
                     popup.set_destroy_with_parent(true);
             
-                    popup.add_response("cancle", "Cancel");
+                    popup.add_response("cancel", "Cancel");
                     popup.add_response("allow", "Allow");
                     popup.set_response_appearance("allow", adw::ResponseAppearance::Suggested);
                     popup.set_default_response(Some("allow"));
@@ -906,7 +906,7 @@ impl OverskrideWindow {
                     // popup.set_modal(true);
                     popup.set_destroy_with_parent(true);
             
-                    popup.add_response("cancle", "Cancel");
+                    popup.add_response("cancel", "Cancel");
                     popup.add_response("allow", "Allow");
                     popup.set_response_appearance("allow", adw::ResponseAppearance::Suggested);
                     popup.set_default_response(Some("allow"));
@@ -948,7 +948,7 @@ impl OverskrideWindow {
                                 name
                             }
                             else {
-                                format!("Unkown Service of UUID: {:?}", request.service)	
+                                format!("Unknown Service of UUID: {:?}", request.service)	
                             }
                         },
                     };
@@ -965,7 +965,7 @@ impl OverskrideWindow {
                     popup.set_modal(true);
                     popup.set_destroy_with_parent(true);
             
-                    popup.add_response("cancle", "Cancel");
+                    popup.add_response("cancel", "Cancel");
                     popup.add_response("allow", "Allow");
                     popup.set_response_appearance("allow", adw::ResponseAppearance::Suggested);
                     popup.set_default_response(Some("allow"));
@@ -1302,7 +1302,7 @@ impl OverskrideWindow {
 
         // smaller => one before two
         // larger => two before one
-        // equal => theyre equal
+        // equal => they're equal
         // how this works is beyond me (yes, i wrote it)
         main_listbox.set_sort_func(|row_one, row_two| {
         	let actionrow_one = row_one.clone().downcast::<DeviceActionRow>().unwrap();
@@ -1699,7 +1699,7 @@ impl OverskrideWindow {
         	unsafe {
 				if FIRST_AUTO_ACCEPT {
 					let title = "Warning!".to_string();
-					let subtitle = "Enabling auto accept from trusted devices <span font_weight='bold'>may put your device at risk</span>, as anyone with a device you labled as \"trusted\" will be able to freely send you files".to_string();
+					let subtitle = "Enabling auto accept from trusted devices <span font_weight='bold'>may put your device at risk</span>, as anyone with a device you labeled as \"trusted\" will be able to freely send you files".to_string();
 					let confirm = "I Understand".to_string();
 					let response_type = adw::ResponseAppearance::Destructive;
 					sender13.send(Message::RequestYesNo(title, subtitle, confirm, response_type)).expect("cannot send message");
@@ -1811,7 +1811,7 @@ impl OverskrideWindow {
             // update available adapters lut
             ADAPTERS_LUT = Some(lut);
 
-			// start the bluetooth and obex agents in seperate threads, so theyre always available to receive input
+			// start the bluetooth and obex agents in separate threads, so they're always available to receive input
 			let clone = sender.clone();
             std::thread::spawn(move || {
                 register_obex_agent(clone.clone()).expect("cannot register obex agent");

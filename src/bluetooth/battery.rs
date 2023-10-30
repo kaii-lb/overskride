@@ -78,7 +78,7 @@ pub fn get_battery_for_device(address: String, adapter: String, sender: Sender<M
     
     sender.send(Message::UpdateBatteryLevel(first_reported)).expect("cannot send message");
     
-    // get battery till cancled
+    // get battery till canceled
     loop {
         conn.process(std::time::Duration::from_millis(1000)).expect("cannot process battery check request");
         unsafe {

@@ -44,7 +44,7 @@ mod imp {
         fn constructed(&self) {
             self.parent_constructed();
             
-            // this makes it so the level bar color changes dependign on percentage
+            // this makes it so the level bar color changes depending on percentage
             self.level_bar.add_offset_value("full", 100.0);
             self.level_bar.add_offset_value("three-quarters", 75.0);
             self.level_bar.add_offset_value("half", 50.0);
