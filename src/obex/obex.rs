@@ -204,7 +204,7 @@ fn serve(conn: &mut Connection, cr: Option<Crossroads>) -> Result<(), dbus::Erro
                 	println!("error while canceling transfer {:?}", err.message());
 				}
 
-                // update transfer UI with the filename and transferred amoutn
+                // update transfer UI with the filename and transferred amount
                 let filename = proxy2.filename().unwrap_or("".to_string());
                 let transferred = (proxy2.transferred().unwrap_or(0) as f32 / 1000000.0).round() * 100.0;
                 sender.send(Message::UpdateTransfer(CURRENT_TRANSFER.clone(), filename.clone(), transferred, "error".to_string())).expect("cannot send message");

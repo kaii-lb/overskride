@@ -8,7 +8,7 @@ pub enum Message {
     SwitchBlocked(bool),
     /// Changes the connected switch's active to `bool`
     SwitchActive(bool),
-    /// Changes the connected swtich's spinner spinning state to `bool`
+    /// Changes the connected switch's spinner spinning state to `bool`
     SwitchActiveSpinner(bool),
     /// Changes the active devices's name to [alias](String) if no [old_alias](Option<String>) is provided, otherwise it looks for a matching row
     SwitchName(String, Option<String>, bluer::Address),
@@ -52,7 +52,7 @@ pub enum Message {
     GoToBluetoothSettings(bool),
     /// Gets a `yes/no` answer from a dialog 
     /// ### Arguments
-    /// * `title` - a short [String](String) descibing the request
+    /// * `title` - a short [String](String) describing the request
     /// * `subtitle` - a [String](String) describing the request in more detail
     /// * `confirm name` - a [String](String) for the name of the confirmation option
     /// * `response type` - a [Response Type](adw::ResponseAppearance) detailing if the response is destructive, suggested, etc
@@ -63,7 +63,7 @@ pub enum Message {
     RefreshDevicesList(),
     /// Starts a new transfer, displaying a progress bar popover with the filename
     /// ### Arguments
-    /// * `trasnfer` - a [String](String) containing the transfer object 
+    /// * `transfer` - a [String](String) containing the transfer object
     /// * `filename` - a [String](String) ...which is the filename
     /// * `percent` - a [f32](f32) the starting completion percent (like 45 **not** 0.45)
     /// * `current mb` - a [f32](f32) the current transferred megabytes
@@ -85,7 +85,7 @@ pub enum Message {
     SwitchSendFileActive(bool),
     /// Sets the new [file storage location](String), doing some checks along the way
     SetFileStorageLocation(String),
-	/// Changes whether the current device has obex capabilites or not
+	/// Changes whether the current device has obex capabilities or not
 	SwitchHasObexService(bool),
 	/// Sets the "valid" state of the device name
 	SetNameValid(bool),

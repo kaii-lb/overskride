@@ -180,7 +180,7 @@ pub fn device_set_profile(address: String, profile: String) {
 
 	println!("{} {}", &card_name, &profile);
 
-	// sets the card profile, then updates the state and the done-ness of this funtion
+	// sets the card profile, then updates the state and the done-ness of this function
 	// should move to using the returned "Operation" value instead of weird ass borrows
 	context.borrow().introspect().set_card_profile_by_name(&card_name, &profile, Some(Box::new(move |state| {
 		*clone.borrow_mut() = state;
