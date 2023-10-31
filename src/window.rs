@@ -267,14 +267,14 @@ impl OverskrideWindow {
                     let mut listbox_index = 0;
 
                     // if the old alias exists then just get the row directly
+                    // else loop over each row till finding the one that matches and change its name
+                    // useful if other device changes name when not selected
                     if optional_old_alias.is_none() {
                         if let Some(some_row) = list_box.row_at_index(index) {
                             let action_row = some_row.downcast::<DeviceActionRow>().unwrap();
                             action_row.set_title(alias.as_str());
                         }
                     }
-                    // else loop over each row till finding the one that matches and change its name
-                    // useful if other device changes name when not selected
                     else {
                         while let Some(row) = list_box.clone().row_at_index(listbox_index) {
                             //println!("{}", index);
@@ -1930,3 +1930,7 @@ async fn add_child_row(device: bluer::Device) -> bluer::Result<DeviceActionRow> 
 // - add a sender to move_file_to_location
 // - drop proxy in send file if cancelling doesn't work
 // - make new battery implementation
+<<<<<<< HEAD
+=======
+// - add a battery enable experimental thingy
+>>>>>>> 123eb61 (fixed spelling after merge)

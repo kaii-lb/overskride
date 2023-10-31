@@ -80,8 +80,8 @@ mod imp {
 
         fn set_progress_bar_fraction(&self, fraction: f32) {
             let holder = (fraction / 100.0) as f64;
-            // println!("divved {}", holder);
-            self.progress_bar.get().set_fraction(holder);
+            println!("divved {}", holder);
+            self.progress_bar.get().set_fraction(holder.clamp(0.0, 1.0));
         }
 
         #[template_callback]
