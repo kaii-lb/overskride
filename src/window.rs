@@ -860,7 +860,7 @@ impl OverskrideWindow {
                     // popup.set_modal(true);
                     popup.set_destroy_with_parent(true);
             
-                    popup.add_response("cancel", "Cancel");
+                    popup.add_response("cancle", "Cancel");
                     popup.add_response("allow", "Allow");
                     popup.set_response_appearance("allow", adw::ResponseAppearance::Suggested);
                     popup.set_default_response(Some("allow"));
@@ -906,7 +906,7 @@ impl OverskrideWindow {
                     // popup.set_modal(true);
                     popup.set_destroy_with_parent(true);
             
-                    popup.add_response("cancel", "Cancel");
+                    popup.add_response("cancle", "Cancel");
                     popup.add_response("allow", "Allow");
                     popup.set_response_appearance("allow", adw::ResponseAppearance::Suggested);
                     popup.set_default_response(Some("allow"));
@@ -1930,7 +1930,4 @@ async fn add_child_row(device: bluer::Device) -> bluer::Result<DeviceActionRow> 
 // - add a sender to move_file_to_location
 // - drop proxy in send file if cancelling doesn't work
 // - make new battery implementation
-<<<<<<< HEAD
-=======
 // - add a battery enable experimental thingy
->>>>>>> 123eb61 (fixed spelling after merge)

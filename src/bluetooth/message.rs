@@ -63,11 +63,7 @@ pub enum Message {
     RefreshDevicesList(),
     /// Starts a new transfer, displaying a progress bar popover with the filename
     /// ### Arguments
-<<<<<<< HEAD
-    /// * `transfer` - a [String](String) containing the transfer object
-=======
     /// * `transfer` - a [String](String) containing the transfer object 
->>>>>>> 123eb61 (fixed spelling after merge)
     /// * `filename` - a [String](String) ...which is the filename
     /// * `percent` - a [f32](f32) the starting completion percent (like 45 **not** 0.45)
     /// * `current mb` - a [f32](f32) the current transferred megabytes

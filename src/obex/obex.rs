@@ -197,28 +197,6 @@ fn serve(conn: &mut Connection, cr: Option<Crossroads>) -> Result<(), dbus::Erro
         while !BREAKING { 
             // println!("serving");
             conn.process(std::time::Duration::from_millis(1000))?;
-<<<<<<< HEAD
-            if CANCEL {
-                let sender = CURRENT_SENDER.clone().unwrap();
-                
-                let proxy2 = conn.with_proxy("org.bluez.obex", CURRENT_TRANSFER.clone(), Duration::from_millis(5000));
-
-				if let Err(err) = proxy2.cancel() {
-                	println!("error while canceling transfer {:?}", err.message());
-				}
-
-                // update transfer UI with the filename and transferred amount
-                let filename = proxy2.filename().unwrap_or("".to_string());
-                let transferred = (proxy2.transferred().unwrap_or(0) as f32 / 1000000.0).round() * 100.0;
-                sender.send(Message::UpdateTransfer(CURRENT_TRANSFER.clone(), filename.clone(), transferred, "error".to_string())).expect("cannot send message");
-
-                CANCEL = false;
-
-                std::thread::sleep(std::time::Duration::from_secs(60));
-                sender.send(Message::RemoveTransfer(CURRENT_TRANSFER.clone(), filename)).expect("cannot send message");
-            }
-=======
->>>>>>> 123eb61 (fixed spelling after merge)
         }
 
         let sender = CURRENT_SENDER.clone().unwrap();
