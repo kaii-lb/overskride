@@ -109,10 +109,14 @@ impl OverskrideApplication {
             .license_type(gtk::License::Gpl30)
             .release_notes("
             <ol>
-                <li>Audio profile support</li>
-                <li>Bluetooth battery polling</li>
-                <li>Metric fuck ton of bug fixes</li>
-                <li>Non working outbound transfer cancel</li>
+				<li>FINALLY fixed outgoing transfers not canceling properly</li>
+				<li>fixed incoming transfer not updating</li>
+				<li>fixed outgoing transfer not updating</li>
+				<li>added a transfer speed indicator</li>
+				<li>fixed issue when canceling a transfer</li>
+				<li>fixed tranfer row cancel icon not being shown</li>
+				<li>fixed transfer row not being removed</li>
+				<li>better method of showing MB transferred</li>
             </ol>
             ")
             .issue_url("https://github.com/kaii-lb/overskride/issues")

@@ -1919,16 +1919,14 @@ async fn add_child_row(device: bluer::Device) -> bluer::Result<DeviceActionRow> 
 
 // TODO
 // - add a more info button to the end of "device properties"
+// - create a new stackpage for more info and fill it out
 // - use fxhashmap for even faster lookups
 // - add option to auto trust device on pair (include warning about how dangerous it is)
 // - background running, with a status taskbar thingy wtv its name is
 // - add a currently connected icon to the main listbox rows
-// - create a new stackpage for every device and allow user to go back and force with nice animations (idk if its a good idea) (or two pages an alternate)
 // - find out what is causing hang on start
-// - add a transfer rate and time till completion for transfers
 // - add a loop for if obex and bluetooth agents fail
 // - add a sender to move_file_to_location
-// - drop proxy in send file if cancelling doesn't work
 // - make new battery implementation
 // - add a battery enable experimental thingy
 // - add a auto accept service from trusted

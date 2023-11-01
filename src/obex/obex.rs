@@ -204,8 +204,9 @@ fn serve(conn: &mut Connection, cr: Option<Crossroads>) -> Result<(), dbus::Erro
     // Serve clients forever.
     unsafe {
         BREAKING = false;
+        CANCEL = false;
 
-        while !CANCEL { 
+        while !CANCEL && !BREAKING { 
             // println!("serving");
             conn.process(std::time::Duration::from_millis(1000))?;
         }
@@ -398,13 +399,13 @@ pub async fn start_send_file(destination: bluer::Address, source: bluer::Address
     // for every file, try to send it to the target device
     for file in file_paths {
         println!("file to be sent is {}", file);
-        send_file(file.clone(), send_session.clone(), sender.clone());
+        send_file(file.clone(), &send_session, sender.clone());
     }
     println!("done sending files");
 }
 
 /// Sends a specified file from the file path to a target device, updating the UI in the process
-fn send_file(source_file: String, session_path: Path, sender: Sender<Message>) {
+fn send_file(source_file: String, session_path: &Path, sender: Sender<Message>) {
     let conn = Connection::new_session().expect("cannot create send session");
     let proxy = conn.with_proxy("org.bluez.obex", session_path, std::time::Duration::from_secs(1));
 
@@ -434,8 +435,9 @@ fn send_file(source_file: String, session_path: Path, sender: Sender<Message>) {
 
     unsafe {
         BREAKING = false;
+        CANCEL = false;
 
-        while !BREAKING { 
+        while !CANCEL && !BREAKING { 
             // process dbus requests to that path
             conn.process(std::time::Duration::from_millis(1000)).expect("cannot process request");
         }
@@ -445,24 +447,22 @@ fn send_file(source_file: String, session_path: Path, sender: Sender<Message>) {
         // stop sending this file 
         if CANCEL {
             if let Err(err) = transfer_proxy.cancel() {
-                sender.send(Message::PopupError("obex-transfer-cancel-not-authorized".to_string(), adw::ToastPriority::Normal)).expect("cannot send message");					
+                // sender.send(Message::PopupError("obex-transfer-cancel-not-authorized".to_string(), adw::ToastPriority::Normal)).expect("cannot send message");					
                 println!("error while canceling transfer {:?}", err.message());
             }  
+        	let transferred = (transfer_proxy.transferred().unwrap_or(9999) as f32 / 1000000.0).round() / 100.0;
+            sender.send(Message::UpdateTransfer(CURRENT_TRANSFER.clone(), CURRENT_FILE_NAME.clone(), transferred, 0, "error".to_string())).expect("cannot send message");
             drop(transfer_proxy);
+            drop(proxy);
             CANCEL = false;              	
         }
         
         BREAKING = false;
         
-        // update the UI with how much of the file got transferred
-        let filename = proxy.name().unwrap_or("Unknown File".to_string());
-        let transferred = (proxy.transferred().unwrap_or(9999) as f32 / 1000000.0).round() / 100.0;
-        sender.send(Message::UpdateTransfer(proxy.path.to_string(), filename.clone(), transferred, 0, "error".to_string())).expect("cannot send message");
-    
         // remove the transfer from the list after 1 minute
         std::thread::spawn(move || {
             std::thread::sleep(std::time::Duration::from_secs(60));
-            sender.send(Message::RemoveTransfer(CURRENT_TRANSFER.clone(), filename)).expect("cannot send message");
+            sender.send(Message::RemoveTransfer(CURRENT_TRANSFER.clone(), CURRENT_FILE_NAME.clone())).expect("cannot send message");
         });
     }
 }    
