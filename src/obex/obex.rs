@@ -78,7 +78,7 @@ fn handle_properties_updated(interface: String, changed_properties: PropMap, tra
                 }
             }
 
-            println!("status: {:?}", dummy_status);
+            // println!("status: {:?}", dummy_status);
 
             dummy_status
         }
@@ -92,8 +92,8 @@ fn handle_properties_updated(interface: String, changed_properties: PropMap, tra
 
             // calculate the transfer speed by subtracting the current amount from the last
             let value_kb = unsafe {
-                // println!("transferred: {}, last: {}", transferred.unwrap(), LAST_BYTES);
-                transferred.unwrap_or(0).saturating_sub(LAST_BYTES) / 1000
+                println!("transferred: {}, last: {}", transferred.unwrap(), LAST_BYTES);
+                (transferred.unwrap_or(0) / 1000).saturating_sub(LAST_BYTES / 1000)
             };
 
             let value_mb = match transferred {
@@ -226,7 +226,7 @@ fn serve(conn: &mut Connection, cr: Option<Crossroads>) -> Result<(), dbus::Erro
 
         // update transfer UI with the filename and transferred amount
         let filename = proxy2.name().unwrap_or("Unknown File".to_string());
-        let transferred = (proxy2.transferred().unwrap_or(9999) as f32 / 1000000.0) * 100.0;
+        let transferred = (proxy2.transferred().unwrap_or(9999) as f32 / 1000000.0).round() / 100.0;
         sender.send(Message::UpdateTransfer(proxy2.path.to_string(), filename.clone(), transferred, 0, "error".to_string())).expect("cannot send message");
         
         // remove the transfer from the list after 1 minute
@@ -456,7 +456,7 @@ fn send_file(source_file: String, session_path: Path, sender: Sender<Message>) {
         
         // update the UI with how much of the file got transferred
         let filename = proxy.name().unwrap_or("Unknown File".to_string());
-        let transferred = (proxy.transferred().unwrap_or(9999) as f32 / 1000000.0).round() * 100.0;
+        let transferred = (proxy.transferred().unwrap_or(9999) as f32 / 1000000.0).round() / 100.0;
         sender.send(Message::UpdateTransfer(proxy.path.to_string(), filename.clone(), transferred, 0, "error".to_string())).expect("cannot send message");
     
         // remove the transfer from the list after 1 minute

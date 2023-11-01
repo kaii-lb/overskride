@@ -156,7 +156,7 @@ impl ReceivingRow {
                 cancel_button.set_sensitive(false);
                 self_destruct = true;
                 
-                let done = "File Transfer Canceled (".to_string() + &filesize.to_string() + " MB)";
+                let done = "File Transfer Canceled (? MB)".to_string();
                 self.set_error(done);
                 self.imp().progress_bar.get().set_sensitive(false);
 

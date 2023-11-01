@@ -1060,11 +1060,11 @@ impl OverskrideWindow {
                         let filesize = row.filesize();
                         let fraction = current_mb / filesize * 100.0;
 
-                        println!("status {}", &status);
+                        // println!("status {}", &status);
 
                         row.set_percentage(fraction);
                         row.set_extra(fraction.round(), current_mb, filesize, current_rate);
-                        let nuked = row.set_active_icon(status, current_mb);
+                        let nuked = row.set_active_icon(status, filesize);
 
                         // if row is canceled or error, remove it in a minute
                         if nuked {
@@ -1931,3 +1931,4 @@ async fn add_child_row(device: bluer::Device) -> bluer::Result<DeviceActionRow> 
 // - drop proxy in send file if cancelling doesn't work
 // - make new battery implementation
 // - add a battery enable experimental thingy
+// - add a auto accept service from trusted
