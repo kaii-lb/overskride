@@ -80,7 +80,7 @@ mod imp {
 
         fn set_progress_bar_fraction(&self, fraction: f32) {
             let holder = (fraction / 100.0) as f64;
-            println!("divved {}", holder);
+            // println!("divved {}", holder);
             self.progress_bar.get().set_fraction(holder.clamp(0.0, 1.0));
         }
 
@@ -116,13 +116,14 @@ impl ReceivingRow {
     }
 
     /// extra is the little text at the bottom of the transfer, this sets it
-    pub fn set_extra(&self, percent: f32, current_mb: f32, filesize_mb: f32) {
+    pub fn set_extra(&self, percent: f32, current_mb: f32, filesize_mb: f32, transfer_rate: u64) {
         let percentage = percent.to_string() + "% | ";
 
         let formatted_mb = format!("{:.2}", current_mb);
         let size = formatted_mb + "/" + &filesize_mb.to_string();
+        let rate = " at ".to_string() + transfer_rate.to_string().trim() + "KB/s";
 
-        let extra = "<small>".to_string() + &percentage + size.as_str() + "</small>";
+        let extra = "<small>".to_string() + &percentage + &size + &rate + "</small>";
         self.set_filesize(filesize_mb);
         self.set_percentage(percent);
         self.imp().extra_label.get().set_label(&extra);
@@ -157,6 +158,7 @@ impl ReceivingRow {
                 
                 let done = "File Transfer Canceled (".to_string() + &filesize.to_string() + " MB)";
                 self.set_error(done);
+                self.imp().progress_bar.get().set_sensitive(false);
 
                 "skull-symbolic"
             },

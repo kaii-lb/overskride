@@ -1046,24 +1046,24 @@ impl OverskrideWindow {
                     let row = ReceivingRow::new(transfer, filename.clone(), filesize, outbound);
                     println!("row is: {}, {}", row.transfer(), row.filename());
 
-                    row.set_extra(percent, current, filesize);
+                    row.set_extra(percent, current, filesize, 0);
                     row.set_percentage(percent);
                     // println!("{} {} {}", row.percentage(), row.get_extra(), row.filesize());
 
                     receiving_popover.add_row(&row);
                 }, 
-                Message::UpdateTransfer(transfer, filename, current_mb, status) => {
+                Message::UpdateTransfer(transfer, filename, current_mb, current_rate, status) => {
                     let receiving_popover = clone.imp().receiving_popover.get();
 
                     // loops over the transfers then selects the one that matches, updating it accordingly
-                    if let Some(row) = receiving_popover.get_row_by_transfer(transfer.clone(), filename.clone()) {
+                    if let Some(row) = receiving_popover.get_row_by_transfer(&transfer, &filename) {
                         let filesize = row.filesize();
                         let fraction = current_mb / filesize * 100.0;
 
-                        // println!("fraction {}", fraction);
+                        println!("status {}", &status);
 
                         row.set_percentage(fraction);
-                        row.set_extra(fraction.round(), current_mb, filesize);
+                        row.set_extra(fraction.round(), current_mb, filesize, current_rate);
                         let nuked = row.set_active_icon(status, current_mb);
 
                         // if row is canceled or error, remove it in a minute

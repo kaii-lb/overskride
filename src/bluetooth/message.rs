@@ -76,7 +76,7 @@ pub enum Message {
     /// * `filename` - a [String](String) containing the file name
     /// * `current mb` - a [String](String) the current transferred megabytes
     /// * `status` - a [String](String) which is the current status of the transfer (ie: complete, error, active...)
-    UpdateTransfer(String, String, f32, String),
+    UpdateTransfer(String, String, f32, u64, String),
     /// Removes a transfer via the supplied [transfer](String) object and the [filename](String) incase of multiple files in same transfer
     RemoveTransfer(String, String),
     /// Gets the path of a selected file or folder, based on [filetype](gtk::FileChooserAction)

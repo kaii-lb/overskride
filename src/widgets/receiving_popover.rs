@@ -99,19 +99,20 @@ impl ReceivingPopover {
         }
     }
 
-    pub fn get_row_by_transfer(&self, transfer: String, filename: String) -> Option<ReceivingRow> {
+    pub fn get_row_by_transfer(&self, transfer: &String, filename: &String) -> Option<ReceivingRow> {
         let listbox = self.imp().listbox.get();
 
         let mut index = 0;
         while let Some(row) = listbox.row_at_index(index) {
             if let Ok(receiving_row) = row.clone().downcast::<ReceivingRow>() {
-                if receiving_row.transfer().contains(&transfer) && receiving_row.filename().contains(&filename) {
+                if receiving_row.transfer().contains(transfer) && receiving_row.filename().contains(filename) {
                     return Some(receiving_row);
                 }
             }
 
             index += 1;
         }
+        println!("unknown row {} {}", transfer, filename);
         None
     }
 }

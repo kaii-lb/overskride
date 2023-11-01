@@ -21,9 +21,10 @@ static mut CURRENT_TRANSFER: String = String::new();
 static mut CURRENT_FILE_SIZE: u64 = 0;
 static mut CURRENT_FILE_NAME: String = String::new();
 static mut CURRENT_SENDER: Option<Sender<Message>> = None;
+static mut OUTBOUND: bool = false;
+static mut LAST_BYTES: u64 = 0;
 pub static mut BREAKING: bool = false;
 pub static mut CANCEL: bool = false;
-static mut OUTBOUND: bool = false;
 
 // fn approx_equal(a: f32, b: f32, decimal_places: u8) -> bool {
 //     let factor = 10.0f32.powi(decimal_places as i32);
@@ -77,7 +78,7 @@ fn handle_properties_updated(interface: String, changed_properties: PropMap, tra
                 }
             }
 
-            println!("status {:?}", dummy_status);
+            println!("status: {:?}", dummy_status);
 
             dummy_status
         }
@@ -86,26 +87,36 @@ fn handle_properties_updated(interface: String, changed_properties: PropMap, tra
         }; 
 
         // convert from bytes to megabytes 
-        let value = if let Some(val) = changed_properties.get_key_value("Transferred") {
+        let (mb, kb) = if let Some(val) = changed_properties.get_key_value("Transferred") {
             let transferred = val.1.0.as_u64();
+
+            // calculate the transfer speed by subtracting the current amount from the last
+            let value_kb = unsafe {
+                // println!("transferred: {}, last: {}", transferred.unwrap(), LAST_BYTES);
+                transferred.unwrap_or(0).saturating_sub(LAST_BYTES) / 1000
+            };
 
             let value_mb = match transferred {
                 Some(val) => {
-                    let mb = ((val as f32 / 1000000.0) * 1000.0).round() / 1000.0;	
-                    mb
+                    ((val as f32 / 1000000.0) * 1000.0).round() / 1000.0
                 },
                 None => {
                     0.0
                 }
             };
-            println!("transferred: {}", value_mb);
-            value_mb
+            // println!("transferred: {}", value_mb);
+            
+            unsafe {
+                LAST_BYTES = transferred.unwrap_or(0);
+            }
+
+            (value_mb, value_kb)
         }
         else {
-            0.0
+            (0.0, 0)
         };
         // updates the transfer with the specified values
-        sender.send(Message::UpdateTransfer(transfer, unsafe { CURRENT_FILE_NAME.clone() }, value, status.to_string())).expect("cannot send message");
+        sender.send(Message::UpdateTransfer(transfer, unsafe { CURRENT_FILE_NAME.clone() }, mb, kb, status.to_string())).expect("cannot send message");
     }
 }
 
@@ -194,7 +205,7 @@ fn serve(conn: &mut Connection, cr: Option<Crossroads>) -> Result<(), dbus::Erro
     unsafe {
         BREAKING = false;
 
-        while !BREAKING { 
+        while !CANCEL { 
             // println!("serving");
             conn.process(std::time::Duration::from_millis(1000))?;
         }
@@ -202,23 +213,27 @@ fn serve(conn: &mut Connection, cr: Option<Crossroads>) -> Result<(), dbus::Erro
         let sender = CURRENT_SENDER.clone().unwrap();
         
         let proxy2 = conn.with_proxy("org.bluez.obex", CURRENT_TRANSFER.clone(), Duration::from_millis(5000));
-
+        
         if CANCEL {
             if let Err(err) = proxy2.cancel() {
                 println!("error while canceling transfer {:?}", err.message());
             }
+            println!("canceled");
             CANCEL = false;              	
         }
 
-        // update transfer UI with the filename and transferred amount
-        let filename = proxy2.filename().unwrap_or("".to_string());
-        let transferred = (proxy2.transferred().unwrap_or(9999) as f32 / 1000000.0).round() * 100.0;
-        sender.send(Message::UpdateTransfer(CURRENT_TRANSFER.clone(), filename.clone(), transferred, "error".to_string())).expect("cannot send message");
-
         BREAKING = false;
 
-        std::thread::sleep(std::time::Duration::from_secs(60));
-        sender.send(Message::RemoveTransfer(CURRENT_TRANSFER.clone(), filename)).expect("cannot send message");
+        // update transfer UI with the filename and transferred amount
+        let filename = proxy2.name().unwrap_or("Unknown File".to_string());
+        let transferred = (proxy2.transferred().unwrap_or(9999) as f32 / 1000000.0) * 100.0;
+        sender.send(Message::UpdateTransfer(proxy2.path.to_string(), filename.clone(), transferred, 0, "error".to_string())).expect("cannot send message");
+        
+        // remove the transfer from the list after 1 minute
+        std::thread::spawn(move || {
+            std::thread::sleep(std::time::Duration::from_secs(60));
+            sender.send(Message::RemoveTransfer(CURRENT_TRANSFER.clone(), filename)).expect("cannot send message");
+        });
     }
     Ok(())
 }
@@ -238,7 +253,7 @@ fn create_agent(cr: &mut Crossroads, sender: Sender<Message>) {
                 let filesize = filesize_holder.as_u64().unwrap_or(9999);
 				let session = all_props.get("Session").expect("cannot get session for receive").0.as_str().unwrap_or("");
                 
-                println!("all props is: {:?}", all_props);
+                // println!("all props is: {:?}", all_props);
 
                 unsafe {
                     CURRENT_FILE_NAME = filename.clone();
@@ -324,7 +339,7 @@ async fn spawn_dialog(filename: String, sender: &Sender<Message>, device_name: S
     println!("file receive request incoming!");
 
     let title = "File Transfer Incoming".to_string();
-    let subtitle = "Accept <span font_weight='bold' color='#78aeed'>".to_string() + &filename + "</span> from <span font_weight='bold'>" + &device_name + "</span>";
+    let subtitle = "Accept <span font_weight='bold' color='#78aeed'>".to_string() + &filename + "</span> from <span font_weight='bold'>" + &device_name + "?</span>";
     let confirm = "Accept".to_string();
     let response_type = adw::ResponseAppearance::Suggested;
 
@@ -432,18 +447,17 @@ fn send_file(source_file: String, session_path: Path, sender: Sender<Message>) {
             if let Err(err) = transfer_proxy.cancel() {
                 sender.send(Message::PopupError("obex-transfer-cancel-not-authorized".to_string(), adw::ToastPriority::Normal)).expect("cannot send message");					
                 println!("error while canceling transfer {:?}", err.message());
-                drop(transfer_proxy);
             }  
+            drop(transfer_proxy);
             CANCEL = false;              	
         }
         
-        // update the UI with how much of the file got transferred
-        let filename = proxy.filename().unwrap_or("".to_string());
-        let transferred = (proxy.transferred().unwrap_or(9999) as f32 / 1000000.0).round() * 100.0;
-        sender.send(Message::UpdateTransfer(CURRENT_TRANSFER.clone(), filename.clone(), transferred, "error".to_string())).expect("cannot send message");
-    
         BREAKING = false;
-        println!("broken");
+        
+        // update the UI with how much of the file got transferred
+        let filename = proxy.name().unwrap_or("Unknown File".to_string());
+        let transferred = (proxy.transferred().unwrap_or(9999) as f32 / 1000000.0).round() * 100.0;
+        sender.send(Message::UpdateTransfer(proxy.path.to_string(), filename.clone(), transferred, 0, "error".to_string())).expect("cannot send message");
     
         // remove the transfer from the list after 1 minute
         std::thread::spawn(move || {
