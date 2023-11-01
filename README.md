@@ -15,7 +15,7 @@ or you could:
 
 ```bash
 sudo systemctl enable --now bluetooth
-curl -sSL https://nightly.link/kaii-lb/overskride/workflows/main/v0.5.2/overskride-nightly-x86_64.zip -o ~/Downloads/overskride-nightly.zip
+curl -sSL https://nightly.link/kaii-lb/overskride/workflows/main/v0.5.3/overskride-nightly-x86_64.zip -o ~/Downloads/overskride-nightly.zip
 unzip ~/Downloads/overskride-nightly.zip -d ~/Downloads/
 sudo flatpak install org.gnome.Platform//45 # only if needed
 sudo flatpak install -y ~/Downloads/overskride-nightly.flatpak
@@ -63,9 +63,8 @@ glib-compile-schemas ~/.local/share/glib-2.0/schemas
 - Auto accept files
 - Audio profiles
 - Battery polling over bluetooth (enable experimental bluetooth options)
+- Transfer rate for incoming/outgoing file transfers
 
 # What doesn't work
 - Applet support aka system tray
-- Cancelling send file, for some reason
 - More info about device
-- Transfer rate and time to completion
