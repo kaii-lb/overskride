@@ -4,7 +4,7 @@ use gtk::glib::Sender;
 use tokio_util::sync::CancellationToken;
 use uuid::uuid;
 
-use crate::{message::Message, window::{DEVICES_LUT, CURRENT_ADDRESS, CONFIRMATION_AUTHORIZATION, DISPLAYING_DIALOG}, agent::wait_for_dialog_exit, audio_profiles::AudioProfiles, battery::CANCEL_BATTERY_CHECK};
+use crate::{message::Message, window::{DEVICES_LUT, CURRENT_ADDRESS, CONFIRMATION_AUTHORIZATION, DISPLAYING_DIALOG}, agent::wait_for_dialog_exit, audio_profiles::AudioProfiles, battery::CANCEL_BATTERY_CHECK, services};
 
 static mut CANCELLATION_TOKEN: Option<CancellationToken> = None;
 
@@ -45,8 +45,9 @@ pub async fn set_device_active(address: bluer::Address, sender: Sender<Message>,
     
     println!("set state {} for device {}\n", updated_state, device.address());
 	sender.send(Message::SwitchActiveSpinner(false)).expect("cannot set spinner to show.");
-    sender.send(Message::SwitchActive(updated_state)).expect("cannot send message");
-
+    sender.send(Message::SwitchActive(updated_state, address, true)).expect("cannot send message");
+	sender.send(Message::InvalidateSort()).expect("cannot set device name.");
+	
 	// sender.send(Message::SwitchActiveSpinner(false)).expect("cannot set spinner to show.");
     // connected_switch_row.set_active(!connected_switch_row.active());
     
@@ -89,6 +90,8 @@ pub async fn set_device_active(address: bluer::Address, sender: Sender<Message>,
       	sender.send(Message::SwitchHasObexService(false)).expect("cannot send message");
         sender.send(Message::SwitchSendFileActive(false)).expect("cannot send message");
     }
+
+    
     
     Ok(())
 }
@@ -188,7 +191,7 @@ pub async fn get_device_properties(address: bluer::Address, sender: Sender<Messa
     };
     
     sender.send(Message::SwitchPage(Some(alias), Some(icon_name))).expect("cannot set device alias and icon in page.");
-    sender.send(Message::SwitchActive(is_active)).expect("cannot set device active in page.");
+    sender.send(Message::SwitchActive(is_active, address, true)).expect("cannot set device active in page.");
     sender.send(Message::SwitchBlocked(is_blocked)).expect("cannot set device blocked in page.");
     sender.send(Message::SwitchTrusted(is_trusted)).expect("cannot set device trusted in page.");
    	sender.send(Message::SetNameValid(true)).expect("cannot send message");
@@ -399,10 +402,8 @@ pub async fn get_devices_continuous(sender: Sender<Message>, adapter_name: Strin
                         	CURRENT_ADDRESS 
                         };
                        	
-                        if addr == current_address {
-                            std::thread::sleep(std::time::Duration::from_secs_f32(0.5));
-                            sender_clone.send(Message::SwitchActive(connected)).expect("cannot send message");
-                        }
+                        std::thread::sleep(std::time::Duration::from_secs_f32(0.5));
+                        sender_clone.send(Message::SwitchActive(connected, addr, addr == current_address)).expect("cannot send message");
                     },
                     DeviceProperty::Trusted(trusted) => {
                         let current_address = unsafe {
@@ -487,4 +488,43 @@ pub async fn get_devices_continuous(sender: Sender<Message>, adapter_name: Strin
     else {
         Err(bluer::Error { kind: bluer::ErrorKind::Failed, message: "Stopped searching for devices".to_string() })
     }
+}
+
+#[tokio::main]
+pub async fn get_more_info(address: bluer::Address, adapter_name: String) -> bluer::Result<(String, String, String, String, Vec<String>)> {
+    let session = bluer::Session::new().await?;
+	let adapter = &session.adapter(&adapter_name)?;
+
+    let device = adapter.device(address)?;
+
+    let name = device.alias().await?;
+    let device_type = device.icon().await?.unwrap_or("Unknown".to_string());
+    let mut services_list = vec![];
+    
+    for uuid in device.uuids().await?.unwrap() {
+        let service = services::get_name_from_service(uuid).unwrap_or("".to_string());
+
+        if !service.is_empty() {
+        	services_list.push(service);
+        }
+    }
+
+    let mut manufacturer = String::from("Unknown");
+
+    if let Some(info) = device.manufacturer_data().await? {
+    	println!("{:?}", info);
+
+		for key in info.keys() {
+			manufacturer = match bluer::id::Manufacturer::try_from(*key) {
+				Ok(val) => {
+					val.to_string()
+				},
+				Err(_) => {
+					"Unknown".to_string()
+				}	
+			};
+		}
+    }
+
+    Ok((name, address.to_string(), manufacturer, device_type, services_list))
 }

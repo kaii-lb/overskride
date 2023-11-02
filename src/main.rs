@@ -37,6 +37,7 @@ mod window;
 #[path = "widgets/startup_error_message.rs"] mod startup_error_message;
 #[path = "widgets/selectable_row.rs"] mod selectable_row;
 #[path = "widgets/battery_indicator.rs"] mod battery_indicator;
+#[path = "widgets/more_info_page.rs"] mod more_info_page;
 
 
 use self::application::OverskrideApplication;

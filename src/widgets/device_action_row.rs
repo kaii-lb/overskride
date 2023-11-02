@@ -2,7 +2,7 @@ use glib::{Object, Properties};
 use gtk::glib;
 use adw::subclass::prelude::{ActionRowImpl, PreferencesRowImpl};
 use gtk::subclass::prelude::*;
-use gtk::prelude::ObjectExt;
+use gtk::prelude::{ObjectExt, WidgetExt};
 use std::cell::RefCell;
 
 mod imp {
@@ -15,11 +15,15 @@ mod imp {
     pub struct DeviceActionRow {
         #[template_child]
         pub rssi_icon: TemplateChild<gtk::Image>,
+        #[template_child]
+        pub connected_icon: TemplateChild<gtk::Image>,
 
         #[property(get, set)]
         pub rssi: RefCell<i32>,
         #[property(get, set)]
         pub adapter_name: RefCell<String>,
+        #[property(get, set = Self::set_current_connected)]
+        pub connected: RefCell<bool>,
 
         pub address: RefCell<bluer::Address>,
         pub adapter_address: RefCell<bluer::Address>,
@@ -52,7 +56,20 @@ mod imp {
     impl ListBoxRowImpl for DeviceActionRow {}
     impl PreferencesRowImpl for DeviceActionRow {}
     
-    impl DeviceActionRow {}
+    impl DeviceActionRow {
+    	fn set_current_connected(&self, connected: bool) {
+    		let icon = self.connected_icon.get();
+
+    		if connected {
+    			icon.show();
+    		}
+    		else {
+    			icon.hide();
+    		}
+
+    		self.connected.set(connected);
+    	}
+    }
 }
 
 glib::wrapper! {

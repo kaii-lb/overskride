@@ -64,7 +64,9 @@ glib-compile-schemas ~/.local/share/glib-2.0/schemas
 - Audio profiles
 - Battery polling over bluetooth (enable experimental bluetooth options)
 - Transfer rate for incoming/outgoing file transfers
+- More info about device
 
 # What doesn't work
 - Applet support aka system tray
-- More info about device
+- Quality of life stuff (auto trust on pair, auto accept service)
+- Background running with tray applet

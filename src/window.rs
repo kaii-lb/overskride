@@ -32,6 +32,7 @@ use std::str::FromStr;
 use crate::audio_profiles;
 use crate::bluetooth_settings::get_store_location_from_dialog;
 use crate::device_action_row::DeviceActionRow;
+use crate::more_info_page::MoreInfoPage;
 use crate::receiving_row::ReceivingRow;
 use crate::selectable_row::SelectableRow;
 use crate::{bluetooth_settings, device, connected_switch_row::ConnectedSwitchRow};
@@ -125,6 +126,8 @@ mod imp {
         pub audio_profile_expander: TemplateChild<adw::ExpanderRow>,
         #[template_child]
         pub battery_level_indicator: TemplateChild<BatteryLevelIndicator>,
+        #[template_child]
+        pub more_info_row: TemplateChild<adw::ActionRow>,
 
         pub settings: OnceCell<Settings>,
         pub display_pass_key_dialog: RefCell<Option<adw::MessageDialog>>,
@@ -144,6 +147,7 @@ mod imp {
             ReceivingRow::ensure_type();
             SelectableRow::ensure_type();
             BatteryLevelIndicator::ensure_type();
+            MoreInfoPage::ensure_type();
 
             klass.bind_template();
             /*klass.install_action("win.refresh_devices", None, move |win, _, _| {
@@ -240,19 +244,35 @@ impl OverskrideWindow {
                     let blocked_row = clone.imp().blocked_row.get();
                     blocked_row.set_active(blocked);
                 },
-                Message::SwitchActive(active) => {
-                    let connected_switch_row = clone.imp().connected_switch_row.get();
+                Message::SwitchActive(active, address, is_current) => {
+					let listbox = clone.imp().main_listbox.get();
+					let mut listbox_index = 0;
 
-                    std::thread::sleep(std::time::Duration::from_millis(200));
-                    connected_switch_row.set_switch_active(active);
+					if is_current {
+        	            let connected_switch_row = clone.imp().connected_switch_row.get();
+	                    std::thread::sleep(std::time::Duration::from_millis(200));
+	                    connected_switch_row.set_switch_active(active);			
 
-					// is this redundant? we'll never know
-					if connected_switch_row.has_obex() {
-                    	sender_for_receiver_clone.clone().send(Message::SwitchSendFileActive(active)).expect("cannot send message");
+						// is this redundant? we'll never know
+						if connected_switch_row.has_obex() {
+	                    	sender_for_receiver_clone.clone().send(Message::SwitchSendFileActive(active)).expect("cannot send message");
+						}
+						else {
+	                    	sender_for_receiver_clone.clone().send(Message::SwitchSendFileActive(false)).expect("cannot send message");						
+						}
 					}
-					else {
-                    	sender_for_receiver_clone.clone().send(Message::SwitchSendFileActive(false)).expect("cannot send message");						
-					}
+
+					// please optimize
+					// sets the device action row's active for sorting purposes
+					while let Some(row) = listbox.row_at_index(listbox_index) {
+                        let action_row = row.downcast::<DeviceActionRow>().expect("cannot downcast to action row.");
+                        if action_row.get_bluer_address() == address {
+                            action_row.set_connected(active);
+                            // println!("connected: {}", action_row.connected());
+                        }
+
+                        listbox_index += 1;
+                    }
                 },
                 Message::SwitchActiveSpinner(spinning) => {
                     let connected_switch_row = clone.imp().connected_switch_row.get();
@@ -334,11 +354,14 @@ impl OverskrideWindow {
                         // println!("{:?}", action_row.clone());
                         
                         if action_row.title() == name && action_row.get_bluer_address() == address {
+                            action_row.set_connected(false);
+                            
                             if let Some(selected_row) = listbox.selected_row() {
                             	let downcasted = selected_row.downcast::<DeviceActionRow>().expect("cannot downcast to action row.");
 
                             	selected = downcasted.get_bluer_address() == action_row.get_bluer_address() && downcasted.title() == action_row.title();
                             }
+                            
                            	listbox.remove(&action_row);
                         }
                         index += 1;
@@ -349,6 +372,8 @@ impl OverskrideWindow {
                         let bluetooth_settings_row = clone.clone().imp().bluetooth_settings_row.get();
                         bluetooth_settings_row.emit_activate();
                     }
+
+                    listbox.invalidate_sort();
                 },
                 Message::SwitchPage(alias, icon_name) => {
                     // doesn't actually switch a page just updates values in the same page
@@ -1329,9 +1354,16 @@ impl OverskrideWindow {
             let rssi_result = rssi_one.cmp(&rssi_two);
             //println!("rssi result {:?}", rssi_result);
 
+            let final_result = if rssi_result == std::cmp::Ordering::Equal {
+				name_result
+            }
+            else {
+                rssi_result
+            };
+
             if one == "unknown device" {
                 if two == "unknown device" {
-                	return rssi_result.into();
+                	return final_result.into();
                 }
                 else {
            			return gtk::Ordering::Larger;	                	
@@ -1339,19 +1371,31 @@ impl OverskrideWindow {
             }
             else if two == "unknown device" {
                 if one == "unknown device" {
-                	return rssi_result.into();
+                	return final_result.into();
                 }
                 else {
            			return gtk::Ordering::Smaller;	                	
                 }
             }
 
-            if rssi_result == std::cmp::Ordering::Equal {
-				name_result.into()
+            if actionrow_one.connected() {
+                if actionrow_two.connected() {
+                	return final_result.into();
+                }
+                else {
+           			return gtk::Ordering::Smaller;	                	
+                }
             }
-            else {
-                rssi_result.into()
+            else if actionrow_two.connected() {
+                if actionrow_one.connected() {
+                	return final_result.into();
+                }
+                else {
+           			return gtk::Ordering::Larger;	                	
+                }
             }
+
+            final_result.into()
 
             // println!("rssi one {} rssi two {}", rssi_one, rssi_two);
             // println!("rssi result {:?}", final_result); 
@@ -1415,7 +1459,7 @@ impl OverskrideWindow {
                     println!("error while connecting {:?}\n", err);
 
                     sender_clone.send(Message::PopupError(string, adw::ToastPriority::High)).expect("cannot send message");
-                    sender_clone.send(Message::SwitchActive(false)).expect("cannot send message");
+                    sender_clone.send(Message::SwitchActive(false, address, true)).expect("cannot send message");
                     sender_clone.send(Message::SwitchActiveSpinner(false)).expect("cannot send message");
                     sender_clone.send(Message::SwitchSendFileActive(false)).expect("cannot send message");
                 }
@@ -1502,6 +1546,7 @@ impl OverskrideWindow {
             };
             
             std::thread::spawn(move || {
+                sender_clone.send(Message::SwitchActive(false, address, false)).expect("cannot send message");
                 if let Err(err) = device::remove_device(address, sender_clone.clone(), adapter_name) {
                     let string = err.message;
                     sender_clone.send(Message::PopupError(string, adw::ToastPriority::High)).expect("cannot send message");
@@ -1712,6 +1757,32 @@ impl OverskrideWindow {
         	}	
         });
         auto_accept_trusted_row.set_active(unsafe { AUTO_ACCEPT_FROM_TRUSTED });
+
+        let more_info_row = self.imp().more_info_row.get();
+        let self_clone7 = self.clone();
+        more_info_row.connect_activated(move |_| {
+            let message = MoreInfoPage::new();
+
+            let current_device = self_clone7.imp().main_listbox.get().selected_row().unwrap().downcast::<DeviceActionRow>().unwrap();
+            let address = current_device.get_bluer_address();
+
+            let adapter_name = unsafe {
+                CURRENT_ADAPTER.clone()
+            };
+            let (name, address, manufacturer, device_type, services_list) = if let Ok(info) = device::get_more_info(address, adapter_name) {
+            	info
+            }
+            else {
+            	return;
+            };
+
+            message.initialize_from_info(name, address, manufacturer, device_type, services_list);
+
+            message.set_transient_for(Some(&self_clone7));
+            message.set_modal(true);
+
+            message.show();
+        });
     }
 
     /// on app exit, save the current settings
@@ -1841,6 +1912,8 @@ async fn add_child_row(device: bluer::Device) -> bluer::Result<DeviceActionRow> 
             n as i32
         }
     };
+    let active = device.is_connected().await?;
+    child_row.set_connected(active);
     
     // set the address of this device
     child_row.set_bluer_address(address);
@@ -1918,15 +1991,12 @@ async fn add_child_row(device: bluer::Device) -> bluer::Result<DeviceActionRow> 
 
 
 // TODO
-// - add a more info button to the end of "device properties"
-// - create a new stackpage for more info and fill it out
 // - use fxhashmap for even faster lookups
 // - add option to auto trust device on pair (include warning about how dangerous it is)
 // - background running, with a status taskbar thingy wtv its name is
-// - add a currently connected icon to the main listbox rows
 // - find out what is causing hang on start
 // - add a loop for if obex and bluetooth agents fail
-// - add a sender to move_file_to_location
 // - make new battery implementation
 // - add a battery enable experimental thingy
-// - add a auto accept service from trusted
+// - add a auto accept service if previous
+// - add a disable current connected icon

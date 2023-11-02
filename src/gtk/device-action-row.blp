@@ -6,8 +6,14 @@ template $DeviceActionRow : Adw.ActionRow {
 
   [suffix]
   Box {
-    spacing: 16;
-    
+    spacing: 10;
+
+	Image connected_icon {
+	  pixel-size: 18;
+	  margin-bottom: 2;
+      icon-name: "chain-link-symbolic";
+    }
+	    
     Image rssi_icon {
       icon-name: "rssi-none-symbolic";
     }

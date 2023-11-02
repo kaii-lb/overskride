@@ -6,8 +6,8 @@ pub enum Message {
     SwitchTrusted(bool),
     /// Changes the blocked switch's active to `bool`
     SwitchBlocked(bool),
-    /// Changes the connected switch's active to `bool`
-    SwitchActive(bool),
+    /// Changes the connected switch's active to `bool` if the `is_current` is true, and sets the corresponding device action row's connected state
+    SwitchActive(bool, bluer::Address, bool),
     /// Changes the connected switch's spinner spinning state to `bool`
     SwitchActiveSpinner(bool),
     /// Changes the active devices's name to [alias](String) if no [old_alias](Option<String>) is provided, otherwise it looks for a matching row

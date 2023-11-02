@@ -283,15 +283,15 @@ template $OverskrideWindow: Adw.ApplicationWindow {
                       styles ["linked"]
                     }
 
-                    Adw.ActionRow {
+                    Adw.ActionRow more_info_row {
                       title: "More Info";
                       activatable: true; 
-                      sensitive: false;
+                      // sensitive: false;
 
                       [suffix]
                       Box {
                         Image {
-                          styles ["dim-label"]
+                          // styles ["dim-label"]
                           icon-name: "right-symbolic";
                         }
                       }

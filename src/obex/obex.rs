@@ -60,7 +60,7 @@ fn handle_properties_updated(interface: String, changed_properties: PropMap, tra
                 	}
                 	else {
                     	sender.send(Message::PopupError("obex-transfer-complete-inbound".to_string(), adw::ToastPriority::Normal)).expect("cannot send message");
-                        move_to_store_folder();
+                        move_to_store_folder(&sender);
                 	}
                 },
                 "error" => {
@@ -469,8 +469,7 @@ fn send_file(source_file: String, session_path: &Path, sender: Sender<Message>) 
 
 /// Moves a received file to where the user needs it to be
 /// needed because returning a file path in the agent's "AuthorizePush" method won't work because bluetooth :D
-/// needs to take in a "sender" and notify user if file fails to move
-pub fn move_to_store_folder() {
+pub fn move_to_store_folder(sender: &Sender<Message>) {
 	if unsafe { OUTBOUND } {
 		return;	
 	}
@@ -486,6 +485,7 @@ pub fn move_to_store_folder() {
         cache_dir.to_string() + "/obexd/" + &filename
     }
     else {
+    	sender.send(Message::PopupError("obex-tranfer-cant-move".to_string(), adw::ToastPriority::High)).expect("cannot send message");
         println!("unable to save file to store folder, it should still remain in ~/.cache/obexd");
         return;
     };
@@ -498,6 +498,7 @@ pub fn move_to_store_folder() {
             println!("file moved to directory");
         },
         Err(err) => {
+          	sender.send(Message::PopupError("obex-tranfer-cant-move".to_string(), adw::ToastPriority::High)).expect("cannot send message");
             println!("file was not moved due to {:?}", err);
         },
     }

@@ -1,0 +1,47 @@
+using Gtk 4.0;
+using Adw 1;
+
+template $MoreInfoPage : Adw.ApplicationWindow {
+  height-request: 350;
+  width-request: 400;
+  
+  Adw.ToolbarView {
+    [top]
+    Adw.HeaderBar {
+      title-widget: Adw.WindowTitle {
+        title: "More Info";
+      };
+    }
+    
+    content: ScrolledWindow {
+      propagate-natural-height: true;
+                
+      Box {
+        valign: center;
+        orientation: vertical;
+        //spacing: 28;
+
+
+        ListBox {
+          selection-mode: none;
+          
+      	  Adw.ActionRow name_row {
+      	  	title-selectable: true;
+      	  }
+     	  Adw.ActionRow address_row {
+      	  	title-selectable: true;
+     	  }
+          Adw.ActionRow manufacturer_row {
+          	title-selectable: true;
+          }
+          Adw.ActionRow type_row {
+          	title-selectable: true;
+          }
+          Adw.ExpanderRow services_row {
+          	title-selectable: true;
+          }
+       }
+	  }
+    };
+  }  
+}

@@ -109,14 +109,9 @@ impl OverskrideApplication {
             .license_type(gtk::License::Gpl30)
             .release_notes("
             <ol>
-				<li>FINALLY fixed outgoing transfers not canceling properly</li>
-				<li>fixed incoming transfer not updating</li>
-				<li>fixed outgoing transfer not updating</li>
-				<li>added a transfer speed indicator</li>
-				<li>fixed issue when canceling a transfer</li>
-				<li>fixed tranfer row cancel icon not being shown</li>
-				<li>fixed transfer row not being removed</li>
-				<li>better method of showing MB transferred</li>
+				<li>added a currently connected icon</li>
+				<li>connected device(s) is now at the top of the list</li>
+				<li>added a more info page</li> 
             </ol>
             ")
             .issue_url("https://github.com/kaii-lb/overskride/issues")
