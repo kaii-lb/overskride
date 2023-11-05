@@ -22,6 +22,8 @@ mod imp {
         #[template_child]
         pub type_row: TemplateChild<adw::ActionRow>,
         #[template_child]
+        pub distance_row: TemplateChild<adw::ActionRow>,
+        #[template_child]
         pub services_row: TemplateChild<adw::ExpanderRow>,
     }
 
@@ -67,11 +69,12 @@ impl MoreInfoPage {
             .build()
     }
 
-    pub fn initialize_from_info(&self, name: String, address: String, manufactuer: String, device_type: String, services_list: Vec<String>) {
+    pub fn initialize_from_info(&self, name: String, address: String, manufactuer: String, device_type: String, distance: String, services_list: Vec<String>) {
 		self.imp().name_row.get().set_title(&("Name: ".to_string() + &name));
 		self.imp().address_row.get().set_title(&("Address: ".to_string() + &address));
 		self.imp().manufacturer_row.get().set_title(&("Manufacturer: ".to_string() + &manufactuer));
 		self.imp().type_row.get().set_title(&("Type: ".to_string() + &device_type));
+		self.imp().distance_row.get().set_title(&("Distance: ".to_string() + &distance));
 
 		let expander_row = self.imp().services_row.get();
 		expander_row.set_title("Available Services");

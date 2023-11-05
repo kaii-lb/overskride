@@ -18,6 +18,9 @@ pub async fn set_adapter_powered(adapter_name: String, sender: Sender<Message>) 
         sender.send(Message::RefreshDevicesList()).expect("can't send message");
         sender.send(Message::PopupError("br-adapter-refreshed".to_string(), adw::ToastPriority::Normal)).expect("can't send message");
     }
+    else {
+    	sender.send(Message::SwitchActive(false, bluer::Address::any(), true)).expect("can't send message");
+    }
 
     sender.send(Message::SwitchAdapterPowered(powered)).expect("can't send message");
     Ok(())

@@ -5,6 +5,7 @@ use crate::{message::Message, window::{DISPLAYING_DIALOG, PIN_CODE, PASS_KEY, CO
 
 async fn request_pin_code(request: bluer::agent::RequestPinCode, sender: Sender<Message>) -> bluer::agent::ReqResult<String> {
     println!("request pincode incoming");
+	let address = request.device;
 
     sender.send(Message::RequestPinCode(request)).expect("cannot send message");
     unsafe {
@@ -21,13 +22,14 @@ async fn request_pin_code(request: bluer::agent::RequestPinCode, sender: Sender<
       	Err(bluer::agent::ReqError::Rejected)
     }
     else {
+        sender.send(Message::SwitchActive(true, address, true)).expect("cannot send message");
 	    Ok(final_pin_code)
     }
 }
 
 async fn display_pin_code(request: bluer::agent::DisplayPinCode, sender: Sender<Message>) -> bluer::agent::ReqResult<()> {
     println!("display pincode incoming");
-    
+
     sender.send(Message::DisplayPinCode(request)).expect("cannot send message");
     unsafe {
         DISPLAYING_DIALOG = true
@@ -41,6 +43,7 @@ async fn display_pin_code(request: bluer::agent::DisplayPinCode, sender: Sender<
 
 async fn request_pass_key(request: bluer::agent::RequestPasskey, sender: Sender<Message>) -> bluer::agent::ReqResult<u32> {
     println!("request passkey incoming");
+	let address = request.device;
 
     sender.send(Message::RequestPassKey(request)).expect("cannot send message");
     unsafe {
@@ -57,6 +60,7 @@ async fn request_pass_key(request: bluer::agent::RequestPasskey, sender: Sender<
     	Err(bluer::agent::ReqError::Rejected)
     }
     else {
+        sender.send(Message::SwitchActive(true, address, true)).expect("cannot send message");
     	Ok(pass_key)
     }
 }   
@@ -76,6 +80,7 @@ async fn display_pass_key(request: bluer::agent::DisplayPasskey, sender: Sender<
 
 async fn request_confirmation(request: bluer::agent::RequestConfirmation, _: bluer::Session, _: bool, sender: Sender<Message>) -> bluer::agent::ReqResult<()> {
     println!("pairing confirmation incoming");
+	let address = request.device;
     
     sender.send(Message::RequestConfirmation(request)).expect("cannot send message");
     unsafe {
@@ -89,6 +94,7 @@ async fn request_confirmation(request: bluer::agent::RequestConfirmation, _: blu
     };
     if confirmed {
         println!("allowed pairing with device");
+        sender.send(Message::SwitchActive(true, address, true)).expect("cannot send message");
         Ok(())
     }
     else {
@@ -99,6 +105,7 @@ async fn request_confirmation(request: bluer::agent::RequestConfirmation, _: blu
 
 async fn request_authorization(request: bluer::agent::RequestAuthorization, _: bluer::Session, _: bool, sender: Sender<Message>) -> bluer::agent::ReqResult<()> {
     println!("pairing authorization incoming");
+	let address = request.device;
 
     sender.send(Message::RequestAuthorization(request)).expect("cannot send message");
     unsafe{
@@ -112,6 +119,7 @@ async fn request_authorization(request: bluer::agent::RequestAuthorization, _: b
     };
     if confirmed {
         println!("allowed pairing with device");
+        sender.send(Message::SwitchActive(true, address, true)).expect("cannot send message");
         Ok(())
     }
     else {
@@ -123,6 +131,7 @@ async fn request_authorization(request: bluer::agent::RequestAuthorization, _: b
 
 async fn authorize_service(request: bluer::agent::AuthorizeService, sender: Sender<Message>) -> bluer::agent::ReqResult<()> {
     println!("service authorization incoming");
+	let address = request.device;
 
     sender.send(Message::AuthorizeService(request)).expect("cannot send message");
     unsafe{
@@ -137,6 +146,7 @@ async fn authorize_service(request: bluer::agent::AuthorizeService, sender: Send
 
     if confirmed {
         println!("allowed pairing with device");
+        sender.send(Message::SwitchActive(true, address, true)).expect("cannot send message");
         Ok(())
     }
     else {

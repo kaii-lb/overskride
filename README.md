@@ -22,9 +22,6 @@ sudo flatpak install -y ~/Downloads/overskride-nightly.flatpak
 rm ~/Downloads/overskride-nightly.flatpak
 ```
 
-# Major releases (old, not the newest features)
-available at [releases page]( https://github.com/kaii-lb/overskride/releases/latest)
-
 # Prerequisites for building
 - gtk4 and libadwaita (development packages)
 - rust
@@ -64,7 +61,7 @@ glib-compile-schemas ~/.local/share/glib-2.0/schemas
 - Audio profiles
 - Battery polling over bluetooth (enable experimental bluetooth options)
 - Transfer rate for incoming/outgoing file transfers
-- More info about device
+- More info about device (with distance approximation)
 
 # What doesn't work
 - Applet support aka system tray

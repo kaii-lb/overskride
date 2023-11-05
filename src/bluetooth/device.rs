@@ -491,7 +491,7 @@ pub async fn get_devices_continuous(sender: Sender<Message>, adapter_name: Strin
 }
 
 #[tokio::main]
-pub async fn get_more_info(address: bluer::Address, adapter_name: String) -> bluer::Result<(String, String, String, String, Vec<String>)> {
+pub async fn get_more_info(address: bluer::Address, adapter_name: String) -> bluer::Result<(String, String, String, String, String, Vec<String>)> {
     let session = bluer::Session::new().await?;
 	let adapter = &session.adapter(&adapter_name)?;
 
@@ -500,6 +500,39 @@ pub async fn get_more_info(address: bluer::Address, adapter_name: String) -> blu
     let name = device.alias().await?;
     let device_type = device.icon().await?.unwrap_or("Unknown".to_string());
     let mut services_list = vec![];
+
+    let distance = async {
+		// factor for if indoors outside etc, between 2 to 4
+    	let n = 3;
+    	let measured = device.tx_power().await?;
+		let rssi  = device.rssi().await?;
+
+		println!("{:?} {:?}", measured, rssi);
+
+		if rssi.is_none() {
+			return bluer::Result::from(Ok("Unknown".to_string()));
+		}
+
+		// the -59 is an average fallback case (closest to current device)
+		let ratio = (measured.unwrap_or(-59) - rssi.unwrap()) as f32;
+		// println!("{}", ratio);
+
+		// basically reverse the logarithmic way or calculate TX power to get the distance
+		// it is absolute fuckery and i have no idea how the hell anyone would come up with this but it works fairly well
+		let dist = 10f32.powf(ratio / (10.0 * n as f32));
+		Ok(format!("≈ {} meters", dist.round()))
+
+
+		// needs testing but this may be more accurate????
+		// var ratio = rssi*1.0/txPower;
+		// if (ratio < 1.0) {
+		// 	return Math.pow(ratio,10);
+		// }
+		// else {
+		// 	var distance =	(0.89976)*Math.pow(ratio,7.7095) + 0.111;		
+		// 	return distance;
+		// }
+    }.await?;
     
     for uuid in device.uuids().await?.unwrap() {
         let service = services::get_name_from_service(uuid).unwrap_or("".to_string());
@@ -526,5 +559,5 @@ pub async fn get_more_info(address: bluer::Address, adapter_name: String) -> blu
 		}
     }
 
-    Ok((name, address.to_string(), manufacturer, device_type, services_list))
+    Ok((name, address.to_string(), manufacturer, device_type, distance, services_list))
 }

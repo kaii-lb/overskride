@@ -270,6 +270,9 @@ impl OverskrideWindow {
                             action_row.set_connected(active);
                             // println!("connected: {}", action_row.connected());
                         }
+                        else if address == bluer::Address::any() {
+                            action_row.set_connected(false);                        	
+                        }
 
                         listbox_index += 1;
                     }
@@ -1769,14 +1772,14 @@ impl OverskrideWindow {
             let adapter_name = unsafe {
                 CURRENT_ADAPTER.clone()
             };
-            let (name, address, manufacturer, device_type, services_list) = if let Ok(info) = device::get_more_info(address, adapter_name) {
+            let (name, address, manufacturer, device_type, distance, services_list) = if let Ok(info) = device::get_more_info(address, adapter_name) {
             	info
             }
             else {
             	return;
             };
 
-            message.initialize_from_info(name, address, manufacturer, device_type, services_list);
+            message.initialize_from_info(name, address, manufacturer, device_type, distance, services_list);
 
             message.set_transient_for(Some(&self_clone7));
             message.set_modal(true);
@@ -2000,3 +2003,4 @@ async fn add_child_row(device: bluer::Device) -> bluer::Result<DeviceActionRow> 
 // - add a battery enable experimental thingy
 // - add a auto accept service if previous
 // - add a disable current connected icon
+// - add a device distance using rssi and tx power
