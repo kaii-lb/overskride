@@ -128,6 +128,8 @@ mod imp {
         pub battery_level_indicator: TemplateChild<BatteryLevelIndicator>,
         #[template_child]
         pub more_info_row: TemplateChild<adw::ActionRow>,
+        #[template_child]
+        pub window_title: TemplateChild<adw::WindowTitle>,
 
         pub settings: OnceCell<Settings>,
         pub display_pass_key_dialog: RefCell<Option<adw::MessageDialog>>,
@@ -408,6 +410,9 @@ impl OverskrideWindow {
                     if split_view.is_collapsed() {
                         split_view.set_show_sidebar(false);
                     }
+
+                    let window_title = clone.imp().window_title.get();
+                    window_title.set_title("Device");
                 },
                 Message::SwitchAdapterPowered(powered) => {
                     let powered_switch_row = clone.imp().powered_switch_row.get();
@@ -1018,13 +1023,19 @@ impl OverskrideWindow {
                     if doso {
                         let bluetooth_settings_row = clone.imp().bluetooth_settings_row.get();
                         bluetooth_settings_row.emit_activate();
+
+                        let window_title = clone.imp().window_title.get();
+                        window_title.set_title("Settings");
                     }
                     else {
                         let listbox = clone.imp().main_listbox.get();
                         
                         if let Some(row) = listbox.row_at_index(0) {
                             listbox.select_row(Some(&row));
-                        } 
+                        }
+
+                        let window_title = clone.imp().window_title.get();
+                        window_title.set_title("Settings");
                     }
                 },
                 Message::RequestYesNo(title, subtitle, confirm, response_type) => {
@@ -1668,6 +1679,9 @@ impl OverskrideWindow {
             if split_view.is_collapsed() {
                 split_view.set_show_sidebar(false);
             }
+
+            let window_title = self_clone3.imp().window_title.get();
+            window_title.set_title("Settings");
         });
         bluetooth_settings_row.emit_activate();
 
@@ -2004,3 +2018,4 @@ async fn add_child_row(device: bluer::Device) -> bluer::Result<DeviceActionRow> 
 // - add a auto accept service if previous
 // - add a disable current connected icon
 // - add a device distance using rssi and tx power
+// - add a possible refresh interval so device that disconnected get picked up immediately (customizable in settings)

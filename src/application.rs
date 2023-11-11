@@ -109,9 +109,8 @@ impl OverskrideApplication {
             .license_type(gtk::License::Gpl30)
             .release_notes("
             <ol>
-				<li>added a currently connected icon</li>
-				<li>connected device(s) is now at the top of the list</li>
-				<li>added a more info page</li> 
+				<li>changed the way window titles work</li>
+				<li>added a distance approximation in more info page</li>
             </ol>
             ")
             .issue_url("https://github.com/kaii-lb/overskride/issues")
