@@ -503,7 +503,7 @@ pub async fn get_more_info(address: bluer::Address, adapter_name: String) -> blu
 
     let distance = async {
 		// factor for if indoors outside etc, between 2 to 4
-    	let n = 2;
+    	let n = 3;
     	let measured = device.tx_power().await?;
 		let rssi  = device.rssi().await?;
 
