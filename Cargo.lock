@@ -915,7 +915,7 @@ checksum = "dd8b5dd2ae5ed71462c540258bedcb51965123ad7e7ccf4b9a8cafaa4a63576d"
 
 [[package]]
 name = "overskride"
-version = "0.5.5"
+version = "0.5.6"
 dependencies = [
  "bluer",
  "dbus",

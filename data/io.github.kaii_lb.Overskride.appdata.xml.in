@@ -1,9 +1,57 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<component type="desktop">
-	<id>io.github.kaii_lb.Overskride.desktop</id>
-	<metadata_license>CC0-1.0</metadata_license>
-	<project_license>GPL-3.0-or-later</project_license>
-	<description>
-	  <p>No description</p>
-	</description>
+<component type="desktop-application">
+  <id>io.github.kaii_lb.overskride</id>
+  
+  <name>Overskride</name>
+  <summary>A simple but powerful bluetooth app</summary>
+  
+  <metadata_license>CC-BY-4.0</metadata_license>
+  <project_license>GPL-3.0-or-later</project_license>
+
+  <content_rating type="oars-1.1" />
+  
+  <recommends>
+    <display_length compare="ge">310</display_length>
+  </recommends>
+  <supports>
+    <control>pointing</control>
+    <control>keyboard</control>
+    <control>touch</control>
+    <control>tablet</control>
+  </supports>
+  
+  <description>
+    <p>
+      A Bluetooth and Obex client that is straight to the point, DE/WM agnostic, and beautiful :D
+    </p>
+    <p>
+      The main features are: - Dynamically enumerate and list all devices known/in range - Authenticating with devices (aka passkey confirmation) - Sending/receiving files - Multiple adapter support - Audio Profile support - Sorting devices by RSSI (signal strength) - Battery polling over Bluetooth (enable experimental Bluetooth options) - Distance approximation - ...and many more
+    </p>
+  </description>
+
+  <releases>
+    <release version="0.5.6" date="2024-11-15" type="stable">
+      <description>
+        <p>Better Device Distance Approximation</p>
+      </description>
+  
+      <url>https://github.com/kaii-lb/overskride/actions/runs/6881017303</url>
+    </release>
+  </releases>
+  
+  <launchable type="desktop-id">io.github.kaii_lb.Overskride.desktop</launchable>
+  <screenshots>
+    <screenshot type="default">
+      <image>https://raw.githubusercontent.com/kaii-lb/overskride/main/assets/images/overskride.png</image>
+      <caption>multi-window screenshot of app</caption>
+    </screenshot>
+    <screenshot>
+      <image>https://raw.githubusercontent.com/kaii-lb/overskride/main/assets/images/center.png</image>
+      <caption>main screen of app</caption>
+    </screenshot>
+    <screenshot>
+      <image>https://raw.githubusercontent.com/kaii-lb/overskride/main/assets/images/left.png</image>
+      <caption>minimized form of connected device</caption>
+    </screenshot>
+  </screenshots>
 </component>

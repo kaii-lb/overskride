@@ -515,12 +515,12 @@ pub async fn get_more_info(address: bluer::Address, adapter_name: String) -> blu
 
 		// the -59 is an average fallback case (closest to current device)
 		let ratio = (measured.unwrap_or(-59) - rssi.unwrap()) as f32;
-		// println!("{}", ratio);
 
 		// basically reverse the logarithmic way or calculate TX power to get the distance
 		// it is absolute fuckery and i have no idea how the hell anyone would come up with this but it works fairly well
 		let dist = 10f32.powf(ratio / (10.0 * n as f32));
-		Ok(format!("≈ {} meters", (dist * 100.0).round() / 100.0))
+
+		Ok(format!("≈ {:.1$} meters", dist, 2))
 
 
 		// needs testing but this may be more accurate????

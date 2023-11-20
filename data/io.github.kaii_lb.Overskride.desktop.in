@@ -1,8 +1,13 @@
 [Desktop Entry]
-Name=overskride
-Exec=overskride
+Version=1.0
+Type=Application
+
+Name=Overskride
+Comment=A simple yet powerful bluetooth app!
+Categories=Utility;
+Keywords=blue;bluetooth;transfer;send;audio;share;
+
 Icon=io.github.kaii_lb.Overskride
 Terminal=false
-Type=Application
-Categories=GTK;
+Exec=overskride
 StartupNotify=true

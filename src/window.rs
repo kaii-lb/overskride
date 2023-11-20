@@ -1256,10 +1256,11 @@ impl OverskrideWindow {
                     // trauma
                     let listbox = audio_profile_expander.last_child().unwrap().downcast::<gtk::Box>().unwrap()
                         .last_child().unwrap().downcast::<gtk::Revealer>().unwrap().last_child().unwrap().downcast::<gtk::ListBox>(); 
-                
-                    // remove all child rows
-                    if listbox.clone().is_ok() {
-                        while let Some(supposed_row) = listbox.clone().unwrap().last_child() {
+
+                	
+                    // remove all child rows and set sort func
+                    if listbox.is_ok() {
+	                	while let Some(supposed_row) = listbox.clone().unwrap().last_child() {
                             listbox.clone().unwrap().remove(&supposed_row);
                         }
                     }
@@ -1293,6 +1294,25 @@ impl OverskrideWindow {
 
                         audio_profile_expander.add_row(&child);
                     }
+
+                    listbox.clone().unwrap().set_sort_func(|row_one, row_two| {
+        	            let binding_one = row_one.clone().downcast::<adw::ActionRow>().unwrap().title();
+        	            let binding_two = row_two.clone().downcast::<adw::ActionRow>().unwrap().title();
+        	            
+        	            let mut one = binding_one.as_str();
+        	            let mut two = binding_two.as_str();
+        	            
+        	        	let one_str = one.to_lowercase();
+        	            let two_str = two.to_lowercase();
+        	            
+        	            one = one_str.as_str();
+        	            two = two_str.as_str();
+        	            
+        	            let name_result = two.cmp(one);
+
+        				name_result.into()
+        	        });
+       	        	listbox.clone().unwrap().invalidate_sort();
                 },
                 Message::SwitchAudioProfilesList(state) => {
                     let audio_profile_expander = clone.imp().audio_profile_expander.get();
@@ -2019,3 +2039,4 @@ async fn add_child_row(device: bluer::Device) -> bluer::Result<DeviceActionRow> 
 // - add a disable current connected icon
 // - add a device distance using rssi and tx power
 // - add a possible refresh interval so device that disconnected get picked up immediately (customizable in settings)
+// - add a auto accept after first file
