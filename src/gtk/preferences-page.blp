@@ -1,0 +1,23 @@
+using Gtk 4.0;
+using Adw 1;
+
+Adw.PreferencesWindow pref_window {
+  default-width: 600;
+  default-height: 500;
+  title: _("Preferences");
+
+  Adw.PreferencesPage {
+    title: _("Behavior");
+    icon-name: "settings-symbolic";
+
+    Adw.PreferencesGroup {
+      title: _("Sharing Settings");
+      description: _("Change how the app behaves during file transfers.");
+
+      Adw.SwitchRow auto_accept_after_first_row {
+        title: _("Auto Accept After First File");
+        subtitle: _("when receiving files, auto accept every file after the first one");
+      }
+    }
+  }
+}

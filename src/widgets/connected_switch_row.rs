@@ -6,6 +6,8 @@ use gtk::prelude::ObjectExt;
 use std::cell::RefCell;
 
 mod imp {
+    use gtk::prelude::WidgetExt;
+
     use super::*;    
 
     /// an adw::SwitchRow but with the ability to show a spinning icon next to it
@@ -47,6 +49,9 @@ mod imp {
     impl ObjectImpl for ConnectedSwitchRow {
         fn constructed(&self) {
             self.parent_constructed();
+            self.switch.get().connect_activate(|meeee| {
+                meeee.parent().unwrap().activate();
+            });
         }
     }
 
@@ -83,7 +88,6 @@ mod imp {
             self.switch.set_active(active);
             *self.active.borrow_mut() = active;
         }
-
     }
 }
 
@@ -98,7 +102,7 @@ impl ConnectedSwitchRow {
     pub fn new() -> Self {
         Object::builder()
             .build()
-    }
+    }    
 }
 
 impl Default for ConnectedSwitchRow {

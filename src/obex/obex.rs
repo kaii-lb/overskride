@@ -25,6 +25,7 @@ static mut OUTBOUND: bool = false;
 static mut LAST_BYTES: u64 = 0;
 pub static mut BREAKING: bool = false;
 pub static mut CANCEL: bool = false;
+pub static mut AUTO_ACCEPT_AFTER_FIRST: bool = true;
 
 // fn approx_equal(a: f32, b: f32, decimal_places: u8) -> bool {
 //     let factor = 10.0f32.powi(decimal_places as i32);
@@ -92,7 +93,7 @@ fn handle_properties_updated(interface: String, changed_properties: PropMap, tra
 
             // calculate the transfer speed by subtracting the current amount from the last
             let value_kb = unsafe {
-                println!("transferred: {}, last: {}", transferred.unwrap(), LAST_BYTES);
+                // println!("transferred: {}, last: {}", transferred.unwrap(), LAST_BYTES);
                 (transferred.unwrap_or(0) / 1000).saturating_sub(LAST_BYTES / 1000)
             };
 
@@ -134,11 +135,15 @@ fn handle_interface_added(path: &Path, interfaces: &HashMap<String, PropMap>) {
             }
         }
         // if the interface is a transfer then handle the properties updated signal
-        else if interface.0 == TRANSFER_INTERFACE && path.contains("server") && path.contains("transfer"){
+        else if interface.0 == TRANSFER_INTERFACE && path.contains("server") && path.contains("transfer") {
             let conn: &mut Connection;
             unsafe { 
                 conn = SESSION_BUS.get_mut().unwrap().as_mut().unwrap();
-                CURRENT_TRANSFER = path.clone().to_string();
+				if CURRENT_TRANSFER != path.to_string()	{
+					CONFIRMATION_AUTHORIZATION = false	
+				}
+                
+                CURRENT_TRANSFER = path.to_string();
                 println!("path is {}", path);            
             }
             let proxy = conn.with_proxy("org.bluez.obex", path, Duration::from_millis(1000));
@@ -263,7 +268,7 @@ fn create_agent(cr: &mut Crossroads, sender: Sender<Message>) {
                 }
                 let mb = ((filesize as f32 / 1000000.0) * 100.0).round() / 100.0; // to megabytes
 
-				// get the target device, if it doesn't exist panic ensues
+				// get the target device, if it doesn't exist, panic ensues
 				let sender_props = conn.with_proxy("org.bluez.obex", session, std::time::Duration::from_secs(5)).get_all(SESSION_INTERFACE).unwrap();
 				let device = sender_props.get("Destination").expect("cannot get sender device").0.as_str().unwrap_or("00:00:00:00:00:00");
 
@@ -290,12 +295,14 @@ fn create_agent(cr: &mut Crossroads, sender: Sender<Message>) {
                 }	
 
                 // spawn a dialog returning the accepted bool, no accepted => reject transfer
-                if spawn_dialog(filename.clone(), &sender, device_name) {
+                if unsafe { CONFIRMATION_AUTHORIZATION } || spawn_dialog(filename.clone(), &sender, device_name) {
                     println!("transfer is: {:?}", transfer);
                     sender.send(Message::StartTransfer(transfer.to_string(), filename.clone(), 0.0, 0.0, mb, false)).expect("cannot send message");
 
                     unsafe {
-                        CONFIRMATION_AUTHORIZATION = false;
+                    	if !AUTO_ACCEPT_AFTER_FIRST {
+                        	CONFIRMATION_AUTHORIZATION = false;
+                    	}
                     }
                     
                     Ok((filename,))
@@ -329,9 +336,9 @@ fn create_agent(cr: &mut Crossroads, sender: Sender<Message>) {
             Ok(())
         });
     });
-    println!("created obex agent");
-
     cr.insert("/overskride/agent", &[agent], ());
+
+    println!("created obex agent");
 }
 
 /// Spawns a new dialog asking the user to allow or reject a file transfer from a device
