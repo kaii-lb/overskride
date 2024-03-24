@@ -2031,7 +2031,6 @@ async fn add_child_row(device: bluer::Device) -> bluer::Result<DeviceActionRow> 
 // - use fxhashmap for even faster lookups
 // - add option to auto trust device on pair (include warning about how dangerous it is)
 // - background running, with a status taskbar thingy wtv its name is
-// - find out what is causing hang on start
 // - add a loop for if obex and bluetooth agents fail
 // - make new battery implementation
 // - add a battery enable experimental thingy
@@ -2040,3 +2039,4 @@ async fn add_child_row(device: bluer::Device) -> bluer::Result<DeviceActionRow> 
 // - add a device distance using rssi and tx power
 // - add a possible refresh interval so device that disconnected get picked up immediately (customizable in settings)
 // - add a auto accept after first file
+// - find out what is causing hang on start
