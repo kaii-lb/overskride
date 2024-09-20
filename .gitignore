@@ -1,0 +1,15 @@
+build/
+/subprojects/blueprint-compiler
+target/
+.git/
+.gitignore
+.vscode/
+.flatpak-builder/
+overskride.flatpak
+overskride.zip
+overskride-flatpak
+flatpak-build
+buildflatpak/
+flatpakexport/
+data/appdata
+previousrelease.txt

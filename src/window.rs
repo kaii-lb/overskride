@@ -130,6 +130,8 @@ mod imp {
         pub more_info_row: TemplateChild<adw::ActionRow>,
         #[template_child]
         pub window_title: TemplateChild<adw::WindowTitle>,
+        #[template_child]
+        pub hide_unknowns_switch_row: TemplateChild<adw::SwitchRow>,
 
         pub settings: OnceCell<Settings>,
         pub display_pass_key_dialog: RefCell<Option<adw::MessageDialog>>,
@@ -342,9 +344,14 @@ impl OverskrideWindow {
                     let row = add_child_row(device);
                 	
                     if let Ok(ok_row) = row {
-                        let main_listbox = clone.imp().main_listbox.get();
-                        main_listbox.append(&ok_row);
-                        main_listbox.invalidate_sort();
+   	                    let hide_unknowns_switch_row = clone.imp().hide_unknowns_switch_row.get();
+	                    let is_active = hide_unknowns_switch_row.is_active();
+
+                    	if ok_row.title() != "Unknown Title" && !is_active {
+	                        let main_listbox = clone.imp().main_listbox.get();
+	                        main_listbox.append(&ok_row);
+	                        main_listbox.invalidate_sort();
+                    	}
                     }
                 },
                 Message::RemoveDevice(name, address) => {
@@ -354,9 +361,13 @@ impl OverskrideWindow {
 
                     // loop over main listbox and remove the row that matches
                     while let Some(row) = listbox.row_at_index(index) {
-                        // println!("{}", index);
                         let action_row = row.downcast::<DeviceActionRow>().expect("cannot downcast to action row.");
-                        // println!("{:?}", action_row.clone());
+						let hide_unknowns_switch_row = clone.imp().hide_unknowns_switch_row.get();
+	                    let is_active = hide_unknowns_switch_row.is_active();
+
+						if action_row.title() == "Unknown Device" && is_active {
+							listbox.remove(&action_row);
+						}
                         
                         if action_row.title() == name && action_row.get_bluer_address() == address {
                             action_row.set_connected(false);
