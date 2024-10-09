@@ -59,6 +59,7 @@ pub static mut CONFIRMATION_AUTHORIZATION: bool = false;
 pub static mut STORE_FOLDER: String = String::new();
 pub static mut SEND_FILES_PATH: Vec<String> = vec![];
 pub static mut AUTO_ACCEPT_FROM_TRUSTED: bool = false;
+pub static mut HIDE_UNKNOWN_DEVICES: bool = false;
 
 mod imp {
     use crate::{receiving_popover::ReceivingPopover, receiving_row::ReceivingRow, battery_indicator::BatteryLevelIndicator};
@@ -346,12 +347,12 @@ impl OverskrideWindow {
                     if let Ok(ok_row) = row {
    	                    let hide_unknowns_switch_row = clone.imp().hide_unknowns_switch_row.get();
 	                    let is_active = hide_unknowns_switch_row.is_active();
-
-                    	if ok_row.title() != "Unknown Title" && !is_active {
-	                        let main_listbox = clone.imp().main_listbox.get();
+						
+                    	if !(ok_row.title() == "Unknown Title" && is_active) {
+							let main_listbox = clone.imp().main_listbox.get();
 	                        main_listbox.append(&ok_row);
-	                        main_listbox.invalidate_sort();
-                    	}
+	                        main_listbox.invalidate_sort();                    		
+	                    }
                     }
                 },
                 Message::RemoveDevice(name, address) => {
@@ -1207,6 +1208,17 @@ impl OverskrideWindow {
                     }
         
                 },
+                Message::SetHideUnknownDevices(hidden) => {
+                	let hide_unknowns_switch_row = clone.imp().hide_unknowns_switch_row.get();
+                	hide_unknowns_switch_row.set_active(hidden);
+
+					println!("hidden devices set to {}", hidden);
+                	
+                	unsafe {
+                		HIDE_UNKNOWN_DEVICES = hidden
+                	}
+                	clone.imp().settings.get().expect("cannot get settings for file save location").set_boolean("hide-unknown-devices", hidden).expect("cannot set hide unknown devices");
+                },
                 Message::SwitchHasObexService(state) => {
                 	let connected_switch_row = clone.imp().connected_switch_row.get();
                 	connected_switch_row.set_has_obex(state);
@@ -1831,6 +1843,19 @@ impl OverskrideWindow {
 
             message.show();
         });
+
+		// set the hide unknown devices boolean
+		let hide_unknowns_switch_row = self.imp().hide_unknowns_switch_row.get();
+		let sender14 = sender.clone();
+        hide_unknowns_switch_row.connect_activated(move |row| {
+			let active = row.is_active();
+
+			sender14.send(Message::SetHideUnknownDevices(!active)).expect("cannot send message");
+        	unsafe {
+        		HIDE_UNKNOWN_DEVICES = !active;
+        	}
+        });
+        hide_unknowns_switch_row.set_active(unsafe { HIDE_UNKNOWN_DEVICES });    
     }
 
     /// on app exit, save the current settings
@@ -1887,10 +1912,13 @@ impl OverskrideWindow {
 
         println!("store folder is: {}", &store_folder);
         file_save_location.set_text(&store_folder);
+
+		let hide_unknown_devices = settings.boolean("hide-unknown-devices");
         
-        unsafe {
+        unsafe {		
             STORE_FOLDER = store_folder;
             FIRST_AUTO_ACCEPT = first_auto_accept;
+            HIDE_UNKNOWN_DEVICES = hide_unknown_devices
         }
     }
 

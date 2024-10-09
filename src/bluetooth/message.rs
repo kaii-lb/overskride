@@ -99,4 +99,6 @@ pub enum Message {
     SwitchAudioProfileExpanded(bool),
     /// Updates the `LeverBar` of the device to match the battery level reported
     UpdateBatteryLevel(i8),
+    /// Sets the "hide unknown devices" settings according to the given `bool`
+    SetHideUnknownDevices(bool)
 } 

@@ -29,6 +29,10 @@
 			<default>true</default>
 			<summary>one time auto accept indicator</summary>
 		</key>		
+		<key name="hide-unknown-devices" type="b">
+			<default>false</default>
+			<summary>hides unknown devices from the device list</summary>
+		</key>				
 	</schema>
 </schemalist>
 
