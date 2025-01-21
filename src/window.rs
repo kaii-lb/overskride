@@ -42,7 +42,7 @@ use crate::services::get_name_from_service;
 use crate::obex::{register_obex_agent, self};
 use crate::agent::register_bluetooth_agent;
 
-// U N S A F E T Y 
+// U N S A F E T Y
 static mut CURRENT_INDEX: i32 = 0;
 static mut CURRENT_SENDER: Option<Sender<Message>> = None;
 static mut RSSI_LUT: Option<HashMap<String, i32>> = None;
@@ -59,7 +59,7 @@ pub static mut CONFIRMATION_AUTHORIZATION: bool = false;
 pub static mut STORE_FOLDER: String = String::new();
 pub static mut SEND_FILES_PATH: Vec<String> = vec![];
 pub static mut AUTO_ACCEPT_FROM_TRUSTED: bool = false;
-pub static mut HIDE_UNKNOWN_DEVICES: bool = false;
+pub static mut HIDE_UNKNOWN_DEVICES: bool = true;
 
 mod imp {
     use crate::{receiving_popover::ReceivingPopover, receiving_row::ReceivingRow, battery_indicator::BatteryLevelIndicator};
@@ -98,7 +98,7 @@ mod imp {
         #[template_child]
         pub adapter_name_entry: TemplateChild<adw::EntryRow>,
         #[template_child]
-        pub timeout_time_adjustment: TemplateChild<gtk::Adjustment>,   
+        pub timeout_time_adjustment: TemplateChild<gtk::Adjustment>,
         #[template_child]
         pub default_controller_expander: TemplateChild<adw::ExpanderRow>,
         #[template_child]
@@ -156,7 +156,7 @@ mod imp {
 
             klass.bind_template();
             /*klass.install_action("win.refresh_devices", None, move |win, _, _| {
-                
+
             });*/
         }
 
@@ -168,7 +168,7 @@ mod imp {
     impl ObjectImpl for OverskrideWindow {
         fn constructed(&self) {
             self.parent_constructed();
-            
+
             let obj = self.obj();
             obj.setup_settings();
             obj.preload_settings();
@@ -188,7 +188,7 @@ mod imp {
 
 glib::wrapper! {
     pub struct OverskrideWindow(ObjectSubclass<imp::OverskrideWindow>)
-        @extends gtk::Widget, gtk::Window, gtk::ApplicationWindow, adw::ApplicationWindow,        
+        @extends gtk::Widget, gtk::Window, gtk::ApplicationWindow, adw::ApplicationWindow,
         @implements gio::ActionGroup, gio::ActionMap;
 }
 
@@ -199,9 +199,9 @@ impl OverskrideWindow {
         //  .build();
 
         let win: OverskrideWindow = glib::Object::builder().property("application", application).build();
-        
+
         win.setup();
-        
+
         win
     }
 
@@ -213,14 +213,14 @@ impl OverskrideWindow {
     /// Sets up the application. Basically it binds actions to stuff and updates what needs to be updated.
     fn setup(&self) {
         let (sender, receiver) = glib::MainContext::channel::<Message>(glib::Priority::default());
-        
+
         // if pre setup is an error, get the hell out, show error to user
         // suggest solutions
         // then profit
         if let Err(err) = self.pre_setup(sender.clone()) {
             println!("ERROR: cannot start presetup, something got REALLY fucked");
             println!("error is: {:?}", err);
-            
+
             let clone = self.clone();
             let message = StartupErrorMessage::new();
 
@@ -229,7 +229,7 @@ impl OverskrideWindow {
 
             // clone.set_sensitive(false);
             message.connect_destroy(move |_| {
-                gtk::prelude::WidgetExt::activate_action(&clone, "app.quit", None).expect("cannot exit app on message close");        
+                gtk::prelude::WidgetExt::activate_action(&clone, "app.quit", None).expect("cannot exit app on message close");
             });
 
             message.show();
@@ -256,14 +256,14 @@ impl OverskrideWindow {
 					if is_current {
         	            let connected_switch_row = clone.imp().connected_switch_row.get();
 	                    std::thread::sleep(std::time::Duration::from_millis(200));
-	                    connected_switch_row.set_switch_active(active);			
+	                    connected_switch_row.set_switch_active(active);
 
 						// is this redundant? we'll never know
 						if connected_switch_row.has_obex() {
 	                    	sender_for_receiver_clone.clone().send(Message::SwitchSendFileActive(active)).expect("cannot send message");
 						}
 						else {
-	                    	sender_for_receiver_clone.clone().send(Message::SwitchSendFileActive(false)).expect("cannot send message");						
+	                    	sender_for_receiver_clone.clone().send(Message::SwitchSendFileActive(false)).expect("cannot send message");
 						}
 					}
 
@@ -276,7 +276,7 @@ impl OverskrideWindow {
                             // println!("connected: {}", action_row.connected());
                         }
                         else if address == bluer::Address::any() {
-                            action_row.set_connected(false);                        	
+                            action_row.set_connected(false);
                         }
 
                         listbox_index += 1;
@@ -284,13 +284,13 @@ impl OverskrideWindow {
                 },
                 Message::SwitchActiveSpinner(spinning) => {
                     let connected_switch_row = clone.imp().connected_switch_row.get();
-                    
+
                     connected_switch_row.set_spinning(spinning);
                 },
                 Message::SwitchName(alias, optional_old_alias, address) => {
                     let list_box = clone.imp().main_listbox.get();
-                    let index = unsafe { 
-                    	CURRENT_INDEX 
+                    let index = unsafe {
+                    	CURRENT_INDEX
                     };
                     let mut listbox_index = 0;
 
@@ -316,7 +316,7 @@ impl OverskrideWindow {
                         }
                     }
                     // don't set text if the text is already set
-                    // #philosophy 
+                    // #philosophy
                     let device_name_entry = clone.imp().device_name_entry.get();
                     if device_name_entry.text() != alias {
                     	device_name_entry.set_text(&alias);
@@ -325,11 +325,11 @@ impl OverskrideWindow {
                 Message::SwitchRssi(device_name, rssi) => {
                     let list_box = clone.imp().main_listbox.get();
                     let mut listbox_index = 0;
-                    
+
                     // loop over main listbox and get row that matches, updating its rssi
                     while let Some(row) = list_box.row_at_index(listbox_index) {
                         let action_row = row.downcast::<DeviceActionRow>().expect("cannot downcast to device action row.");
-                        
+
                         // println!("device {}, with rssi {} changed", device_name.clone(), rssi);
 
                         if action_row.title() == device_name {
@@ -343,15 +343,15 @@ impl OverskrideWindow {
                 },
                 Message::AddRow(device) => {
                     let row = add_child_row(device);
-                	
+
                     if let Ok(ok_row) = row {
    	                    let hide_unknowns_switch_row = clone.imp().hide_unknowns_switch_row.get();
 	                    let is_active = hide_unknowns_switch_row.is_active();
-						
-                    	if !(ok_row.title() == "Unknown Title" && is_active) {
+
+                    	if !(ok_row.title() == "Unknown Device" && is_active) {
 							let main_listbox = clone.imp().main_listbox.get();
 	                        main_listbox.append(&ok_row);
-	                        main_listbox.invalidate_sort();                    		
+	                        main_listbox.invalidate_sort();
 	                    }
                     }
                 },
@@ -369,16 +369,16 @@ impl OverskrideWindow {
 						if action_row.title() == "Unknown Device" && is_active {
 							listbox.remove(&action_row);
 						}
-                        
+
                         if action_row.title() == name && action_row.get_bluer_address() == address {
                             action_row.set_connected(false);
-                            
+
                             if let Some(selected_row) = listbox.selected_row() {
                             	let downcasted = selected_row.downcast::<DeviceActionRow>().expect("cannot downcast to action row.");
 
                             	selected = downcasted.get_bluer_address() == action_row.get_bluer_address() && downcasted.title() == action_row.title();
                             }
-                            
+
                            	listbox.remove(&action_row);
                         }
                         index += 1;
@@ -397,7 +397,7 @@ impl OverskrideWindow {
                     let entry_row = clone.imp().device_name_entry.get();
                     let device_title = clone.imp().device_title.get();
                     let device_icon = clone.imp().device_icon.get();
-                    
+
                     if let Some(name) = alias {
 	                    entry_row.set_text(name.as_str());
 	                    device_title.set_text(name.as_str());
@@ -408,12 +408,12 @@ impl OverskrideWindow {
 	                    let final_icon_name = icon.clone() + "-symbolic";
 
 	                    device_icon.set_icon_name(Some(final_icon_name.as_str()));
-	                    println!("icon name is: {}", icon);	
+	                    println!("icon name is: {}", icon);
 					}
-                    
+
                     let secondary_listbox = clone.imp().secondary_listbox.get();
                     secondary_listbox.unselect_all();
-                    
+
                     let main_stack = clone.imp().main_stack.get();
                     let pages = main_stack.pages();
                     pages.select_item(0, true);
@@ -436,17 +436,17 @@ impl OverskrideWindow {
                 },
                 Message::SwitchAdapterName(new_alias, old_alias) => {
                     let default_controller_expander = clone.imp().default_controller_expander.get();
-                    let listbox = default_controller_expander.last_child().unwrap().downcast::<gtk::Box>().unwrap(); 
+                    let listbox = default_controller_expander.last_child().unwrap().downcast::<gtk::Box>().unwrap();
                     let revealer = listbox.last_child().unwrap().downcast::<gtk::Revealer>().unwrap();
-                    
+
                     let listbox = revealer.last_child().unwrap().downcast::<gtk::ListBox>().unwrap();
-                    
-                    // loop over all adapter rows and change the alias to the new one 
+
+                    // loop over all adapter rows and change the alias to the new one
                     // alias is not the same as name, alias: "laptop 1", name: "hci0"
                     let mut index = 0;
                     while let Some(row) = listbox.row_at_index(index) {
                         let action_row = row.downcast::<adw::ActionRow>().expect("cannot downcast to action row.");
-                    
+
                         if action_row.title() == old_alias {
                             action_row.set_title(new_alias.as_str());
                         }
@@ -465,7 +465,7 @@ impl OverskrideWindow {
                 Message::PopulateAdapterExpander(hashmap) => {
                     let default_controller_expander = clone.imp().default_controller_expander.get();
                     let listbox = default_controller_expander.last_child().unwrap().downcast::<gtk::Box>().unwrap()
-                        .last_child().unwrap().downcast::<gtk::Revealer>().unwrap().last_child().unwrap().downcast::<gtk::ListBox>(); 
+                        .last_child().unwrap().downcast::<gtk::Revealer>().unwrap().last_child().unwrap().downcast::<gtk::ListBox>();
 
                     // remove all rows in expander
                     if listbox.clone().is_ok() {
@@ -484,13 +484,13 @@ impl OverskrideWindow {
                         let holder = unsafe {
                         	ORIGINAL_ADAPTER.to_string()
                         };
-                        
+
                         let name = val.clone().unwrap_or(holder);
                         //println!("name is {}", name.clone());
                         //println!("alias is {}", alias.clone());
 
                         row.set_title(alias.as_str());
-                                                
+
                         unsafe {
                             if CURRENT_ADAPTER == name.clone() {
                                 row.set_selected(true);
@@ -498,14 +498,14 @@ impl OverskrideWindow {
                             else {
                                 row.set_selected(false);
                             }
-                        } 
+                        }
 
                         let listbox_clone = listbox.clone();
                         let sender_clone = sender_for_receiver_clone.clone();
 
                         // on row click, set the current adapter to this one and refresh the devices list
                         row.set_activatable(true);
-                        row.connect_activated(move |row| { 
+                        row.connect_activated(move |row| {
                             // should move this to the sender message of the audio expander
                             let mut index = 0;
                             if listbox_clone.clone().is_ok() {
@@ -517,7 +517,7 @@ impl OverskrideWindow {
                                     index += 1;
                                 }
                             }
-                            
+
                             unsafe {
                                 CURRENT_ADAPTER = name.to_string();
                                 println!("current adapter name is: {}", CURRENT_ADAPTER.clone());
@@ -528,14 +528,14 @@ impl OverskrideWindow {
                             }
                             row.set_selected(true);
                         });
-                        
-                        default_controller_expander.add_row(&row);                        
+
+                        default_controller_expander.add_row(&row);
                     }
                 },
                 Message::PopupError(string, priority) => {
                     let toast_overlay = clone.imp().toast_overlay.get();
                     let toast = adw::Toast::new("");
-                    
+
                     toast.set_priority(priority);
 
                     // best practices out the window :D
@@ -647,10 +647,10 @@ impl OverskrideWindow {
                             "Location is not valid, please try again"
                         },
                         s if s.to_lowercase().contains("file-storage-cache-invalid") => {
-                        	"File cache location is invalid, are you sure ~/.cache (or equivalent) exists?"	
+                        	"File cache location is invalid, are you sure ~/.cache (or equivalent) exists?"
                         },
                         s if s.to_lowercase().contains("device-name-exists") => {
-                        	"Error, device with name already exists"	
+                        	"Error, device with name already exists"
                         },
                         e => {
                             println!("unknown error: {}", e.clone());
@@ -660,13 +660,13 @@ impl OverskrideWindow {
 
                     let mut title = String::new();
                     let boxholder = gtk::Box::new(gtk::Orientation::Horizontal, 8);
-                    
+
                     toast.set_timeout(3);
                     match priority {
                         adw::ToastPriority::High => {
                             // custom_title.set_css_classes(&["warning", state.as_str()]);
                             title += "<span font_weight='bold'>";
-                            
+
                             let icon = gtk::Image::new();
                             icon.set_icon_name(Some("bell-outline-symbolic"));
                             boxholder.append(&icon);
@@ -680,12 +680,12 @@ impl OverskrideWindow {
 
                     title += title_holder;
                     title += "</span>";
-                    
+
                     label.set_use_markup(true);
                     label.set_label(&title);
 
                     toast.set_custom_title(Some(&boxholder));
-                    
+
                     toast_overlay.add_toast(toast);
                 },
                 Message::UpdateListBoxImage() => {
@@ -711,29 +711,29 @@ impl OverskrideWindow {
                         adapter = ADAPTERS_LUT.clone().unwrap().get(&request.adapter).unwrap_or(&"Unknown Adapter".to_string()).to_string();
                         DISPLAYING_DIALOG = true
                     }
-            
+
                     let body = device + "has requested pairing on " + adapter.as_str() + ", please enter the correct pin code.";
                     let popup = adw::MessageDialog::new(Some(&clone), Some("Pin Code Requested"), Some(body.as_str()));
-            
+
                     // popup.set_modal(true);
                     popup.set_destroy_with_parent(true);
-                    
+
                     popup.add_response("cancel", "Cancel");
                     popup.add_response("confirm", "Confirm");
                     popup.set_response_appearance("confirm", adw::ResponseAppearance::Suggested);
                     popup.set_default_response(Some("confirm"));
                     popup.set_close_response("cancel");
-            
+
                     let entry = gtk::Entry::new();
                     entry.set_placeholder_text(Some("12345 or abcde"));
                     popup.set_extra_child(Some(&entry));
                     popup.set_response_enabled("confirm", false);
-            
+
                     entry.connect_changed(clone!(@weak popup => move |entry| {
                         let is_empty = entry.text().is_empty();
-            
+
                         popup.set_response_enabled("confirm", !is_empty);
-            
+
                         if is_empty {
                             entry.add_css_class("error");
                         }
@@ -742,7 +742,7 @@ impl OverskrideWindow {
                         }
                     }));
                     entry.add_css_class("error");
-                    
+
                     let pin_code = Rc::new(RefCell::new(String::new()));
                     popup.clone().choose(gtk::gio::Cancellable::NONE, move |response| {
                         match response.to_string() {
@@ -769,17 +769,17 @@ impl OverskrideWindow {
 
                     let body = "Please enter this pin code on ".to_string() + device.as_str();
                     let popup = adw::MessageDialog::new(Some(&clone), None, Some(body.as_str()));
-                    
+
                     let label = gtk::Label::new(Some(pin_code.as_str()));
-            
+
                     popup.set_extra_child(Some(&label));
                     popup.add_response("okay", "Okay");
                     popup.set_close_response("okay");
-            
+
                     popup.clone().choose(gtk::gio::Cancellable::NONE,  move |_| {
                         unsafe {
                             DISPLAYING_DIALOG = false;
-                        }                            
+                        }
                     });
                 },
                 Message::RequestPassKey(request) => {
@@ -790,32 +790,32 @@ impl OverskrideWindow {
                         adapter = ADAPTERS_LUT.clone().unwrap().get(&request.adapter).unwrap_or(&"Unknown Adapter".to_string()).to_string();
                         DISPLAYING_DIALOG = true;
                     }
-            
+
                     let body = device + "has requested pairing on " + adapter.as_str() + ", please enter the correct pass key.";
                     let popup = adw::MessageDialog::new(Some(&clone), Some("Pass Key Requested"), Some(body.as_str()));
-            
+
                     popup.set_close_response("cancel");
                     // popup.set_modal(true);
                     popup.set_destroy_with_parent(true);
-            
+
                     popup.add_response("cancel", "Cancel");
                     popup.add_response("confirm", "Confirm");
                     popup.set_response_appearance("confirm", adw::ResponseAppearance::Suggested);
                     popup.set_default_response(Some("confirm"));
-            
+
                     let entry = gtk::Entry::new();
                     entry.set_placeholder_text(Some("0-999999"));
                     entry.set_input_purpose(gtk::InputPurpose::Digits);
                     entry.set_max_length(6);
-            
+
                     popup.set_extra_child(Some(&entry));
                     popup.set_response_enabled("confirm", false);
-            
+
                     entry.connect_changed(clone!(@weak popup => move |entry| {
                         let is_empty = entry.text().is_empty();
-            
+
                         popup.set_response_enabled("confirm", !is_empty);
-            
+
                         if is_empty {
                             entry.add_css_class("error");
                         }
@@ -824,7 +824,7 @@ impl OverskrideWindow {
                         }
                     }));
                     entry.add_css_class("error");
-            
+
                     let pass_key = Rc::new(RefCell::new(String::new()));
                     popup.clone().choose(gtk::gio::Cancellable::NONE, move |response| {
                         match response.to_string() {
@@ -848,23 +848,23 @@ impl OverskrideWindow {
                         device = DEVICES_LUT.clone().unwrap().get(&request.device).unwrap_or(&"Unknown Device".to_string()).to_string();
                         DISPLAYING_DIALOG = true;
                     }
-            
+
                     if clone.imp().display_pass_key_dialog.borrow().clone().is_some() {
                         let dialog = clone.imp().display_pass_key_dialog.borrow().clone().unwrap();
                         let label = dialog.extra_child().unwrap().downcast::<gtk::Label>().unwrap();
-            
+
                         label.set_text(pin_code.to_string().as_str());
                     }
                     else {
                         let body = "Please enter this pin code on ".to_string() + device.as_str();
                         let popup = adw::MessageDialog::new(Some(&clone), None, Some(body.as_str()));
-                        
+
                         let label = gtk::Label::new(Some(pin_code.to_string().as_str()));
-                
+
                         popup.set_extra_child(Some(&label));
                         popup.add_response("okay", "Okay");
                         popup.set_close_response("okay");
-                        
+
                         popup.clone().choose(gtk::gio::Cancellable::NONE,  move |_| {
                             unsafe {
                                 DISPLAYING_DIALOG = false;
@@ -895,28 +895,28 @@ impl OverskrideWindow {
 							adapter = holder;
 						}
                     }
-            
+
                     let body = "Is this the right code for ".to_string() + device.as_str() + " on " + adapter.as_str();
                     let popup = adw::MessageDialog::new(Some(&clone), Some("Pairing Request"), None);
                     popup.set_body_use_markup(true);
                     popup.set_body(body.as_str());
-            
+
                     popup.set_close_response("cancel");
                     // popup.set_modal(true);
                     popup.set_destroy_with_parent(true);
-            
+
                     popup.add_response("cancle", "Cancel");
                     popup.add_response("allow", "Allow");
                     popup.set_response_appearance("allow", adw::ResponseAppearance::Suggested);
                     popup.set_default_response(Some("allow"));
-            
+
                     let string = "<span font_weight='bold' font_size='32pt'>".to_string() + passkey + "</span>";
                     let label = gtk::Label::new(None);
                     label.set_use_markup(true);
                     label.set_label(string.as_str());
-            
+
                     popup.set_extra_child(Some(&label));
-       
+
                     let pass_key = Rc::new(RefCell::new(false));
                     popup.clone().choose(gtk::gio::Cancellable::NONE, move |response| {
                         match response.to_string() {
@@ -931,7 +931,7 @@ impl OverskrideWindow {
                             DISPLAYING_DIALOG = false;
                             CONFIRMATION_AUTHORIZATION = *pass_key.borrow();
                         }
-                    });            
+                    });
                 },
                 Message::RequestAuthorization(request) => {
                     let device: String;
@@ -941,21 +941,21 @@ impl OverskrideWindow {
                         adapter = ADAPTERS_LUT.clone().unwrap().get(&request.adapter).unwrap_or(&"Unknown Adapter".to_string()).to_string();
                         DISPLAYING_DIALOG = true;
                     }
-            
+
                     let body = "Is `".to_string() + device.as_str() + "` on `" + adapter.as_str() + "` allowed to pair?";
                     let popup = adw::MessageDialog::new(Some(&clone), Some("Pairing Request"), None);
                     popup.set_body_use_markup(true);
                     popup.set_body(body.as_str());
-            
+
                     popup.set_close_response("cancel");
                     // popup.set_modal(true);
                     popup.set_destroy_with_parent(true);
-            
+
                     popup.add_response("cancle", "Cancel");
                     popup.add_response("allow", "Allow");
                     popup.set_response_appearance("allow", adw::ResponseAppearance::Suggested);
                     popup.set_default_response(Some("allow"));
-                            
+
                     let pass_key = Rc::new(RefCell::new(false));
                     popup.clone().choose(gtk::gio::Cancellable::NONE, move |response| {
                         match response.to_string() {
@@ -970,7 +970,7 @@ impl OverskrideWindow {
                             DISPLAYING_DIALOG = false;
                             CONFIRMATION_AUTHORIZATION = *pass_key.borrow();
                         }
-                    });            
+                    });
                 },
                 Message::AuthorizeService(request) => {
                     let device: String;
@@ -982,39 +982,39 @@ impl OverskrideWindow {
                         	.find_map(|(key, val)| if val == &request.adapter { Some(key) } else { None })
                        		.unwrap_or(&"Unknown Adapter".to_string()).to_string();
                     }
-            		
+
                     let service_id = match bluer::id::Service::try_from(request.service) {
                         Ok(name) =>{
                         	println!("service name is: {}", name.clone());
-                        	format!("{}", name)	
+                        	format!("{}", name)
                         },
-                        Err(_) => { 
+                        Err(_) => {
                            	if let Ok(name) = get_name_from_service(request.service) {
                                 name
                             }
                             else {
-                                format!("Unknown Service of UUID: {:?}", request.service)	
+                                format!("Unknown Service of UUID: {:?}", request.service)
                             }
                         },
                     };
-                    
+
                     let popup = adw::MessageDialog::new(Some(&clone), Some("Service Authorization Request"), None);
-            
+
                     let body = "Is <span font_weight='bold' color='#78aeed'>`".to_string() + service_id.as_str() + "`</span> allowed to be authorized?\nRequest by <span font_weight='bold'>`" + device.as_str() + "`</span> on <span font_weight='bold'>`" + adapter.as_str() + "`</span>.";
                     let label = gtk::Label::new(Some(""));
                     label.set_use_markup(true);
                     label.set_label(body.as_str());
                     popup.set_extra_child(Some(&label));
-                        
+
                     popup.set_close_response("cancel");
                     popup.set_modal(true);
                     popup.set_destroy_with_parent(true);
-            
+
                     popup.add_response("cancel", "Cancel");
                     popup.add_response("allow", "Allow");
                     popup.set_response_appearance("allow", adw::ResponseAppearance::Suggested);
                     popup.set_default_response(Some("allow"));
-                            
+
                     let pass_key = Rc::new(RefCell::new(false));
                     popup.clone().choose(gtk::gio::Cancellable::NONE, move |response| {
                         match response.to_string() {
@@ -1041,7 +1041,7 @@ impl OverskrideWindow {
                     }
                     else {
                         let listbox = clone.imp().main_listbox.get();
-                        
+
                         if let Some(row) = listbox.row_at_index(0) {
                             listbox.select_row(Some(&row));
                         }
@@ -1054,20 +1054,20 @@ impl OverskrideWindow {
                     unsafe{
                         DISPLAYING_DIALOG = true;
                     }
-                    
+
                     let popup = adw::MessageDialog::new(Some(&clone), Some(&title), None);
-                                    
+
                     popup.set_close_response("cancel");
                     popup.set_modal(true);
                     popup.set_body_use_markup(true);
                     popup.set_body(&subtitle);
                     popup.set_destroy_with_parent(true);
-            
+
                     popup.add_response("cancel", "Cancel");
                     popup.add_response(&confirm.to_lowercase(), &confirm);
                     popup.set_response_appearance(&confirm.to_lowercase(), response_type);
                     popup.set_default_response(Some(&confirm.to_lowercase()));
-                            
+
                     let pass_key = Rc::new(RefCell::new(false));
                     popup.clone().choose(gtk::gio::Cancellable::NONE, move |response| {
                         match response.to_string() {
@@ -1086,7 +1086,7 @@ impl OverskrideWindow {
                 },
                 Message::InvalidateSort() => {
                 	let main_listbox = clone.imp().main_listbox.get();
-                	main_listbox.invalidate_sort();	
+                	main_listbox.invalidate_sort();
                 },
                 Message::RefreshDevicesList() => {
                     gtk::prelude::WidgetExt::activate_action(&clone, "win.refresh-devices", None).expect("cannot refresh devices list");
@@ -1102,7 +1102,7 @@ impl OverskrideWindow {
                     // println!("{} {} {}", row.percentage(), row.get_extra(), row.filesize());
 
                     receiving_popover.add_row(&row);
-                }, 
+                },
                 Message::UpdateTransfer(transfer, filename, current_mb, current_rate, status) => {
                     let receiving_popover = clone.imp().receiving_popover.get();
 
@@ -1130,13 +1130,13 @@ impl OverskrideWindow {
                 Message::RemoveTransfer(transfer, filename) => {
                     let receiving_popover = clone.imp().receiving_popover.get();
 
-                    receiving_popover.remove_row(transfer, filename);        
+                    receiving_popover.remove_row(transfer, filename);
                 },
                 Message::GetFile(action) => {
                     // spawn a file chooser and get the chosen files
-                    let dialog = gtk::FileChooserDialog::new(Some("Select File To Send"), 
-                        Some(&clone), 
-                        action, 
+                    let dialog = gtk::FileChooserDialog::new(Some("Select File To Send"),
+                        Some(&clone),
+                        action,
                         &[("Cancel", gtk::ResponseType::Cancel),
                           ("Select", gtk::ResponseType::Accept)
                     ]);
@@ -1189,31 +1189,31 @@ impl OverskrideWindow {
                     }
                     else {
                  		file_save_location.set_css_classes(&[""]);
-                    
+
                         // for file names to remain *file names*
                         let mut location = holder_location.clone();
                         if !location.ends_with('/') {
                             location += "/";
                         }
-            
+
                         unsafe {
                             STORE_FOLDER = location.clone();
                         }
-            
+
                         if file_save_location.text() != location {
                             file_save_location.set_text(&location);
                         }
-            
+
                         clone.imp().settings.get().expect("cannot get settings for file save location").set_string("store-folder", &location).expect("cannot set store folder");
                     }
-        
+
                 },
                 Message::SetHideUnknownDevices(hidden) => {
                 	let hide_unknowns_switch_row = clone.imp().hide_unknowns_switch_row.get();
                 	hide_unknowns_switch_row.set_active(hidden);
 
 					println!("hidden devices set to {}", hidden);
-                	
+
                 	unsafe {
                 		HIDE_UNKNOWN_DEVICES = hidden
                 	}
@@ -1237,7 +1237,7 @@ impl OverskrideWindow {
                 Message::PopulateAudioProfilesList(hashmap) => {
                     let audio_profile_expander = clone.imp().audio_profile_expander.get();
                     let unknown = &"Unknown Profile".to_string();
-                    
+
                     // unexpand the expander then see loop to see which profile was last selected (could be better)
                     audio_profile_expander.set_expanded(false);
                     audio_profile_expander.connect_enable_expansion_notify(|expander| {
@@ -1248,14 +1248,14 @@ impl OverskrideWindow {
                         let mut last_profile = String::new();
 
                         let listbox = expander.last_child().unwrap().downcast::<gtk::Box>().unwrap()
-                            .last_child().unwrap().downcast::<gtk::Revealer>().unwrap().last_child().unwrap().downcast::<gtk::ListBox>(); 
+                            .last_child().unwrap().downcast::<gtk::Revealer>().unwrap().last_child().unwrap().downcast::<gtk::ListBox>();
 
                         if let Ok(list) = listbox.clone() {
                             while let Some(row) = list.row_at_index(index) {
                                 // println!("{}", index);
                                 let selectable_row = row.downcast::<SelectableRow>().expect("cannot downcast to action row.");
                                 // println!("{:?}", action_row.clone());
-                                
+
                                 if selectable_row.selected() {
                                     last_profile = selectable_row.profile();
                                 }
@@ -1275,19 +1275,19 @@ impl OverskrideWindow {
                             audio_profiles::device_set_profile(address, target_profile);
                         });
                     });
-                    
+
                     // trauma
                     let listbox = audio_profile_expander.last_child().unwrap().downcast::<gtk::Box>().unwrap()
-                        .last_child().unwrap().downcast::<gtk::Revealer>().unwrap().last_child().unwrap().downcast::<gtk::ListBox>(); 
+                        .last_child().unwrap().downcast::<gtk::Revealer>().unwrap().last_child().unwrap().downcast::<gtk::ListBox>();
 
-                	
+
                     // remove all child rows and set sort func
                     if listbox.is_ok() {
 	                	while let Some(supposed_row) = listbox.clone().unwrap().last_child() {
                             listbox.clone().unwrap().remove(&supposed_row);
                         }
                     }
-                    
+
                     // add each profile to the expander, then select the active on
                     for profile in hashmap.keys() {
                         let holder = hashmap.get(profile).unwrap_or(unknown);
@@ -1299,7 +1299,7 @@ impl OverskrideWindow {
                         child.set_profile(profile.as_str());
 
                         let sender_clone = sender_for_receiver_clone.clone();
-                        
+
                         // on row click select this profile
                         child.set_activatable(true);
                         child.connect_activated(move |row| {
@@ -1321,16 +1321,16 @@ impl OverskrideWindow {
                     listbox.clone().unwrap().set_sort_func(|row_one, row_two| {
         	            let binding_one = row_one.clone().downcast::<adw::ActionRow>().unwrap().title();
         	            let binding_two = row_two.clone().downcast::<adw::ActionRow>().unwrap().title();
-        	            
+
         	            let mut one = binding_one.as_str();
         	            let mut two = binding_two.as_str();
-        	            
+
         	        	let one_str = one.to_lowercase();
         	            let two_str = two.to_lowercase();
-        	            
+
         	            one = one_str.as_str();
         	            two = two_str.as_str();
-        	            
+
         	            let name_result = two.cmp(one);
 
         				name_result.into()
@@ -1344,10 +1344,10 @@ impl OverskrideWindow {
                 Message::SetActiveAudioProfile(profile) => {
                     let audio_profile_expander = clone.imp().audio_profile_expander.get();
                     let mut index = 0;
-                    
+
                     // absolutely traumatizing way of getting the listbox of an expander row
                     let listbox = audio_profile_expander.last_child().unwrap().downcast::<gtk::Box>().unwrap()
-                        .last_child().unwrap().downcast::<gtk::Revealer>().unwrap().last_child().unwrap().downcast::<gtk::ListBox>(); 
+                        .last_child().unwrap().downcast::<gtk::Revealer>().unwrap().last_child().unwrap().downcast::<gtk::ListBox>();
 
                     // loop over all the devices and check which one matches out profile
                     if let Ok(list) = listbox.clone() {
@@ -1355,7 +1355,7 @@ impl OverskrideWindow {
                             // println!("{}", index);
                             let selectable_row = row.downcast::<SelectableRow>().expect("cannot downcast to action row.");
                             // println!("{:?}", action_row.clone());
-                            
+
                             if selectable_row.profile() == profile {
                                 selectable_row.set_selected(true);
                             }
@@ -1376,10 +1376,10 @@ impl OverskrideWindow {
                     battery_level_indicator.set_battery_level(level);
                 },
             }
-        
+
             glib::ControlFlow::Continue
-        });        
-        
+        });
+
         let main_listbox = self.imp().main_listbox.get();
 
         // smaller => one before two
@@ -1389,24 +1389,24 @@ impl OverskrideWindow {
         main_listbox.set_sort_func(|row_one, row_two| {
         	let actionrow_one = row_one.clone().downcast::<DeviceActionRow>().unwrap();
         	let actionrow_two = row_two.clone().downcast::<DeviceActionRow>().unwrap();
-        	
+
             let binding_one = actionrow_one.title();
             let binding_two = actionrow_two.title();
-            
+
             let rssi_one = actionrow_one.rssi();
             let rssi_two = actionrow_two.rssi();
             // println!("binding one {} binding two {}", binding_one, binding_two);
-            
+
             let mut one = binding_one.as_str();
             let mut two = binding_two.as_str();
 
-            
+
         	let one_str = one.to_lowercase();
             let two_str = two.to_lowercase();
-            
+
             one = one_str.as_str();
             two = two_str.as_str();
-            
+
             let name_result = one.cmp(two);
             let rssi_result = rssi_one.cmp(&rssi_two);
             //println!("rssi result {:?}", rssi_result);
@@ -1423,7 +1423,7 @@ impl OverskrideWindow {
                 	return final_result.into();
                 }
                 else {
-           			return gtk::Ordering::Larger;	                	
+           			return gtk::Ordering::Larger;
                 }
             }
             else if two == "unknown device" {
@@ -1431,7 +1431,7 @@ impl OverskrideWindow {
                 	return final_result.into();
                 }
                 else {
-           			return gtk::Ordering::Smaller;	                	
+           			return gtk::Ordering::Smaller;
                 }
             }
 
@@ -1440,7 +1440,7 @@ impl OverskrideWindow {
                 	return final_result.into();
                 }
                 else {
-           			return gtk::Ordering::Smaller;	                	
+           			return gtk::Ordering::Smaller;
                 }
             }
             else if actionrow_two.connected() {
@@ -1448,14 +1448,14 @@ impl OverskrideWindow {
                 	return final_result.into();
                 }
                 else {
-           			return gtk::Ordering::Larger;	                	
+           			return gtk::Ordering::Larger;
                 }
             }
 
             final_result.into()
 
             // println!("rssi one {} rssi two {}", rssi_one, rssi_two);
-            // println!("rssi result {:?}", final_result); 
+            // println!("rssi result {:?}", final_result);
         });
         main_listbox.invalidate_sort();
 
@@ -1464,10 +1464,10 @@ impl OverskrideWindow {
 		// so no weird "adapter off" then "refreshed list" messages happen
 		let refresh_action = gtk::gio::SimpleAction::new("refresh-devices", None);
         let sender0 = sender.clone();
-        refresh_action.connect_activate(move |_, _| {                        
+        refresh_action.connect_activate(move |_, _| {
             device::stop_searching();
             std::thread::sleep(std::time::Duration::from_millis(100));
-            
+
             let sender = sender0.clone();
             let adapter_name = unsafe {
                 CURRENT_ADAPTER.clone()
@@ -1476,7 +1476,7 @@ impl OverskrideWindow {
                 let mut can_send = true;
                 if let Err(err) = device::get_devices_continuous(sender.clone(), adapter_name) {
                     let string = err.message;
-                    
+
                     can_send = false;
 
                     sender.send(Message::PopupError(string, adw::ToastPriority::High)).expect("cannot send message");
@@ -1492,7 +1492,7 @@ impl OverskrideWindow {
         });
         self.add_action(&refresh_action);
         refresh_action.activate(None);
-        
+
         // try to connect to a device, this will fail often because bluetooth
         // it also updates the "loading spinner" on the row itself
         let connected_switch_row = self.imp().connected_switch_row.get();
@@ -1502,13 +1502,13 @@ impl OverskrideWindow {
             row.set_spinning(false);
 
             let sender_clone = sender1.clone();
-            let address = unsafe { 
-            	CURRENT_ADDRESS 
+            let address = unsafe {
+            	CURRENT_ADDRESS
             };
             let adapter_name = unsafe {
                 CURRENT_ADAPTER.clone()
             };
-            
+
             row.set_active(!row.active());
             std::thread::spawn(move || {
                 if let Err(err) = device::set_device_active(address, sender_clone.clone(), adapter_name) {
@@ -1522,21 +1522,21 @@ impl OverskrideWindow {
                 }
             });
         });
-        
+
         // block this device from doing anything pretty much
         // debating if blocked devices should appear in the list again or not
         let blocked_row = self.imp().blocked_row.get();
         let sender2 = sender.clone();
         blocked_row.connect_activated(move |row| {
             let sender_clone = sender2.clone();
-            let address = unsafe { 
-            	CURRENT_ADDRESS 
+            let address = unsafe {
+            	CURRENT_ADDRESS
             };
             let adapter_name = unsafe {
                 CURRENT_ADAPTER.clone()
             };
             let current_state = !row.is_active();
-            
+
             std::thread::spawn(move || {
                 if let Err(err) = device::set_device_blocked(address, sender_clone.clone(), adapter_name) {
                     let string = err.message;
@@ -1551,8 +1551,8 @@ impl OverskrideWindow {
         let sender3 = sender.clone();
         trusted_row.connect_activated(move |row| {
             let sender_clone = sender3.clone();
-            let address = unsafe { 
-            	CURRENT_ADDRESS 
+            let address = unsafe {
+            	CURRENT_ADDRESS
             };
             let adapter_name = unsafe {
                 CURRENT_ADAPTER.clone()
@@ -1568,14 +1568,14 @@ impl OverskrideWindow {
             });
         });
 
-        // change the currently selected devices name 
+        // change the currently selected devices name
         let device_name_entry = self.imp().device_name_entry.get();
         let sender4 = sender.clone();
         device_name_entry.connect_apply(move |entry| {
             let sender_clone = sender4.clone();
             let name = entry.text().to_string().trim().to_string();
-            let address = unsafe { 
-           		CURRENT_ADDRESS 
+            let address = unsafe {
+           		CURRENT_ADDRESS
             };
             let adapter_name = unsafe {
                 CURRENT_ADAPTER.clone()
@@ -1595,13 +1595,13 @@ impl OverskrideWindow {
         let sender4 = sender.clone();
         remove_device_button.connect_clicked(move |_| {
             let sender_clone = sender4.clone();
-            let address = unsafe { 
-            	CURRENT_ADDRESS 
+            let address = unsafe {
+            	CURRENT_ADDRESS
             };
             let adapter_name = unsafe {
                 CURRENT_ADAPTER.clone()
             };
-            
+
             std::thread::spawn(move || {
                 sender_clone.send(Message::SwitchActive(false, address, false)).expect("cannot send message");
                 if let Err(err) = device::remove_device(address, sender_clone.clone(), adapter_name) {
@@ -1681,7 +1681,7 @@ impl OverskrideWindow {
                     let string = err.message;
                     sender_clone.send(Message::PopupError(string, adw::ToastPriority::High)).expect("cannot send message");
                     sender_clone.send(Message::SwitchAdapterTimeout(0)).expect("cannot send message");
-                }  
+                }
             });
         });
         self.imp().timeout_signal_id.set(id).expect("cannot set timeout signal id");
@@ -1704,15 +1704,15 @@ impl OverskrideWindow {
                 if let Ok(names) = adapter_names {
                     if let Err(err) = bluetooth_settings::get_adapter_properties(names, sender, adapter_name) {
 	                    let string = "Adapter ".to_string() + &err.message;
-	                    sender_clone.send(Message::PopupError(string, adw::ToastPriority::Normal)).expect("cannot send message");    
+	                    sender_clone.send(Message::PopupError(string, adw::ToastPriority::Normal)).expect("cannot send message");
                     }
                 }
             });
-            
+
             // unselect any selected devices
             let main_listbox = self_clone3.imp().main_listbox.get();
             main_listbox.unselect_all();
-            
+
             // select the bluetooth settings page on startup
             let main_stack = self_clone3.imp().main_stack.get();
             let pages = main_stack.pages();
@@ -1757,16 +1757,16 @@ impl OverskrideWindow {
 			let connected = self_clone5.imp().connected_switch_row.get().active();
 
             if !connected {
-                sender10.send(Message::PopupError("obex-transfer-not-connected".to_string(), adw::ToastPriority::Normal)).expect("cannot send message");					    	
+                sender10.send(Message::PopupError("obex-transfer-not-connected".to_string(), adw::ToastPriority::Normal)).expect("cannot send message");
                 return;
             }
-                
+
             // get the currently selected device from the main listbox, and its adapter, then send the file from the picked out list of files
             if let Some(row) = selected_row {
                 let action_row = row.downcast::<DeviceActionRow>().unwrap();
                 let source = action_row.get_bluer_adapter_address();
                 let destination = action_row.get_bluer_address();
-                
+
                 let sender_clone = sender10.clone();
                 std::thread::spawn(move || {
                     obex::start_send_file(destination, source, sender_clone);
@@ -1774,7 +1774,7 @@ impl OverskrideWindow {
             }
             else {
                 println!("error while sending file, destination doesn't exist???");
-                sender10.send(Message::PopupError("obex-transfer-not-connected".to_string(), adw::ToastPriority::Normal)).expect("cannot send message");					    	
+                sender10.send(Message::PopupError("obex-transfer-not-connected".to_string(), adw::ToastPriority::Normal)).expect("cannot send message");
             }
         });
 
@@ -1783,7 +1783,7 @@ impl OverskrideWindow {
         let sender11 = sender.clone();
         file_save_location.connect_apply(move |entry| {
             let location = entry.text().to_string();
-            
+
             sender11.send(Message::SetFileStorageLocation(location)).expect("cannot send message");
         });
 
@@ -1814,7 +1814,7 @@ impl OverskrideWindow {
 
         		AUTO_ACCEPT_FROM_TRUSTED = !row.is_active();
         		println!("auto accept is {}", AUTO_ACCEPT_FROM_TRUSTED);
-        	}	
+        	}
         });
         auto_accept_trusted_row.set_active(unsafe { AUTO_ACCEPT_FROM_TRUSTED });
 
@@ -1855,7 +1855,7 @@ impl OverskrideWindow {
         		HIDE_UNKNOWN_DEVICES = !active;
         	}
         });
-        hide_unknowns_switch_row.set_active(unsafe { HIDE_UNKNOWN_DEVICES });    
+        hide_unknowns_switch_row.set_active(unsafe { HIDE_UNKNOWN_DEVICES });
     }
 
     /// on app exit, save the current settings
@@ -1877,7 +1877,7 @@ impl OverskrideWindow {
     /// loads settings from save in gsettings
     fn preload_settings(&self) {
         let settings = self.imp().settings.get().expect("cannot get settings, setup improperly?");
-        
+
         let width = settings.int("window-width");
         let height = settings.int("window-height");
         let maximized = settings.boolean("window-maximized");
@@ -1904,7 +1904,7 @@ impl OverskrideWindow {
             	settings.set_string("store-folder", &store_folder).expect("cannot set store folder");
             }
         }
-        
+
         // so the filename doesn't get fucked
         if !store_folder.ends_with('/') {
             store_folder += "/";
@@ -1914,8 +1914,8 @@ impl OverskrideWindow {
         file_save_location.set_text(&store_folder);
 
 		let hide_unknown_devices = settings.boolean("hide-unknown-devices");
-        
-        unsafe {		
+
+        unsafe {
             STORE_FOLDER = store_folder;
             FIRST_AUTO_ACCEPT = first_auto_accept;
             HIDE_UNKNOWN_DEVICES = hide_unknown_devices
@@ -1928,7 +1928,7 @@ impl OverskrideWindow {
         let settings = self.imp().settings.get().unwrap();
 
         unsafe {
-            // makes a new sender, devices lut, rssi lut, and updates the current adapter name in gsettings 
+            // makes a new sender, devices lut, rssi lut, and updates the current adapter name in gsettings
             CURRENT_SENDER = Some(sender.clone());
             DEVICES_LUT = Some(HashMap::new());
             RSSI_LUT = Some(HashMap::new());
@@ -1946,9 +1946,9 @@ impl OverskrideWindow {
             else {
                 CURRENT_ADAPTER = name.clone();
             }
-            
+
             let mut lut = HashMap::new();
-            
+
             let adapter = session.adapter(CURRENT_ADAPTER.clone().as_str())?;
             let alias = adapter.alias().await?;
             println!("startup alias is: {}\n", alias);
@@ -1967,9 +1967,9 @@ impl OverskrideWindow {
 				register_bluetooth_agent(sender.clone()).expect("cannot register bluetooth agent");
             });
         }
-        
+
         Ok(())
-    }    
+    }
 }
 
 /// Creates a new [DeviceActionRow](DeviceActionRow) from a device, includes all needed info in the row
@@ -1990,7 +1990,7 @@ async fn add_child_row(device: bluer::Device) -> bluer::Result<DeviceActionRow> 
     };
     let active = device.is_connected().await?;
     child_row.set_connected(active);
-    
+
     // set the address of this device
     child_row.set_bluer_address(address);
 
@@ -1999,14 +1999,14 @@ async fn add_child_row(device: bluer::Device) -> bluer::Result<DeviceActionRow> 
     if let Ok(bad_title) = bluer::Address::from_str(name.clone().replace('-', ":").as_str()) {
     	name = "Unknown Device".to_string();
         child_row.set_title("Unknown Device");
-        
+
         // child_row.set_subtitle(bad_title.to_string().as_str());
         println!("broken device title is {:?}", bad_title);
     }
     else {
         child_row.set_title(name.clone().as_str());
     }
-    
+
     child_row.set_activatable(true);
     // sets the adapter that this device was connected to with
     child_row.set_adapter_name(unsafe {CURRENT_ADAPTER.clone()});
@@ -2018,7 +2018,7 @@ async fn add_child_row(device: bluer::Device) -> bluer::Result<DeviceActionRow> 
     };
 
     // change the RSSI icon of the device
-    child_row.set_rssi(rssi);   
+    child_row.set_rssi(rssi);
 
     // update the device lookup table with the new info
     unsafe {
@@ -2027,27 +2027,27 @@ async fn add_child_row(device: bluer::Device) -> bluer::Result<DeviceActionRow> 
         //println!("lut (add) is: {:?}", devices_lut);
         DEVICES_LUT = Some(devices_lut);
         //println!("big lut (add) is: {:?}", DEVICES_LUT.clone());
-    } 
-    
-	let sender = unsafe { 
-        CURRENT_SENDER.clone().unwrap() 
+    }
+
+	let sender = unsafe {
+        CURRENT_SENDER.clone().unwrap()
     };
     sender.send(Message::InvalidateSort()).expect("cannot send message");
     sender.send(Message::SwitchRssi(name.clone(), rssi)).expect("cannot send message");
 
     // on click
-    child_row.connect_activated(move |row| {        
+    child_row.connect_activated(move |row| {
         unsafe {
             CURRENT_INDEX = row.index();
             CURRENT_ADDRESS = row.get_bluer_address();
         }
-        
+
         let address = row.get_bluer_address();
         let adapter_name = row.adapter_name();
         let sender_clone = sender.clone();
 
         // println!("row address {} with adapter {}", address.clone(), adapter_name.clone());
-        
+
         // try to retrieve device properties and update UI
         std::thread::spawn(move || {
             let sender_clone_clone = sender_clone.clone(); // lmao i love rust
@@ -2058,7 +2058,7 @@ async fn add_child_row(device: bluer::Device) -> bluer::Result<DeviceActionRow> 
                 sender_clone_clone.send(Message::GoToBluetoothSettings(true)).expect("cannot send message");
                 sender_clone_clone.send(Message::PopupError(string, adw::ToastPriority::High)).expect("cannot send message");
             }
-        }); 
+        });
     });
 
     Ok(child_row)
