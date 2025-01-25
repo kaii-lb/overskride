@@ -3,6 +3,7 @@ on:
     tags: 
       - v*
   pull_request:
+  workflow_dispatch:
 name: CI
 jobs:
   flatpak:
