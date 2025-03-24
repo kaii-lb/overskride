@@ -1387,75 +1387,48 @@ impl OverskrideWindow {
         // equal => they're equal
         // how this works is beyond me (yes, i wrote it)
         main_listbox.set_sort_func(|row_one, row_two| {
-        	let actionrow_one = row_one.clone().downcast::<DeviceActionRow>().unwrap();
-        	let actionrow_two = row_two.clone().downcast::<DeviceActionRow>().unwrap();
-
-            let binding_one = actionrow_one.title();
-            let binding_two = actionrow_two.title();
+            let actionrow_one = row_one.clone().downcast::<DeviceActionRow>().unwrap();
+            let actionrow_two = row_two.clone().downcast::<DeviceActionRow>().unwrap();
 
             let rssi_one = actionrow_one.rssi();
             let rssi_two = actionrow_two.rssi();
-            // println!("binding one {} binding two {}", binding_one, binding_two);
 
-            let mut one = binding_one.as_str();
-            let mut two = binding_two.as_str();
+            let title_one = actionrow_one.title().to_lowercase();
+            let title_two = actionrow_two.title().to_lowercase();
 
-
-        	let one_str = one.to_lowercase();
-            let two_str = two.to_lowercase();
-
-            one = one_str.as_str();
-            two = two_str.as_str();
-
-            let name_result = one.cmp(two);
-            let rssi_result = rssi_one.cmp(&rssi_two);
-            //println!("rssi result {:?}", rssi_result);
-
-            let final_result = if rssi_result == std::cmp::Ordering::Equal {
-				name_result
-            }
-            else {
-                rssi_result
-            };
-
-            if one == "unknown device" {
-                if two == "unknown device" {
-                	return final_result.into();
-                }
-                else {
-           			return gtk::Ordering::Larger;
+            if title_one == "unknown device" {
+                if title_two != "unknown device" {
+                    return gtk::Ordering::Larger;
                 }
             }
-            else if two == "unknown device" {
-                if one == "unknown device" {
-                	return final_result.into();
-                }
-                else {
-           			return gtk::Ordering::Smaller;
-                }
+            if title_two == "unknown device" {
+                return gtk::Ordering::Smaller;
             }
 
             if actionrow_one.connected() {
-                if actionrow_two.connected() {
-                	return final_result.into();
-                }
-                else {
-           			return gtk::Ordering::Smaller;
+                if !actionrow_two.connected() {
+                    return gtk::Ordering::Smaller;
                 }
             }
-            else if actionrow_two.connected() {
-                if actionrow_one.connected() {
-                	return final_result.into();
-                }
-                else {
-           			return gtk::Ordering::Larger;
-                }
+            if actionrow_two.connected() {
+                return gtk::Ordering::Larger;
             }
 
-            final_result.into()
+            if actionrow_one.trusted() {
+                if !actionrow_two.trusted() {
+                    return gtk::Ordering::Smaller;
+                }
+            }
+            if actionrow_two.trusted() {
+                return gtk::Ordering::Larger;
+            }
 
-            // println!("rssi one {} rssi two {}", rssi_one, rssi_two);
-            // println!("rssi result {:?}", final_result);
+            let rssi_result = rssi_one.cmp(&rssi_two);
+            if rssi_result != std::cmp::Ordering::Equal {
+                return rssi_result.into();
+            }
+
+            title_one.cmp(&title_two).into()
         });
         main_listbox.invalidate_sort();
 
@@ -1990,6 +1963,9 @@ async fn add_child_row(device: bluer::Device) -> bluer::Result<DeviceActionRow> 
     };
     let active = device.is_connected().await?;
     child_row.set_connected(active);
+
+    let trusted = device.is_trusted().await?;
+    child_row.set_trusted(trusted);
 
     // set the address of this device
     child_row.set_bluer_address(address);
