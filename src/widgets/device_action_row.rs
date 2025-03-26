@@ -24,6 +24,8 @@ mod imp {
         pub adapter_name: RefCell<String>,
         #[property(get, set = Self::set_current_connected)]
         pub connected: RefCell<bool>,
+        #[property(get, set)]
+        pub trusted: RefCell<bool>,
 
         pub address: RefCell<bluer::Address>,
         pub adapter_address: RefCell<bluer::Address>,

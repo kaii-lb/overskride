@@ -54,7 +54,7 @@ glib-compile-schemas ~/.local/share/glib-2.0/schemas
 - Selecting between multiple adapters
 - Rename adapter 
 - Resizing support 
-- Sorting devices by rssi (signal strength)
+- Sorting devices by rssi (signal strength) (connected and then trusted devices come first)
 - Showing errors to user
 - Changing files storage location
 - Auto accept files
