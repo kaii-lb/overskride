@@ -551,7 +551,7 @@ impl OverskrideWindow {
                             "Failed to find the target profile"
                         },
                         s if s.to_lowercase().contains("create-socket") => {
-                            "Failed to connecet to Bluetooth socket, this is bad"
+                            "Failed to connect to Bluetooth socket, this is bad"
                         },
                         s if s.to_lowercase().contains("bad-socket") => {
                             "Bad socket for connection, this is bad"
