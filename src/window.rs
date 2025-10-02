@@ -1390,45 +1390,43 @@ impl OverskrideWindow {
             let actionrow_one = row_one.clone().downcast::<DeviceActionRow>().unwrap();
             let actionrow_two = row_two.clone().downcast::<DeviceActionRow>().unwrap();
 
-            let rssi_one = actionrow_one.rssi();
-            let rssi_two = actionrow_two.rssi();
-
             let title_one = actionrow_one.title().to_lowercase();
             let title_two = actionrow_two.title().to_lowercase();
 
-            if title_one == "unknown device" {
-                if title_two != "unknown device" {
-                    return gtk::Ordering::Larger;
-                }
-            }
-            if title_two == "unknown device" {
-                return gtk::Ordering::Smaller;
+            match (title_one.as_str(), title_two.as_str()) {
+                ("unknown device", _) if title_two != "unknown device" => return gtk::Ordering::Larger,
+                (_, "unknown device") if title_one != "unknown device" => return gtk::Ordering::Smaller,
+                ("unknown device", "unknown device") => (),
+                _ => (),
             }
 
-            if actionrow_one.connected() {
-                if !actionrow_two.connected() {
-                    return gtk::Ordering::Smaller;
-                }
-            }
-            if actionrow_two.connected() {
-                return gtk::Ordering::Larger;
+            match (actionrow_one.connected(), actionrow_two.connected()) {
+                (true, false) => return gtk::Ordering::Smaller,
+                (false, true) => return gtk::Ordering::Larger,
+                _ => (),
             }
 
-            if actionrow_one.trusted() {
-                if !actionrow_two.trusted() {
-                    return gtk::Ordering::Smaller;
-                }
-            }
-            if actionrow_two.trusted() {
-                return gtk::Ordering::Larger;
+            match (actionrow_one.trusted(), actionrow_two.trusted()) {
+                (true, false) => return gtk::Ordering::Smaller,
+                (false, true) => return gtk::Ordering::Larger,
+                _ => (),
             }
 
-            let rssi_result = rssi_one.cmp(&rssi_two);
-            if rssi_result != std::cmp::Ordering::Equal {
-                return rssi_result.into();
+            match actionrow_one.rssi().cmp(&actionrow_two.rssi())
+            {
+                std::cmp::Ordering::Less => return gtk::Ordering::Smaller,
+                std::cmp::Ordering::Greater => return gtk::Ordering::Larger,
+                _ => (),
             }
 
-            title_one.cmp(&title_two).into()
+            match title_one.cmp(&title_two)
+            {
+                std::cmp::Ordering::Less => return gtk::Ordering::Smaller,
+                std::cmp::Ordering::Greater => return gtk::Ordering::Larger,
+                _ => (),
+            }
+
+            return gtk::Ordering::Equal;
         });
         main_listbox.invalidate_sort();
 
