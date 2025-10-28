@@ -30,12 +30,12 @@
   </description>
 
   <releases>
-    <release version="0.5.6" date="2024-11-15" type="stable">
+    <release version="0.6.3" date="2025-10-28" type="stable">
       <description>
-        <p>Better Device Distance Approximation</p>
+        <p>Fixes device list flickering due to inconsistent if-based sorting logic</p>
       </description>
   
-      <url>https://github.com/kaii-lb/overskride/actions/runs/6881017303</url>
+      <url>https://github.com/kaii-lb/overskride/releases/tag/v0.6.3</url>
     </release>
   </releases>
   

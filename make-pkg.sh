@@ -1,14 +1,26 @@
 #!/bin/sh
 
-cd /home/$USER/Projects/overskride/build/package
+meson compile -C build
 
-cp ../src/overskride overskride/usr/bin/overskride
-cp ../src/overskride.gresource overskride/usr/share/overskride/
-cp ../data/io.github.kaii_lb.Overskride.desktop overskride/usr/share/applications/
-cp ../data/io.github.kaii_lb.Overskride.appdata.xml overskride/usr/share/appdata/
-cp /home/kaii/Projects/overskride/data/io.github.kaii_lb.Overskride.gschema.xml overskride/usr/share/glib-2.0/schemas/
-cp /home/kaii/Projects/overskride/data/icons/hicolor/scalable/apps/io.github.kaii_lb.Overskride.svg overskride/usr/share/icons/hicolor/scalable/apps/
-cp /home/kaii/Projects/overskride/data/icons/hicolor/symbolic/apps/io.github.kaii_lb.Overskride-symbolic.svg overskride/usr/share/icons/hicolor/symbolic/apps/
+mkdir -p /home/$USER/Projects/overskride/build/src/release/package
+cd /home/$USER/Projects/overskride/build/src/release/package
 
-tar -cf - overskride/ | xz -9 -T0 > overskride.tar.xz
-cp overskride.tar.xz ../../
+mkdir -p usr/bin
+mkdir -p usr/share/applications
+mkdir -p usr/share/appdata
+mkdir -p usr/share/glib-2.0/schemas
+mkdir -p usr/share/icons/hicolor/scalable/apps
+mkdir -p usr/share/icons/hicolor/symbolic/apps
+
+cp ../overskride usr/bin/overskride
+cp ../../overskride.gresource usr/share/overskride/
+cp ../../../data/io.github.kaii_lb.Overskride.desktop usr/share/applications/
+cp ../../../data/io.github.kaii_lb.Overskride.appdata.xml usr/share/appdata/
+cp /home/kaii/Projects/overskride/data/io.github.kaii_lb.Overskride.gschema.xml usr/share/glib-2.0/schemas/
+cp /home/kaii/Projects/overskride/data/icons/hicolor/scalable/apps/io.github.kaii_lb.Overskride.svg usr/share/icons/hicolor/scalable/apps/
+cp /home/kaii/Projects/overskride/data/icons/hicolor/symbolic/apps/io.github.kaii_lb.Overskride-symbolic.svg usr/share/icons/hicolor/symbolic/apps/
+
+cd ..
+
+tar -cf - package/ | xz -9 -T0 > overskride.tar.xz
+cp overskride.tar.xz ../../../
