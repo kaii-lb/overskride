@@ -14,7 +14,7 @@ jobs:
       options: --privileged
     steps:
     - uses: actions/checkout@v4
-    - uses: flatpak/flatpak-github-actions/flatpak-builder@v6.3
+    - uses: flatpak/flatpak-github-actions/flatpak-builder@v6.6
       with:
         bundle: overskride-nightly.flatpak
         manifest-path: io.github.kaii_lb.Overskride.json
