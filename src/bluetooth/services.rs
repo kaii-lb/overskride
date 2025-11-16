@@ -1,7 +1,7 @@
 use phf::phf_map;
 use bluer::Uuid;
 
-/// i don't like how the services are called in bluer
+/// I don't like how the services are called in bluer
 const SERVICES: phf::Map<&'static str, &'static str> = phf_map! {
 	"00001203-0000-1000-8000-00805f9b34fb" => "Generic Audio",
 	"00001108-0000-1000-8000-00805f9b34fb" => "Hands Free",
@@ -59,7 +59,7 @@ const SERVICES: phf::Map<&'static str, &'static str> = phf_map! {
 };
 
 
-/// Gets the service name from a uuid, looks it up from a custom table
+/// Gets the service name from an uuid, looks it up from a custom table
 pub fn get_name_from_service(service: Uuid) -> Result<String, bluer::Error> {
 	let uuid_slice = service.to_string();
 

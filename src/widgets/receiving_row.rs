@@ -27,9 +27,9 @@ mod imp {
 
         #[property(get, set)]
         pub transfer: RefCell<String>,
-        #[property(get = Self::get_filename_from_label, set = Self::set_filename_from_label)]
+        #[property(get = Self::private_get_filename_from_label, set = Self::private_set_filename_from_label)]
         pub filename: RefCell<String>,
-        #[property(get, set = Self::set_progress_bar_fraction)]
+        #[property(get, set = Self::private_set_progress_bar_fraction)]
         pub percentage: RefCell<f32>,
         #[property(get, set)]
         pub filesize: RefCell<f32>,
@@ -65,31 +65,39 @@ mod imp {
 
     #[gtk::template_callbacks]
     impl ReceivingRow {
-        fn get_filename_from_label(&self) -> String {
-            self.title_label.get().label().to_string()
-        }
-    
-        fn set_filename_from_label(&self, filename: String) {
-        	if *self.outbound.borrow() {
-            	self.title_label.get().set_label(&("Sending: “".to_string() + &filename + "”"));
-        	}
-        	else {
-            	self.title_label.get().set_label(&("Receiving: “".to_string() + &filename + "”"));        		
-        	}
-        }
-
-        fn set_progress_bar_fraction(&self, fraction: f32) {
-            let holder = (fraction / 100.0) as f64;
-            // println!("divved {}", holder);
-            self.progress_bar.get().set_fraction(holder.clamp(0.0, 1.0));
-        }
-
         #[template_callback]
         fn cancel_transfer(&self, button: &gtk::Button) {
             unsafe {
                 CANCEL = true;
             }
             button.set_sensitive(false);
+        }
+        
+        pub fn private_get_filename_from_label(&self) -> String {
+            self.title_label.get().label().to_string()
+        }
+        
+        pub fn private_set_filename_from_label(&self, filename: String) {
+            if *self.outbound.borrow() {
+                self.title_label.get().set_label(&("Sending: “".to_string() + &filename + "”"));
+            }
+            else {
+                self.title_label.get().set_label(&("Receiving: “".to_string() + &filename + "”"));
+            }
+        }
+        
+        pub fn private_set_progress_bar_fraction(&self, fraction: f32) {
+            let holder = (fraction / 100.0) as f64;
+            // println!("divved {}", holder);
+            self.progress_bar.get().set_fraction(holder.clamp(0.0, 1.0));
+        }
+        
+        pub fn private_get_transfer(&self) -> String {
+            self.transfer.borrow().clone()
+        }
+        
+        pub fn private_get_filesize(&self) -> f32 {
+            *self.filesize.borrow()
         }
     }
 }
@@ -162,7 +170,7 @@ impl ReceivingRow {
 
                 "skull-symbolic"
             },
-            // notify user of "special case", this is most likely its still running
+            // notify user of "special case", this is most likely it's still running
             e => {
                 if !e.is_empty() {
                     println!("special icon case: {}", e);
@@ -174,5 +182,25 @@ impl ReceivingRow {
 
         cancel_button.set_icon_name(icon);
         self_destruct
+    }
+
+    pub fn get_filename_from_label(&self) -> String {
+        self.imp().private_get_filename_from_label()
+    }
+
+    pub fn set_filename_from_label(&self, filename: String) {
+        self.imp().private_set_filename_from_label(filename);
+    }
+
+    pub fn set_progress_bar_fraction(&self, fraction: f32) {
+        self.imp().private_set_progress_bar_fraction(fraction);
+    }
+    
+    pub fn get_row_transfer(&self) -> String {
+        self.imp().private_get_transfer()
+    }
+
+    pub fn get_row_filesize(&self) -> f32 {
+        self.imp().private_get_filesize()
     }
 }

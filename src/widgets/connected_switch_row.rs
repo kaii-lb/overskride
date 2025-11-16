@@ -20,11 +20,11 @@ mod imp {
         #[template_child]
         pub spinner: TemplateChild<gtk::Spinner>,
 
-        #[property(get, set = Self::set_row_active)]
+        #[property(get, set = Self::private_set_row_active)]
         pub active: RefCell<bool>,
-        #[property(get = Self::get_row_spinning, set = Self::set_row_spinning)]
+        #[property(get = Self::private_is_spinning, set = Self::private_set_spinning)]
         pub spinning: RefCell<bool>,
-        #[property(set = Self::set_switch_active)]
+        #[property(set = Self::private_set_switch_active)]
         pub switch_active: RefCell<bool>,
         #[property(get, set)]
         pub has_obex: RefCell<bool>,
@@ -61,32 +61,37 @@ mod imp {
     impl PreferencesRowImpl for ConnectedSwitchRow {}
     
     impl ConnectedSwitchRow {
-        /// sets the `ConnectedSwitchRow`'s state to `active`, make the spinning visible in the process.
-        fn set_row_active(&self, active: bool) {
+        pub fn private_set_switch_active(&self, active: bool) {
+            self.switch.set_active(active);
+            *self.active.borrow_mut() = active;
+        }
+        
+        pub fn private_set_row_active(&self, active: bool) {
             let current_active = self.switch.get().is_active();
-    
+
             if current_active == active {
                 return;
             }
             // println!("current active for custom row is: {}", current_active);
-            
+
             *self.active.borrow_mut() = active;
             self.spinner.set_spinning(true);
         }
- 		
-        /// return the current state of the row's spinner, ie: spinning, or not visible.
-        fn get_row_spinning(&self) -> bool {
+        
+        pub fn private_set_spinning(&self, spinning: bool) {
+            self.spinner.set_spinning(spinning);
+        }
+        
+        pub fn private_is_spinning(&self) -> bool {
             self.spinner.is_spinning()
         }
         
-        /// sets the row's spinner to `spinning`.
-        fn set_row_spinning(&self, spinning: bool) {
-            self.spinner.set_spinning(spinning);
+        pub fn private_has_obex(&self) -> bool {
+            *self.has_obex.borrow()
         }
-
-        fn set_switch_active(&self, active: bool) {
-            self.switch.set_active(active);
-            *self.active.borrow_mut() = active;
+        
+        pub fn private_set_has_obex(&self, value: bool) {
+            *self.has_obex.borrow_mut() = value;
         }
     }
 }
@@ -102,7 +107,34 @@ impl ConnectedSwitchRow {
     pub fn new() -> Self {
         Object::builder()
             .build()
-    }    
+    }
+
+    /// sets the `ConnectedSwitchRow`'s state to `active`, make the spinning visible in the process.
+    pub fn set_row_active(&self, active: bool) {
+        self.imp().private_set_row_active(active);
+    }
+
+    /// return the current state of the row's spinner, ie: spinning, or not visible.
+    pub fn get_row_spinning(&self) -> bool {
+        self.imp().private_is_spinning()
+    }
+
+    /// sets the row's spinner to `spinning`.
+    pub fn set_row_spinning(&self, spinning: bool) {
+        self.imp().private_set_spinning(spinning);
+    }
+
+    pub fn set_toggle_switch_active(&self, active: bool) {
+        self.imp().private_set_switch_active(active);
+    }
+    
+    pub fn row_has_obex(&self) -> bool {
+        self.imp().private_has_obex()
+    }
+
+    pub fn set_row_has_obex(&self, value: bool) {
+        self.imp().private_set_has_obex(value);
+    }
 }
 
 impl Default for ConnectedSwitchRow {

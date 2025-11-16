@@ -10,7 +10,7 @@ pub enum Message {
     SwitchActive(bool, bluer::Address, bool),
     /// Changes the connected switch's spinner spinning state to `bool`
     SwitchActiveSpinner(bool),
-    /// Changes the active devices's name to [alias](String) if no [old_alias](Option<String>) is provided, otherwise it looks for a matching row
+    /// Changes the active device's name to [alias](String) if no [old_alias](Option<String>) is provided, otherwise it looks for a matching row
     SwitchName(String, Option<String>, bluer::Address),
     /// Changes the supplied device's (`name: String`) RSSI to the supplied value (`rssi: i32`)
     SwitchRssi(String, i32),
@@ -48,7 +48,7 @@ pub enum Message {
     RequestAuthorization(bluer::agent::RequestAuthorization),
     /// Requests service authorization using [request](bluer::agent::AuthorizeService) as input
     AuthorizeService(bluer::agent::AuthorizeService),
-    /// Goes the the settings page or the last device depending on `bool`
+    /// Goes the settings page or the last device depending on `bool`
     GoToBluetoothSettings(bool),
     /// Gets a `yes/no` answer from a dialog 
     /// ### Arguments
@@ -77,7 +77,7 @@ pub enum Message {
     /// * `current mb` - a [String](String) the current transferred megabytes
     /// * `status` - a [String](String) which is the current status of the transfer (ie: complete, error, active...)
     UpdateTransfer(String, String, f32, u64, String),
-    /// Removes a transfer via the supplied [transfer](String) object and the [filename](String) incase of multiple files in same transfer
+    /// Removes a transfer via the supplied [transfer](String) object and the [filename](String) in case of multiple files in same transfer
     RemoveTransfer(String, String),
     /// Gets the path of a selected file or folder, based on [filetype](gtk::FileChooserAction)
     GetFile(gtk::FileChooserAction),

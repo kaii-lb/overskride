@@ -38,7 +38,7 @@ mod window;
 #[path = "widgets/selectable_row.rs"] mod selectable_row;
 #[path = "widgets/battery_indicator.rs"] mod battery_indicator;
 #[path = "widgets/more_info_page.rs"] mod more_info_page;
-
+mod Singletons;
 
 use self::application::OverskrideApplication;
 use self::window::OverskrideWindow;
@@ -91,7 +91,7 @@ fn main() -> glib::ExitCode {
 	});
 
     // Run the application. This function will block until the application
-    // exits. Upon return, we have our exit code to return to the shell. (This
+    // exits. Upon return, we have our exit code to return to the shell. This
     // is the code you see when you do `echo $?` after running a command in a
     // terminal.
     app.run()

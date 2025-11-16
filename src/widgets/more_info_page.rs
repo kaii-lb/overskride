@@ -1,3 +1,5 @@
+use adw::ApplicationWindow;
+use adw::gio::{ActionGroup, ActionMap};
 use glib::Object;
 use gtk::glib;
 use adw::subclass::prelude::AdwApplicationWindowImpl;
@@ -7,7 +9,7 @@ use adw::prelude::ExpanderRowExt;
 use gtk::prelude::WidgetExt;
 
 mod imp {
-    use super::*;    
+    use super::*;
 
     /// a custom error message if the startup failed, showing the user a way to fix the error
     #[derive(Default, gtk::CompositeTemplate)]
@@ -41,10 +43,10 @@ mod imp {
             obj.init_template();
         }
     }
-    
+
     impl ObjectImpl for MoreInfoPage {
         fn constructed(&self) {
-            self.parent_constructed();            
+            self.parent_constructed();
         }
     }
 
@@ -58,8 +60,8 @@ mod imp {
 
 glib::wrapper! {
     pub struct MoreInfoPage(ObjectSubclass<imp::MoreInfoPage>)
-        @extends adw::ApplicationWindow, gtk::Widget, gtk::Window, gtk::ApplicationWindow,
-        @implements gtk::Accessible, gtk::Buildable, gtk::ConstraintTarget, gtk::Native, gtk::Root, gtk::ShortcutManager;
+    @extends ApplicationWindow, gtk::Widget, gtk::Window, gtk::ApplicationWindow,
+        @implements gtk::Accessible, gtk::Buildable, gtk::ConstraintTarget, gtk::Native, gtk::Root, gtk::ShortcutManager, ActionGroup, ActionMap;
 }
 
 impl MoreInfoPage {
@@ -69,10 +71,10 @@ impl MoreInfoPage {
             .build()
     }
 
-    pub fn initialize_from_info(&self, name: String, address: String, manufactuer: String, device_type: String, distance: String, services_list: Vec<String>) {
+    pub fn initialize_from_info(&self, name: String, address: String, manufacturer: String, device_type: String, distance: String, services_list: Vec<String>) {
 		self.imp().name_row.get().set_title(&("Name: ".to_string() + &name));
 		self.imp().address_row.get().set_title(&("Address: ".to_string() + &address));
-		self.imp().manufacturer_row.get().set_title(&("Manufacturer: ".to_string() + &manufactuer));
+		self.imp().manufacturer_row.get().set_title(&("Manufacturer: ".to_string() + &manufacturer));
 		self.imp().type_row.get().set_title(&("Type: ".to_string() + &device_type));
 		self.imp().distance_row.get().set_title(&("Distance: ".to_string() + &distance));
 

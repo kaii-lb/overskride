@@ -8,6 +8,7 @@ use std::cell::RefCell;
 use adw::prelude::WidgetExt;
 
 mod imp {
+    use adw::glib::property::PropertySet;
     use super::*;
 
     /// a preference row that is actually a level bar showing colored level and % of device battery
@@ -59,7 +60,7 @@ mod imp {
 
     impl BatteryLevelIndicator {
         // set the battery level to either the percent or unavailable depending on the value
-        fn set_battery_level_from_i8(&self, level: i8) {
+        pub fn set_battery_level_from_i8(&self, level: i8) {
             let level = level.clamp(-1, 100);
             let levelbar = self.level_bar.get();
             let battery_label = self.battery_label.get();
@@ -83,13 +84,17 @@ mod imp {
 glib::wrapper! {
     pub struct BatteryLevelIndicator(ObjectSubclass<imp::BatteryLevelIndicator>)
         @extends adw::PreferencesRow, gtk::Widget, gtk::ListBoxRow,
-        @implements gtk::Accessible, gtk::Orientable, gtk::Buildable, gtk::ConstraintTarget;
+        @implements gtk::Accessible, gtk::Orientable, gtk::Buildable, gtk::ConstraintTarget, gtk::Actionable;
 }
 
 impl BatteryLevelIndicator {
     pub fn new() -> Self {
         Object::builder()
             .build()
+    }
+    
+    pub fn set_indicator_battery_level(&self, level: i8) {
+        self.imp().set_battery_level_from_i8(level);
     }
 }
 

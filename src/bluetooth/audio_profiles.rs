@@ -63,7 +63,7 @@ impl AudioProfiles {
 		let error = Rc::new(RefCell::new(false));
 		let error_clone = error.clone();
 
-		// gets the active profile and available profiles of this "card" (its really a device but wtv)
+		// gets the active profile and available profiles of this "card" (it's really a device but wtv)
 		let state = context.borrow().introspect().get_card_info_by_name(&card_name, move |card_info_result| {
 			match card_info_result {
 				pulseaudio::callbacks::ListResult::Item(item) => {	
@@ -123,7 +123,7 @@ impl AudioProfiles {
 		let active = clonable_active_profile.borrow().clone();
 		let mut profiles = clonable_map.borrow_mut().clone();
 
-		// remove the "off" profile as thats what the expander switch is for
+		// remove the "off" profile as that's what the expander switch is for
 		profiles.remove("off");
 
 		// return the active profile with the rest of the profiles

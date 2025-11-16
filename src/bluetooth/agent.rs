@@ -1,28 +1,27 @@
+use async_channel::Sender;
 use futures::FutureExt;
-use gtk::glib::Sender;
 
-use crate::{message::Message, window::{DISPLAYING_DIALOG, PIN_CODE, PASS_KEY, CONFIRMATION_AUTHORIZATION}};
+use crate::message::Message;
+use crate::window::OVERSKRIDE_PROPS;
 
 async fn request_pin_code(request: bluer::agent::RequestPinCode, sender: Sender<Message>) -> bluer::agent::ReqResult<String> {
     println!("request pincode incoming");
 	let address = request.device;
 
-    sender.send(Message::RequestPinCode(request)).expect("cannot send message");
-    unsafe {
-        DISPLAYING_DIALOG = true;
-    }
+    sender.send(Message::RequestPinCode(request)).await.expect("cannot send message");
+
+    OVERSKRIDE_PROPS.lock().unwrap().displaying_dialog = true;
     
     wait_for_dialog_exit().await;
 
-    let final_pin_code = unsafe {
-        PIN_CODE.clone()
-    };
+    let final_pin_code = OVERSKRIDE_PROPS.lock().unwrap().pin_code.clone();
+
     println!("pin code is: {:?}", final_pin_code);
     if final_pin_code.is_empty() {
       	Err(bluer::agent::ReqError::Rejected)
     }
     else {
-        sender.send(Message::SwitchActive(true, address, true)).expect("cannot send message");
+        sender.send(Message::SwitchActive(true, address, true)).await.expect("cannot send message");
 	    Ok(final_pin_code)
     }
 }
@@ -30,10 +29,9 @@ async fn request_pin_code(request: bluer::agent::RequestPinCode, sender: Sender<
 async fn display_pin_code(request: bluer::agent::DisplayPinCode, sender: Sender<Message>) -> bluer::agent::ReqResult<()> {
     println!("display pincode incoming");
 
-    sender.send(Message::DisplayPinCode(request)).expect("cannot send message");
-    unsafe {
-        DISPLAYING_DIALOG = true
-    }
+    sender.send(Message::DisplayPinCode(request)).await.expect("cannot send message");
+
+    OVERSKRIDE_PROPS.lock().unwrap().displaying_dialog = true;
 
     wait_for_dialog_exit().await;
 
@@ -45,22 +43,19 @@ async fn request_pass_key(request: bluer::agent::RequestPasskey, sender: Sender<
     println!("request passkey incoming");
 	let address = request.device;
 
-    sender.send(Message::RequestPassKey(request)).expect("cannot send message");
-    unsafe {
-        DISPLAYING_DIALOG = true;
-    }
+    sender.send(Message::RequestPassKey(request)).await.expect("cannot send message");
+
+    OVERSKRIDE_PROPS.lock().unwrap().displaying_dialog = true;
 
     wait_for_dialog_exit().await;
 
-    let pass_key = unsafe {
-        PASS_KEY
-    };
+    let pass_key = OVERSKRIDE_PROPS.lock().unwrap().pass_key.clone();
     println!("pass key is: {}", pass_key);
     if pass_key == 0 {
     	Err(bluer::agent::ReqError::Rejected)
     }
     else {
-        sender.send(Message::SwitchActive(true, address, true)).expect("cannot send message");
+        sender.send(Message::SwitchActive(true, address, true)).await.expect("cannot send message");
     	Ok(pass_key)
     }
 }   
@@ -68,10 +63,9 @@ async fn request_pass_key(request: bluer::agent::RequestPasskey, sender: Sender<
 async fn display_pass_key(request: bluer::agent::DisplayPasskey, sender: Sender<Message>) -> bluer::agent::ReqResult<()> {
     println!("display passkey incoming");
     
-    sender.send(Message::DisplayPassKey(request)).expect("cannot send message");
-    unsafe {
-        DISPLAYING_DIALOG = true;
-    }
+    sender.send(Message::DisplayPassKey(request)).await.expect("cannot send message");
+
+    OVERSKRIDE_PROPS.lock().unwrap().displaying_dialog = true;
 
     wait_for_dialog_exit().await;
 
@@ -82,19 +76,17 @@ async fn request_confirmation(request: bluer::agent::RequestConfirmation, _: blu
     println!("pairing confirmation incoming");
 	let address = request.device;
     
-    sender.send(Message::RequestConfirmation(request)).expect("cannot send message");
-    unsafe {
-        DISPLAYING_DIALOG = true;
-    }
+    sender.send(Message::RequestConfirmation(request)).await.expect("cannot send message");
+
+    OVERSKRIDE_PROPS.lock().unwrap().displaying_dialog = true;
 
     wait_for_dialog_exit().await;
     
-    let confirmed = unsafe {
-        CONFIRMATION_AUTHORIZATION
-    };
+    let confirmed = OVERSKRIDE_PROPS.lock().unwrap().confirm_authorization;
+
     if confirmed {
         println!("allowed pairing with device");
-        sender.send(Message::SwitchActive(true, address, true)).expect("cannot send message");
+        sender.send(Message::SwitchActive(true, address, true)).await.expect("cannot send message");
         Ok(())
     }
     else {
@@ -107,19 +99,16 @@ async fn request_authorization(request: bluer::agent::RequestAuthorization, _: b
     println!("pairing authorization incoming");
 	let address = request.device;
 
-    sender.send(Message::RequestAuthorization(request)).expect("cannot send message");
-    unsafe{
-        DISPLAYING_DIALOG = true;
-    }
+    sender.send(Message::RequestAuthorization(request)).await.expect("cannot send message");
+
+    OVERSKRIDE_PROPS.lock().unwrap().displaying_dialog = true;
 
     wait_for_dialog_exit().await;
 
-    let confirmed = unsafe {
-        CONFIRMATION_AUTHORIZATION
-    };
+    let confirmed = OVERSKRIDE_PROPS.lock().unwrap().confirm_authorization;
     if confirmed {
         println!("allowed pairing with device");
-        sender.send(Message::SwitchActive(true, address, true)).expect("cannot send message");
+        sender.send(Message::SwitchActive(true, address, true)).await.expect("cannot send message");
         Ok(())
     }
     else {
@@ -133,20 +122,17 @@ async fn authorize_service(request: bluer::agent::AuthorizeService, sender: Send
     println!("service authorization incoming");
 	let address = request.device;
 
-    sender.send(Message::AuthorizeService(request)).expect("cannot send message");
-    unsafe{
-        DISPLAYING_DIALOG = true;
-    }
+    sender.send(Message::AuthorizeService(request)).await.expect("cannot send message");
+
+    OVERSKRIDE_PROPS.lock().unwrap().displaying_dialog = true;
 
     wait_for_dialog_exit().await;
 
-    let confirmed = unsafe {
-        CONFIRMATION_AUTHORIZATION
-    };
+    let confirmed = OVERSKRIDE_PROPS.lock().unwrap().confirm_authorization;
 
     if confirmed {
         println!("allowed pairing with device");
-        sender.send(Message::SwitchActive(true, address, true)).expect("cannot send message");
+        sender.send(Message::SwitchActive(true, address, true)).await.expect("cannot send message");
         Ok(())
     }
     else {
@@ -159,7 +145,7 @@ pub async fn register_agent(session: &bluer::Session, request_default: bool, set
     let session1 = session.clone();
     let session2 = session.clone();
 
-    // IDK if this is the best way, but its a way.
+    // IDK if this is the best way, but it's a way.
     let sender1 = sender_to_be_sent.clone();
     let sender2 = sender_to_be_sent.clone();
     let sender3 = sender_to_be_sent.clone();
@@ -185,15 +171,15 @@ pub async fn register_agent(session: &bluer::Session, request_default: bool, set
     };
 
     let handle = session.register_agent(agent).await.expect("unable to register agent, fuck-");
-    
+
     Ok(handle)
 }
 
 pub async fn wait_for_dialog_exit() {
     unsafe {
         loop {
-            if !DISPLAYING_DIALOG {
-				std::thread::sleep(std::time::Duration::from_secs(1));
+            if !OVERSKRIDE_PROPS.lock().unwrap().displaying_dialog {
+				tokio::time::sleep(std::time::Duration::from_secs(1)).await;
                 break;
             }
         }
@@ -207,6 +193,6 @@ pub async fn register_bluetooth_agent(sender: Sender<Message>) -> bluer::Result<
    	println!("registered agent standalone {:?}", agent);
 
    	loop {
-   		std::thread::sleep(std::time::Duration::from_secs(1));
+   		tokio::time::sleep(std::time::Duration::from_secs(1)).await;
    	}
 } 

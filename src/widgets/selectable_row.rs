@@ -19,7 +19,7 @@ mod imp {
 
         #[property(get, set)]
         pub profile: RefCell<String>,
-        #[property(get, set = Self::set_row_selected)]
+        #[property(get, set = Self::private_set_row_selected)]
         pub selected: RefCell<bool>,
     }
 
@@ -52,16 +52,24 @@ mod imp {
     
     impl SelectableRow {
         /// adds a checkmark next to the row if selected, removes it if not
-        pub fn set_row_selected(&self, active: bool) {
+        pub fn private_set_row_selected(&self, active: bool) {
             *self.selected.borrow_mut() = active;
             let check_icon = self.check_icon.get();
     
             if *self.selected.borrow() {
-                check_icon.show();
+                check_icon.set_visible(true);
             }
             else {
-                check_icon.hide();
+                check_icon.set_visible(false);
             }
+        }
+        
+        pub fn private_get_row_profile(&self) -> String {
+            self.profile.borrow().clone()
+        }
+
+        pub fn private_set_row_profile(&self, profile: String) {
+            *self.profile.borrow_mut() = profile;
         }
     }
 }
@@ -77,6 +85,18 @@ impl SelectableRow {
     pub fn new() -> Self {
         Object::builder()
             .build()
+    }
+    
+    pub fn set_row_selected(&self, selected: bool) {
+        self.imp().private_set_row_selected(selected);
+    }
+    
+    pub fn get_row_profile(&self) -> String {
+        self.imp().private_get_row_profile()
+    }
+
+    pub fn set_row_profile(&self, profile: String) {
+        self.imp().private_set_row_profile(profile);
     }
 }
 

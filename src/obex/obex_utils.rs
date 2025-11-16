@@ -8,7 +8,7 @@ pub trait OrgFreedesktopDBusIntrospectable {
     fn introspect(&self) -> Result<String, dbus::Error>;
 }
 
-impl<'a, T: blocking::BlockingSender, C: ::std::ops::Deref<Target=T>> OrgFreedesktopDBusIntrospectable for blocking::Proxy<'a, C> {
+impl<'a, T: blocking::BlockingSender, C: std::ops::Deref<Target=T>> OrgFreedesktopDBusIntrospectable for blocking::Proxy<'a, C> {
 
     fn introspect(&self) -> Result<String, dbus::Error> {
         self.method_call("org.freedesktop.DBus.Introspectable", "Introspect", ()).map(|r: (String, )| r.0)
@@ -20,7 +20,7 @@ pub trait ObexAgentManager1 {
     fn unregister_agent(&self, agent: dbus::Path) -> Result<(), dbus::Error>;
 }
 
-impl<'a, T: blocking::BlockingSender, C: ::std::ops::Deref<Target=T>> ObexAgentManager1 for blocking::Proxy<'a, C> {
+impl<'a, T: blocking::BlockingSender, C: std::ops::Deref<Target=T>> ObexAgentManager1 for blocking::Proxy<'a, C> {
 
     fn register_agent(&self, agent: dbus::Path) -> Result<(), dbus::Error> {
         self.method_call("org.bluez.obex.AgentManager1", "RegisterAgent", (agent, ))
@@ -36,7 +36,7 @@ pub trait ObexClient1 {
     fn remove_session(&self, session: dbus::Path) -> Result<(), dbus::Error>;
 }
 
-impl<'a, T: blocking::BlockingSender, C: ::std::ops::Deref<Target=T>> ObexClient1 for blocking::Proxy<'a, C> {
+impl<'a, T: blocking::BlockingSender, C: std::ops::Deref<Target=T>> ObexClient1 for blocking::Proxy<'a, C> {
 
     fn create_session(&self, destination: &str, args: arg::PropMap) -> Result<dbus::Path<'static>, dbus::Error> {
         self.method_call("org.bluez.obex.Client1", "CreateSession", (destination, args, )).map(|r: (dbus::Path<'static>, )| r.0)
@@ -55,7 +55,7 @@ pub trait ObexSession1 {
     fn root(&self) -> Result<String, dbus::Error>;
 }
 
-impl<'a, T: blocking::BlockingSender, C: ::std::ops::Deref<Target=T>> ObexSession1 for blocking::Proxy<'a, C> {
+impl<'a, T: blocking::BlockingSender, C: std::ops::Deref<Target=T>> ObexSession1 for blocking::Proxy<'a, C> {
 
     fn get_capabilities(&self) -> Result<String, dbus::Error> {
         self.method_call("org.bluez.obex.Session1", "GetCapabilities", ()).map(|r: (String, )| r.0)
@@ -90,7 +90,7 @@ pub trait ObexTransfer1 {
     fn transferred(&self) -> Result<u64, dbus::Error>;
 }
 
-impl<'a, T: blocking::BlockingSender, C: ::std::ops::Deref<Target=T>> ObexTransfer1 for blocking::Proxy<'a, C> {
+impl<'a, T: blocking::BlockingSender, C: std::ops::Deref<Target=T>> ObexTransfer1 for blocking::Proxy<'a, C> {
 
     fn cancel(&self) -> Result<(), dbus::Error> {
         self.method_call("org.bluez.obex.Transfer1", "Cancel", ())
@@ -135,7 +135,7 @@ pub trait ObexObjectPush1 {
     fn exchange_business_cards(&self, clientfile: &str, targetfile: &str) -> Result<(dbus::Path<'static>, arg::PropMap), dbus::Error>;
 }
 
-impl<'a, T: blocking::BlockingSender, C: ::std::ops::Deref<Target=T>> ObexObjectPush1 for blocking::Proxy<'a, C> {
+impl<'a, T: blocking::BlockingSender, C: std::ops::Deref<Target=T>> ObexObjectPush1 for blocking::Proxy<'a, C> {
 
     fn send_file(&self, sourcefile: &str) -> Result<(dbus::Path<'static>, arg::PropMap), dbus::Error> {
         self.method_call("org.bluez.obex.ObjectPush1", "SendFile", (sourcefile, ))

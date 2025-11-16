@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="CMakePythonSetting">
+    <option name="pythonIntegrationState" value="YES" />
+  </component>
+  <component name="CidrRootsConfiguration">
+    <excludeRoots>
+      <file path="$PROJECT_DIR$/.flatpak-builder" />
+      <file path="$PROJECT_DIR$/.github" />
+      <file path="$PROJECT_DIR$/build" />
+      <file path="$PROJECT_DIR$/flatpak-build" />
+      <file path="$PROJECT_DIR$/overskride-flatpak" />
+      <file path="$PROJECT_DIR$/subprojects" />
+      <file path="$PROJECT_DIR$/target" />
+    </excludeRoots>
+  </component>
+  <component name="ExternalStorageConfigurationManager" enabled="true" />
+  <component name="MesonSettings">
+    <option name="linkedExternalProjectsSettings">
+      <MesonProjectSettings>
+        <option name="externalProjectPath" value="$PROJECT_DIR$" />
+        <option name="modules">
+          <set>
+            <option value="$PROJECT_DIR$" />
+          </set>
+        </option>
+      </MesonProjectSettings>
+    </option>
+  </component>
+  <component name="MesonWorkspace" PROJECT_DIR="$PROJECT_DIR$" />
+</project>

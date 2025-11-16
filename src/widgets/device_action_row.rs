@@ -6,7 +6,8 @@ use gtk::prelude::{ObjectExt, WidgetExt};
 use std::cell::RefCell;
 
 mod imp {
-    use super::*;    
+    use adw::glib::property::PropertySet;
+    use super::*;
 
     /// an action row adapted to hold a lot of info about this device and its adapter
     #[derive(Properties, Default, gtk::CompositeTemplate)]
@@ -20,11 +21,11 @@ mod imp {
 
         #[property(get, set)]
         pub rssi: RefCell<i32>,
-        #[property(get, set)]
+        #[property(get, set = Self::private_set_adapter_name)]
         pub adapter_name: RefCell<String>,
-        #[property(get, set = Self::set_current_connected)]
-        pub connected: RefCell<bool>,
-        #[property(get, set)]
+        #[property(get, set = Self::private_set_current_connected)]
+        pub is_connected: RefCell<bool>,
+        #[property(get, set = Self::private_set_trusted)]
         pub trusted: RefCell<bool>,
 
         pub address: RefCell<bluer::Address>,
@@ -59,18 +60,34 @@ mod imp {
     impl PreferencesRowImpl for DeviceActionRow {}
     
     impl DeviceActionRow {
-    	fn set_current_connected(&self, connected: bool) {
+    	pub fn private_set_current_connected(&self, connected: bool) {
     		let icon = self.connected_icon.get();
 
     		if connected {
-    			icon.show();
+    			icon.set_visible(true);
     		}
     		else {
-    			icon.hide();
+                icon.set_visible(false);
     		}
 
-    		self.connected.set(connected);
+    		self.is_connected.set(connected);
     	}
+        
+        pub fn private_set_rssi(&self, rssi: i32) {
+            *self.rssi.borrow_mut() = rssi;
+        }
+        
+        pub fn private_get_connected(&self) -> bool {
+            *self.is_connected.borrow()
+        }
+        
+        pub fn private_set_trusted(&self, trusted: bool) {
+            *self.trusted.borrow_mut() = trusted;
+        }
+        
+        pub fn private_set_adapter_name(&self, name: String) {
+            *self.adapter_name.borrow_mut() = name;
+        }
     }
 }
 
@@ -131,6 +148,26 @@ impl DeviceActionRow {
         };
 
         self.imp().rssi_icon.set_icon_name(Some(icon_name));
+    }
+    
+    pub fn set_connected(&self, connected: bool) {
+        self.imp().private_set_current_connected(connected);
+    }
+    
+    pub fn connected(&self) -> bool {
+        self.imp().private_get_connected()
+    }
+    
+    pub fn set_row_rssi(&self, rssi: i32) {
+        self.imp().private_set_rssi(rssi);
+    }
+    
+    pub fn set_row_trusted(&self, trusted: bool) {
+        self.imp().private_set_trusted(trusted);
+    }
+    
+    pub fn set_row_adapter_name(&self, name: String) {
+        self.imp().private_set_adapter_name(name);
     }
 }
 

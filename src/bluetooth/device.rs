@@ -1,17 +1,17 @@
+use async_channel::Sender;
 use bluer::{AdapterEvent, AdapterProperty, DeviceEvent, DeviceProperty};
 use futures::{pin_mut, stream::SelectAll, StreamExt};
-use gtk::glib::Sender;
 use tokio_util::sync::CancellationToken;
 use uuid::uuid;
 
-use crate::{message::Message, window::{DEVICES_LUT, CURRENT_ADDRESS, CONFIRMATION_AUTHORIZATION, DISPLAYING_DIALOG}, agent::wait_for_dialog_exit, audio_profiles::AudioProfiles, battery::CANCEL_BATTERY_CHECK, services};
+use crate::{message::Message, window::{DEVICES_LUT}, agent::wait_for_dialog_exit, audio_profiles::AudioProfiles, battery::CANCEL_BATTERY_CHECK, services};
+use crate::window::OVERSKRIDE_PROPS;
 
 static mut CANCELLATION_TOKEN: Option<CancellationToken> = None;
 
 /// Set the associated with `address` device's state, between connected and not 
 /// connected depending on what was already the case.
 /// A little funky and needs fixing but works for now.
-#[tokio::main]
 pub async fn set_device_active(address: bluer::Address, sender: Sender<Message>, adapter_name: String) -> bluer::Result<()> {
     let address_string = address.clone().to_string();
     let adapter_string = adapter_name.clone();
@@ -19,7 +19,7 @@ pub async fn set_device_active(address: bluer::Address, sender: Sender<Message>,
     let adapter = bluer::Session::new().await?.adapter(adapter_name.as_str())?;
 	let device = adapter.device(address)?;
 
-	sender.send(Message::SwitchActiveSpinner(true)).expect("cannot set spinner to show.");
+	sender.send(Message::SwitchActiveSpinner(true)).await.expect("cannot set spinner to show.");
 
     let state = device.is_connected().await?;
 
@@ -44,9 +44,9 @@ pub async fn set_device_active(address: bluer::Address, sender: Sender<Message>,
 
     
     println!("set state {} for device {}\n", updated_state, device.address());
-	sender.send(Message::SwitchActiveSpinner(false)).expect("cannot set spinner to show.");
-    sender.send(Message::SwitchActive(updated_state, address, true)).expect("cannot send message");
-	sender.send(Message::InvalidateSort()).expect("cannot set device name.");
+	sender.send(Message::SwitchActiveSpinner(false)).await.expect("cannot set spinner to show.");
+    sender.send(Message::SwitchActive(updated_state, address, true)).await.expect("cannot send message");
+	sender.send(Message::InvalidateSort()).await.expect("cannot set device name.");
 	
 	// sender.send(Message::SwitchActiveSpinner(false)).expect("cannot set spinner to show.");
     // connected_switch_row.set_active(!connected_switch_row.active());
@@ -60,35 +60,35 @@ pub async fn set_device_active(address: bluer::Address, sender: Sender<Message>,
         crate::battery::get_battery_for_device(address_string, adapter_string, clone);
     });
 
-    sender.send(Message::SwitchAudioProfileExpanded(false)).expect("cannot send message");
-    sender.send(Message::SwitchAudioProfilesList(false)).expect("cannot send message");
+    sender.send(Message::SwitchAudioProfileExpanded(false)).await.expect("cannot send message");
+    sender.send(Message::SwitchAudioProfilesList(false)).await.expect("cannot send message");
 
     if let Ok(profiles) = AudioProfiles::new(address.to_string()) {
         let active = profiles.active_profile;
         let profiles_map = profiles.profiles;
 
         if !profiles_map.is_empty() {
-            sender.send(Message::PopulateAudioProfilesList(profiles_map)).expect("cannot send message");
-            sender.send(Message::SwitchAudioProfilesList(true)).expect("cannot send message");
-            sender.send(Message::SetActiveAudioProfile(active)).expect("cannot send message");
+            sender.send(Message::PopulateAudioProfilesList(profiles_map)).await.expect("cannot send message");
+            sender.send(Message::SwitchAudioProfilesList(true)).await.expect("cannot send message");
+            sender.send(Message::SetActiveAudioProfile(active)).await.expect("cannot send message");
         }
         else {
-            sender.send(Message::SwitchAudioProfilesList(false)).expect("cannot send message");
-            sender.send(Message::SwitchAudioProfileExpanded(false)).expect("cannot send message");
+            sender.send(Message::SwitchAudioProfilesList(false)).await.expect("cannot send message");
+            sender.send(Message::SwitchAudioProfileExpanded(false)).await.expect("cannot send message");
         }
     }
     else {
-        sender.send(Message::SwitchAudioProfilesList(false)).expect("cannot send message");
-        sender.send(Message::SwitchAudioProfileExpanded(false)).expect("cannot send message");
+        sender.send(Message::SwitchAudioProfilesList(false)).await.expect("cannot send message");
+        sender.send(Message::SwitchAudioProfileExpanded(false)).await.expect("cannot send message");
     }
 
 	if let Ok(()) = has_service(uuid!("00001105-0000-1000-8000-00805f9b34fb"), device).await {
-    	sender.send(Message::SwitchHasObexService(true)).expect("cannot send message");
-        sender.send(Message::SwitchSendFileActive(updated_state)).expect("cannot send message");
+    	sender.send(Message::SwitchHasObexService(true)).await.expect("cannot send message");
+        sender.send(Message::SwitchSendFileActive(updated_state)).await.expect("cannot send message");
     }
     else {
-      	sender.send(Message::SwitchHasObexService(false)).expect("cannot send message");
-        sender.send(Message::SwitchSendFileActive(false)).expect("cannot send message");
+      	sender.send(Message::SwitchHasObexService(false)).await.expect("cannot send message");
+        sender.send(Message::SwitchSendFileActive(false)).await.expect("cannot send message");
     }
 
     
@@ -98,7 +98,6 @@ pub async fn set_device_active(address: bluer::Address, sender: Sender<Message>,
 
 /// Set's the device's blocked state based on what was already the case.
 /// Basically stops all connections and requests if the device is blocked.
-#[tokio::main]
 pub async fn set_device_blocked(address: bluer::Address, sender: Sender<Message>, adapter_name: String)  -> bluer::Result<()> {
     let adapter = bluer::Session::new().await?.adapter(adapter_name.as_str())?;
 	let device = adapter.device(address)?;
@@ -107,7 +106,7 @@ pub async fn set_device_blocked(address: bluer::Address, sender: Sender<Message>
 
     device.set_blocked(blocked).await?;
 
-	sender.send(Message::SwitchBlocked(blocked)).expect("cannot set device blocked.");
+	sender.send(Message::SwitchBlocked(blocked)).await.expect("cannot set device blocked.");
 
     // println!("setting blocked {} for device {}", new_blocked, device.address());
     Ok(())
@@ -115,7 +114,6 @@ pub async fn set_device_blocked(address: bluer::Address, sender: Sender<Message>
 
 /// Sets the device's trusted state depending on what was already the case.
 /// If trusted, connections to the device won't need pin/passkey everytime.
-#[tokio::main]
 pub async fn set_device_trusted(address: bluer::Address, sender: Sender<Message>, adapter_name: String) -> bluer::Result<()> {
     let adapter = bluer::Session::new().await?.adapter(adapter_name.as_str())?;
     let device = adapter.device(address)?;
@@ -124,14 +122,13 @@ pub async fn set_device_trusted(address: bluer::Address, sender: Sender<Message>
 
     device.set_trusted(trusted).await?;
 
-    sender.send(Message::SwitchTrusted(trusted)).expect("cannot set device trusted.");
+    sender.send(Message::SwitchTrusted(trusted)).await.expect("cannot set device trusted.");
     // println!("setting trusted {} for device {}", new_trusted, device.address());
 
     Ok(())
 }
 
 /// Sets the currently selected device's name, updating the entry and listboxrow accordingly.
-#[tokio::main]
 pub async fn set_device_name(address: bluer::Address, name: String, sender: Sender<Message>, adapter_name: String) -> bluer::Result<()> {
 	let adapter = bluer::Session::new().await?.adapter(adapter_name.as_str())?;
 	let device = adapter.device(address)?;
@@ -144,7 +141,7 @@ pub async fn set_device_name(address: bluer::Address, name: String, sender: Send
     for key in lut.keys() {
 		if let Some(pair) = lut.get_key_value(key) {
 			if pair.1.trim() == set_name && pair.0 != &address {
-                sender.send(Message::SetNameValid(false)).expect("cannot send message");
+                sender.send(Message::SetNameValid(false)).await.expect("cannot send message");
 				return Err(bluer::Error { kind: bluer::ErrorKind::AlreadyExists, message: "device-name-exists".to_string() });
 			}
 		}
@@ -160,16 +157,15 @@ pub async fn set_device_name(address: bluer::Address, name: String, sender: Send
         DEVICES_LUT = Some(lut);           
     }
 
-	sender.send(Message::SwitchName(current_alias, None, address)).expect("cannot set device name.");
- 	sender.send(Message::SetNameValid(true)).expect("cannot send message");
+	sender.send(Message::SwitchName(current_alias, None, address)).await.expect("cannot set device name.");
+ 	sender.send(Message::SetNameValid(true)).await.expect("cannot send message");
 
-	std::thread::sleep(std::time::Duration::from_millis(500));
-	sender.send(Message::InvalidateSort()).expect("cannot set device name.");
+	tokio::time::sleep(std::time::Duration::from_millis(500)).await;
+	sender.send(Message::InvalidateSort()).await.expect("cannot set device name.");
     Ok(())
 }
 
-/// Gets the the device associates with `address`, and then retrieves the properties of that device.
-#[tokio::main]
+/// Gets the device associates with `address`, and then retrieves the properties of that device.
 pub async fn get_device_properties(address: bluer::Address, sender: Sender<Message>, adapter_name: String) -> bluer::Result<()> {
     let adapter_string = adapter_name.clone();
     let address_string = address.clone().to_string();
@@ -190,13 +186,13 @@ pub async fn get_device_properties(address: bluer::Address, sender: Sender<Messa
         },
     };
     
-    sender.send(Message::SwitchPage(Some(alias), Some(icon_name))).expect("cannot set device alias and icon in page.");
-    sender.send(Message::SwitchActive(is_active, address, true)).expect("cannot set device active in page.");
-    sender.send(Message::SwitchBlocked(is_blocked)).expect("cannot set device blocked in page.");
-    sender.send(Message::SwitchTrusted(is_trusted)).expect("cannot set device trusted in page.");
-   	sender.send(Message::SetNameValid(true)).expect("cannot send message");
-    sender.send(Message::SwitchAudioProfileExpanded(false)).expect("cannot send message");
-    sender.send(Message::SwitchAudioProfilesList(false)).expect("cannot send message");
+    sender.send(Message::SwitchPage(Some(alias), Some(icon_name))).await.expect("cannot set device alias and icon in page.");
+    sender.send(Message::SwitchActive(is_active, address, true)).await.expect("cannot set device active in page.");
+    sender.send(Message::SwitchBlocked(is_blocked)).await.expect("cannot set device blocked in page.");
+    sender.send(Message::SwitchTrusted(is_trusted)).await.expect("cannot set device trusted in page.");
+   	sender.send(Message::SetNameValid(true)).await.expect("cannot send message");
+    sender.send(Message::SwitchAudioProfileExpanded(false)).await.expect("cannot send message");
+    sender.send(Message::SwitchAudioProfilesList(false)).await.expect("cannot send message");
 
     let sender_clone = sender.clone();
     std::thread::spawn(move || {
@@ -213,27 +209,27 @@ pub async fn get_device_properties(address: bluer::Address, sender: Sender<Messa
         let profiles_map = profiles.profiles;
 
         if !profiles_map.is_empty() {
-            sender.send(Message::PopulateAudioProfilesList(profiles_map)).expect("cannot send message");
-            sender.send(Message::SwitchAudioProfilesList(true)).expect("cannot send message");
-            sender.send(Message::SetActiveAudioProfile(active)).expect("cannot send message");
+            sender.send(Message::PopulateAudioProfilesList(profiles_map)).await.expect("cannot send message");
+            sender.send(Message::SwitchAudioProfilesList(true)).await.expect("cannot send message");
+            sender.send(Message::SetActiveAudioProfile(active)).await.expect("cannot send message");
         }
         else {
-            sender.send(Message::SwitchAudioProfilesList(false)).expect("cannot send message");
-            sender.send(Message::SwitchAudioProfileExpanded(false)).expect("cannot send message");
+            sender.send(Message::SwitchAudioProfilesList(false)).await.expect("cannot send message");
+            sender.send(Message::SwitchAudioProfileExpanded(false)).await.expect("cannot send message");
         }
     }
     else {
-        sender.send(Message::SwitchAudioProfilesList(false)).expect("cannot send message");
-        sender.send(Message::SwitchAudioProfileExpanded(false)).expect("cannot send message");
+        sender.send(Message::SwitchAudioProfilesList(false)).await.expect("cannot send message");
+        sender.send(Message::SwitchAudioProfileExpanded(false)).await.expect("cannot send message");
     }
 
 	if let Ok(()) = has_service(uuid!("00001105-0000-1000-8000-00805f9b34fb"), device).await {
-        sender.send(Message::SwitchHasObexService(true)).expect("cannot send message");
-        sender.send(Message::SwitchSendFileActive(is_active)).expect("cannot send message");
+        sender.send(Message::SwitchHasObexService(true)).await.expect("cannot send message");
+        sender.send(Message::SwitchSendFileActive(is_active)).await.expect("cannot send message");
     }
     else {
-        sender.send(Message::SwitchHasObexService(false)).expect("cannot send message");
-        sender.send(Message::SwitchSendFileActive(false)).expect("cannot send message");
+        sender.send(Message::SwitchHasObexService(false)).await.expect("cannot send message");
+        sender.send(Message::SwitchSendFileActive(false)).await.expect("cannot send message");
     }
 
     // println!("the devices properties have been gotten with state: {}", is_active);
@@ -241,7 +237,6 @@ pub async fn get_device_properties(address: bluer::Address, sender: Sender<Messa
     Ok(())
 }
 
-#[tokio::main]
 pub async fn remove_device(address: bluer::Address, sender: Sender<Message>, adapter_name: String) -> bluer::Result<()> {
 	let adapter = bluer::Session::new().await?.adapter(adapter_name.as_str())?;
 	let device = adapter.device(address)?;
@@ -250,16 +245,14 @@ pub async fn remove_device(address: bluer::Address, sender: Sender<Message>, ada
     let subtitle = "Are you sure you want to remove <span font_weight='bold' color='#78aeed'>`".to_string() + &device.alias().await? + "`</span>?";
     let confirm = "Remove".to_string();
 
-    unsafe{
-        DISPLAYING_DIALOG = true;
-    }
-    sender.send(Message::RequestYesNo(title, subtitle, confirm, adw::ResponseAppearance::Destructive)).expect("can't send message");
+    
+    OVERSKRIDE_PROPS.lock().unwrap().displaying_dialog = true;
+    
+    sender.send(Message::RequestYesNo(title, subtitle, confirm, adw::ResponseAppearance::Destructive)).await.expect("can't send message");
 
     wait_for_dialog_exit().await;
 
-    let confirmed = unsafe {
-        CONFIRMATION_AUTHORIZATION
-    };
+    let confirmed = OVERSKRIDE_PROPS.lock().unwrap().confirm_authorization;
 
     if confirmed {
         println!("removing device...");
@@ -273,8 +266,8 @@ pub async fn remove_device(address: bluer::Address, sender: Sender<Message>, ada
             }
         }
         
-        sender.send(Message::RemoveDevice(name, address)).expect("can't send message");
-        sender.send(Message::UpdateListBoxImage()).expect("can't send message");    
+        sender.send(Message::RemoveDevice(name, address)).await.expect("can't send message");
+        sender.send(Message::UpdateListBoxImage()).await.expect("can't send message");    
     }
 
     Ok(())
@@ -288,7 +281,6 @@ pub async fn has_service(service: bluer::Uuid, device: bluer::Device) -> bluer::
     Err(bluer::Error { kind: bluer::ErrorKind::DoesNotExist, message: "wanted service doesn't exist.".to_string()})
 }
 
-#[tokio::main]
 pub async fn stop_searching() { 
     unsafe {
         if let Some(token) = CANCELLATION_TOKEN.clone() {
@@ -297,8 +289,6 @@ pub async fn stop_searching() {
     }
 }
 
-
-#[tokio::main]
 pub async fn get_devices_continuous(sender: Sender<Message>, adapter_name: String) -> bluer::Result<()> {
 	let session = bluer::Session::new().await?;
 	let adapter = &session.adapter(adapter_name.as_str())?;
@@ -335,8 +325,8 @@ pub async fn get_devices_continuous(sender: Sender<Message>, adapter_name: Strin
 
                             if !devices_lut.contains_key(&addr) {
                                 if let Ok(added_device) = supposed_device {
-	                                sender.send(Message::AddRow(added_device)).expect("cannot send message {}"); 
-	                                sender.send(Message::UpdateListBoxImage()).expect("cannot send message {}"); 
+	                                sender.send(Message::AddRow(added_device)).await.expect("cannot send message {}"); 
+	                                sender.send(Message::UpdateListBoxImage()).await.expect("cannot send message {}"); 
 	                                //println!("supposedly sent");
 	                                
 	                                let device = adapter.device(addr)?;
@@ -371,24 +361,24 @@ pub async fn get_devices_continuous(sender: Sender<Message>, adapter_name: Strin
                                 String::new()
                             };
                             
-                            sender_clone.send(Message::RemoveDevice(device_name.clone(), addr)).expect("cannot send message"); 
-                            sender_clone.send(Message::UpdateListBoxImage()).expect("cannot send message");
+                            sender_clone.send(Message::RemoveDevice(device_name.clone(), addr)).await.expect("cannot send message"); 
+                            sender_clone.send(Message::UpdateListBoxImage()).await.expect("cannot send message");
                             println!("Device removed: {:?} {}\n", addr, device_name.clone());    
 						}
                     },
                     AdapterEvent::PropertyChanged(AdapterProperty::Powered(powered)) => {
-                        std::thread::sleep(std::time::Duration::from_secs_f32(0.5));
-                        sender_clone.send(Message::SwitchAdapterPowered(powered)).expect("cannot send message {}"); 
+                        tokio::time::sleep(std::time::Duration::from_secs_f32(0.5)).await;
+                        sender_clone.send(Message::SwitchAdapterPowered(powered)).await.expect("cannot send message {}"); 
                         println!("powered switch to {}", powered);
                     },
                     AdapterEvent::PropertyChanged(AdapterProperty::Discoverable(discoverable)) => {
-                        std::thread::sleep(std::time::Duration::from_secs_f32(0.5));
-                        sender_clone.send(Message::SwitchAdapterDiscoverable(discoverable)).expect("cannot send message {}"); 
+                        tokio::time::sleep(std::time::Duration::from_secs_f32(0.5)).await;
+                        sender_clone.send(Message::SwitchAdapterDiscoverable(discoverable)).await.expect("cannot send message {}"); 
                         println!("discoverable switch to {}", discoverable);
                     },
                     AdapterEvent::PropertyChanged(AdapterProperty::Alias(alias)) => {
-                    	std::thread::sleep(std::time::Duration::from_secs_f32(0.5));
-                    	sender_clone.send(Message::SwitchAdapterName(alias.clone(), alias.clone())).expect("cannot send message {}");
+                    	tokio::time::sleep(std::time::Duration::from_secs_f32(0.5)).await;
+                    	sender_clone.send(Message::SwitchAdapterName(alias.clone(), alias.clone())).await.expect("cannot send message {}");
                     },
                     event => {
                         println!("unhandled adapter event: {:?}", event);
@@ -396,44 +386,35 @@ pub async fn get_devices_continuous(sender: Sender<Message>, adapter_name: Strin
                 }
             }
             Some((addr, DeviceEvent::PropertyChanged(property))) = all_change_events.next() => {
+                let current_address = OVERSKRIDE_PROPS.lock().unwrap().address;
                 match property {
                     DeviceProperty::Connected(connected) => {
-                        let current_address = unsafe { 
-                        	CURRENT_ADDRESS 
-                        };
-                       	
-                        std::thread::sleep(std::time::Duration::from_secs_f32(0.5));
-                        sender_clone.send(Message::SwitchActive(connected, addr, addr == current_address)).expect("cannot send message");
+                        tokio::time::sleep(std::time::Duration::from_secs_f32(0.5)).await;
+                        sender_clone.send(Message::SwitchActive(connected, addr, addr == current_address)).await.expect("cannot send message");
                     },
                     DeviceProperty::Trusted(trusted) => {
-                        let current_address = unsafe {
-                        	CURRENT_ADDRESS 
-                        };
+                        let current_address = OVERSKRIDE_PROPS.lock().unwrap().address;
                         
                         if addr == current_address {
-                            std::thread::sleep(std::time::Duration::from_secs_f32(0.5));
-                            sender_clone.send(Message::SwitchTrusted(trusted)).expect("cannot send message");
+                            tokio::time::sleep(std::time::Duration::from_secs_f32(0.5)).await;
+                            sender_clone.send(Message::SwitchTrusted(trusted)).await.expect("cannot send message");
                         }
                     },
                     DeviceProperty::Blocked(blocked) => {
-                        let current_address = unsafe {
-                        	CURRENT_ADDRESS 
-                        };
+                        let current_address = OVERSKRIDE_PROPS.lock().unwrap().address;
                         
                         if addr == current_address {
-                            std::thread::sleep(std::time::Duration::from_secs_f32(0.5));
-                            sender_clone.send(Message::SwitchBlocked(blocked)).expect("cannot send message");
+                            tokio::time::sleep(std::time::Duration::from_secs_f32(0.5)).await;
+                            sender_clone.send(Message::SwitchBlocked(blocked)).await.expect("cannot send message");
                         }
                     },
                     DeviceProperty::Alias(name) => {
-                        let current_address = unsafe { 
-                            CURRENT_ADDRESS
-                        };
+                        let current_address = OVERSKRIDE_PROPS.lock().unwrap().address;
                         
                         if addr == current_address {
-                            std::thread::sleep(std::time::Duration::from_secs_f32(0.01));
-                            sender_clone.send(Message::SwitchName(name.clone(), None, addr)).expect("cannot send message");
-                            sender_clone.send(Message::SwitchPage(Some(name.clone()), None)).expect("cannot send message");
+                            tokio::time::sleep(std::time::Duration::from_secs_f32(0.01)).await;
+                            sender_clone.send(Message::SwitchName(name.clone(), None, addr)).await.expect("cannot send message");
+                            sender_clone.send(Message::SwitchPage(Some(name.clone()), None)).await.expect("cannot send message");
                         }
                         else {
                             let hashmap = unsafe { 
@@ -443,25 +424,23 @@ pub async fn get_devices_continuous(sender: Sender<Message>, adapter_name: Strin
                             let empty = String::new();
                             let old_alias = hashmap.get(&addr).unwrap_or(&empty);
 
-                            sender_clone.send(Message::SwitchName(name.clone(), Some(old_alias.to_string()), addr)).expect("cannot send message");
+                            sender_clone.send(Message::SwitchName(name.clone(), Some(old_alias.to_string()), addr)).await.expect("cannot send message");
                         }
                     },
                     DeviceProperty::Icon(icon) => {
-                        let current_address = unsafe {
-                       		CURRENT_ADDRESS 
-                       	};
+                        let current_address = OVERSKRIDE_PROPS.lock().unwrap().address;
                        
                        	if addr == current_address {
-                            std::thread::sleep(std::time::Duration::from_secs_f32(0.5));
-                            sender_clone.send(Message::SwitchPage(None, Some(icon))).expect("cannot send message");
+                            tokio::time::sleep(std::time::Duration::from_secs_f32(0.5)).await;
+                            sender_clone.send(Message::SwitchPage(None, Some(icon))).await.expect("cannot send message");
                         }
                     },
                     DeviceProperty::Rssi(rssi) => {
                        	let device = unsafe {
                             DEVICES_LUT.clone().unwrap().get(&addr).unwrap_or(&"Unknown Device".to_string()).to_string()
                         };
-                        sender_clone.send(Message::SwitchRssi(device, rssi as i32)).expect("cannot send message");
-                        sender_clone.send(Message::InvalidateSort()).expect("cannot send message");
+                        sender_clone.send(Message::SwitchRssi(device, rssi as i32)).await.expect("cannot send message");
+                        sender_clone.send(Message::InvalidateSort()).await.expect("cannot send message");
                     },
                     event => {
                         println!("unhandled device event: {:?}", event);
@@ -490,7 +469,6 @@ pub async fn get_devices_continuous(sender: Sender<Message>, adapter_name: Strin
     }
 }
 
-#[tokio::main]
 pub async fn get_more_info(address: bluer::Address, adapter_name: String) -> bluer::Result<(String, String, String, String, String, Vec<String>)> {
     let session = bluer::Session::new().await?;
 	let adapter = &session.adapter(&adapter_name)?;
@@ -502,7 +480,7 @@ pub async fn get_more_info(address: bluer::Address, adapter_name: String) -> blu
     let mut services_list = vec![];
 
     let distance = async {
-		// factor for if indoors outside etc, between 2 to 4
+        /* factor for if indoors outside etc., between 2 and 4 */
     	let n = 3;
     	let measured = device.tx_power().await?;
 		let rssi  = device.rssi().await?;
@@ -517,7 +495,7 @@ pub async fn get_more_info(address: bluer::Address, adapter_name: String) -> blu
 		let ratio = (measured.unwrap_or(-59) - rssi.unwrap()) as f32;
 
 		// basically reverse the logarithmic way or calculate TX power to get the distance
-		// it is absolute fuckery and i have no idea how the hell anyone would come up with this but it works fairly well
+		// it is absolute fuckery and I have no idea how the hell anyone would come up with this, but it works fairly well
 		let dist = 10f32.powf(ratio / (10.0 * n as f32));
 
 		Ok(format!("≈ {:.1$} meters", dist, 2))

@@ -1,3 +1,4 @@
+use adw::gio::{ActionGroup, ActionMap};
 use glib::Object;
 use gtk::glib;
 use adw::subclass::prelude::AdwApplicationWindowImpl;
@@ -79,7 +80,7 @@ mod imp {
 glib::wrapper! {
     pub struct StartupErrorMessage(ObjectSubclass<imp::StartupErrorMessage>)
         @extends adw::ApplicationWindow, gtk::Widget, gtk::Window, gtk::ApplicationWindow,
-        @implements gtk::Accessible, gtk::Buildable, gtk::ConstraintTarget, gtk::Native, gtk::Root, gtk::ShortcutManager;
+        @implements gtk::Accessible, gtk::Buildable, gtk::ConstraintTarget, gtk::Native, gtk::Root, gtk::ShortcutManager, ActionGroup, ActionMap;
 }
 
 impl StartupErrorMessage {
