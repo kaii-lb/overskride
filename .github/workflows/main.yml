@@ -14,7 +14,13 @@ jobs:
       options: --privileged
     steps:
     - uses: actions/checkout@v4
-    - uses: flatpak/flatpak-github-actions/flatpak-builder@v6.6
+    - name: Install Rust 1.85.0 for edition2024 support
+      uses: actions-rust-lang/setup-rust-toolchain@v1
+      with:
+        toolchain: "1.85.0"
+
+    - name: Build Flatpak
+      uses: flatpak/flatpak-github-actions/flatpak-builder@v6.6
       with:
         bundle: overskride-nightly.flatpak
         manifest-path: io.github.kaii_lb.Overskride.json

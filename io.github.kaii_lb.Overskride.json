@@ -1,7 +1,7 @@
 {
     "app-id" : "io.github.kaii_lb.Overskride",
     "runtime" : "org.gnome.Platform",
-    "runtime-version" : "45",
+    "runtime-version" : "48",
     "sdk" : "org.gnome.Sdk",
     "sdk-extensions" : [
         "org.freedesktop.Sdk.Extension.rust-stable"
@@ -58,7 +58,7 @@
             "buildsystem" : "meson",
             "config-opts": [
               "-Dbuildtype=release"
-            ],          
+            ],
             "sources" : [
                 {
                     "type" : "git",
