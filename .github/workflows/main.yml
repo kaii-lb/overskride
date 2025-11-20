@@ -1,6 +1,6 @@
 on:
   push:
-    tags: 
+    tags:
       - v*
   pull_request:
   workflow_dispatch:
@@ -10,7 +10,7 @@ jobs:
     name: "Flatpak"
     runs-on: ubuntu-latest
     container:
-      image: bilelmoussaoui/flatpak-github-actions:gnome-45
+      image: bilelmoussaoui/flatpak-github-actions:gnome-48
       options: --privileged
     steps:
     - uses: actions/checkout@v4
