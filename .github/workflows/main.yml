@@ -19,9 +19,6 @@ jobs:
       with:
         toolchain: "1.85.0"
 
-    - name: Update gtk4 devel
-      run: apt update && apt upgrade -y
-
     - name: Build Flatpak
       uses: flatpak/flatpak-github-actions/flatpak-builder@v6.6
       with:
