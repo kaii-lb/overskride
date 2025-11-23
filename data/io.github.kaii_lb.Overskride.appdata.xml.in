@@ -30,12 +30,12 @@
   </description>
 
   <releases>
-    <release version="0.6.3" date="2025-10-28" type="stable">
+    <release version="0.6.5" date="2025-11-23" type="stable">
       <description>
-        <p>Fixes device list flickering due to inconsistent if-based sorting logic</p>
+        <p>Update to latest GTK and LibAdwaita</p>
       </description>
   
-      <url>https://github.com/kaii-lb/overskride/releases/tag/v0.6.3</url>
+      <url>https://github.com/kaii-lb/overskride/releases/tag/v0.6.5</url>
     </release>
   </releases>
   
