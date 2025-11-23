@@ -22,10 +22,7 @@ use adw::subclass::prelude::*;
 use gtk::gio::Settings;
 use gtk::glib::clone;
 use gtk::glib::SignalHandlerId;
-use gtk::{
-    gio, glib, Accessible, Buildable, ConstraintTarget, Grid, Native, Root, ShortcutManager,
-    Widget, Window,
-};
+use gtk::{gio, glib, Accessible, Buildable, ConstraintTarget, Grid, Native, ResponseType, Root, ShortcutManager, Widget, Window};
 
 use crate::agent::register_bluetooth_agent;
 use crate::application::OverskrideApplication;
@@ -1131,19 +1128,26 @@ impl OverskrideWindow {
                     }
                     Message::GetFile(action) => {
                         // spawn a file chooser and get the chosen files
-                        let dialog = gtk::FileDialog::builder()
-                            .modal(true)
-                            .accept_label("Send")
-                            .title("Select files for transfer")
-                            .build();
+                        let dialog = gtk::FileChooserDialog::new(Some("Select File To Send"),
+                            Some(&clone),
+                            action,
+                            &[("Cancel", gtk::ResponseType::Cancel),
+                              ("Select", gtk::ResponseType::Accept)
+                        ]);
+                        dialog.set_destroy_with_parent(true);
+                        dialog.set_select_multiple(true);
+                        dialog.set_default_response(gtk::ResponseType::Accept);
+                        dialog.set_modal(true);
 
                         OVERSKRIDE_PROPS.lock().unwrap().displaying_dialog = true;
 
                         // wait for exit then collect all files, if no files selected reset the file list
-                        let result = dialog.open_multiple_future(None::<&Window>).await;
-                        let mut all_files: Vec<String> = vec![];
-                        match result {
-                            Ok(files) => {
+                        dialog.run_async(|file_chooser, response| {
+	                        let mut all_files: Vec<String> = vec![];
+
+                            if response != ResponseType::Cancel {
+                                let files = file_chooser.files();
+
                                 for file in files.into_iter() {
                                     if file.as_ref().unwrap().is::<gio::File>() {
                                         if let Some(path) = file.unwrap().dynamic_cast::<gio::File>().unwrap().path() {
@@ -1153,15 +1157,15 @@ impl OverskrideWindow {
                                         };
                                     }
                                 }
+                            } else {
+                                eprintln!("File selection failed: {:?}", response);
                             }
 
-                            Err(e) => {
-                                eprintln!("File selection failed: {:?}", e);
-                            }
-                        }
+	                        OVERSKRIDE_PROPS.lock().unwrap().displaying_dialog = false;
+	                        OVERSKRIDE_PROPS.lock().unwrap().send_files_path = all_files;
 
-                        OVERSKRIDE_PROPS.lock().unwrap().displaying_dialog = false;
-                        OVERSKRIDE_PROPS.lock().unwrap().send_files_path = all_files;
+	                        file_chooser.destroy();
+                        });
                     }
                     Message::SwitchSendFileActive(state) => {
                         let send_file_row = clone.imp().send_file_row.get();
