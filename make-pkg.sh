@@ -1,9 +1,18 @@
 #!/bin/sh
 
-meson compile -C build
+if [[ -z "$1" ]]; then
+	echo "Pass in the build directory."
+	exit 1
+fi
 
-mkdir -p /home/$USER/Projects/overskride/build/src/release/package
-cd /home/$USER/Projects/overskride/build/src/release/package
+path=$(realpath $1)
+
+meson setup $path --wipe
+meson configure $path -Dbuildtype=release -Dprefix=/usr
+meson compile -C $path
+
+mkdir -p $path/src/release/package
+cd $path/src/release/package
 
 mkdir -p usr/bin
 mkdir -p usr/share/overskride
