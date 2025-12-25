@@ -252,7 +252,8 @@ impl OverskrideWindow {
         let sender_for_receiver_clone = sender.clone();
         let self_clone = self.clone();
 
-        glib::spawn_future_local(async move {
+
+        glib::MainContext::default().spawn_local(async move {
             while let Ok(msg) = receiver.recv().await {
                 let clone = self_clone.clone();
 
