@@ -1,4 +1,4 @@
-use dbus::{blocking::{Connection, 
+use dbus::{blocking::{Connection,
     stdintf::org_freedesktop_dbus::{ObjectManagerInterfacesAdded, PropertiesPropertiesChanged, Properties}},
     Path, arg::{PropMap, RefArg, Variant}, MethodErr};
 
@@ -43,13 +43,13 @@ async fn handle_properties_updated(interface: String, changed_properties: PropMa
         };
         let status = if let Some(status_holder) = &changed_properties.get_key_value("Status") {
             let dummy_status = status_holder.1.0.as_str().unwrap();
-            
+
             // self-explanatory, but it tells the user about what's happening with the transfer
             match dummy_status {
                 "active" => {
                 	if unsafe { OUTBOUND } {
                     	sender.send(Message::PopupError("obex-transfer-active-outbound".to_string(), adw::ToastPriority::Normal)).await.expect("cannot send message");
-                    	unsafe { BREAKING = false; }                		
+                    	unsafe { BREAKING = false; }
                 	}
                 	else {
                     	sender.send(Message::PopupError("obex-transfer-active-inbound".to_string(), adw::ToastPriority::Normal)).await.expect("cannot send message");
@@ -57,8 +57,8 @@ async fn handle_properties_updated(interface: String, changed_properties: PropMa
                 },
                 "complete" => {
                 	if unsafe { OUTBOUND } {
-                    	sender.send(Message::PopupError("obex-transfer-complete-outbound".to_string(), adw::ToastPriority::Normal)).await.expect("cannot send message");                		
-                    	unsafe { BREAKING = true; }                		
+                    	sender.send(Message::PopupError("obex-transfer-complete-outbound".to_string(), adw::ToastPriority::Normal)).await.expect("cannot send message");
+                    	unsafe { BREAKING = true; }
                 	}
                 	else {
                     	sender.send(Message::PopupError("obex-transfer-complete-inbound".to_string(), adw::ToastPriority::Normal)).await.expect("cannot send message");
@@ -68,7 +68,7 @@ async fn handle_properties_updated(interface: String, changed_properties: PropMa
                 "error" => {
                 	if unsafe { OUTBOUND } {
                     	sender.send(Message::PopupError("obex-transfer-error-outbound".to_string(), adw::ToastPriority::Normal)).await.expect("cannot send message");
-                    	unsafe { BREAKING = true; }                		
+                    	unsafe { BREAKING = true; }
                 	}
                 	else {
                     	sender.send(Message::PopupError("obex-transfer-error-inbound".to_string(), adw::ToastPriority::Normal)).await.expect("cannot send message");
@@ -76,7 +76,7 @@ async fn handle_properties_updated(interface: String, changed_properties: PropMa
                 },
                 message => {
                     sender.send(Message::PopupError(message.to_string(), adw::ToastPriority::Normal)).await.expect("cannot send message");
-                  	unsafe { BREAKING = false; }                		
+                  	unsafe { BREAKING = false; }
                 }
             }
 
@@ -86,9 +86,9 @@ async fn handle_properties_updated(interface: String, changed_properties: PropMa
         }
         else {
             ""
-        }; 
+        };
 
-        // convert from bytes to megabytes 
+        // convert from bytes to megabytes
         let (mb, kb) = if let Some(val) = changed_properties.get_key_value("Transferred") {
             let transferred = val.1.0.as_u64();
 
@@ -107,7 +107,7 @@ async fn handle_properties_updated(interface: String, changed_properties: PropMa
                 }
             };
             // println!("transferred: {}", value_mb);
-            
+
             unsafe {
                 LAST_BYTES = transferred.unwrap_or(0);
             }
@@ -125,7 +125,7 @@ async fn handle_properties_updated(interface: String, changed_properties: PropMa
 /// Is run when a new interface gets added, i.e. a new connection to dbus on the specified path or a new session
 fn handle_interface_added(path: &Path, interfaces: &HashMap<String, PropMap>) {
     for interface in interfaces {
-        
+
         // if interface is a session interface then set those variables accordingly
         if interface.0 == SESSION_INTERFACE && path.contains("server") {
             println!("started session: {:?}", interface.0);
@@ -138,14 +138,14 @@ fn handle_interface_added(path: &Path, interfaces: &HashMap<String, PropMap>) {
         // if the interface is a transfer then handle the properties updated signal
         else if interface.0 == TRANSFER_INTERFACE && path.contains("server") && path.contains("transfer") {
             let conn: &mut Connection;
-            unsafe { 
+            unsafe {
                 conn = SESSION_BUS.get_mut().unwrap().as_mut().unwrap();
 				if CURRENT_TRANSFER != path.to_string()	{
                     OVERSKRIDE_PROPS.lock().unwrap().confirm_authorization = false
 				}
-                
+
                 CURRENT_TRANSFER = path.to_string();
-                println!("path is {}", path);            
+                println!("path is {}", path);
             }
             let proxy = conn.with_proxy("org.bluez.obex", path, Duration::from_millis(1000));
             proxy.match_signal(|signal: PropertiesPropertiesChanged, _: &Connection, message: &dbus::Message| {
@@ -154,17 +154,17 @@ fn handle_interface_added(path: &Path, interfaces: &HashMap<String, PropMap>) {
                 }
                 else {
                     "".to_string()
-                }; 
+                };
 
                 glib::spawn_future_local(async {
                     handle_properties_updated(signal.interface_name, signal.changed_properties, transfer).await;
                 });
                 true
             }).expect("can't match signal");
-            
+
             if let Some(session) = &interface.1.get_key_value("Session").unwrap().1.0.as_str() {
                 println!("transfer started at {:?}", session);
-            }       
+            }
         }
     }
 }
@@ -177,7 +177,7 @@ pub fn register_obex_agent(sender: Sender<Message>) -> Result<(), dbus::Error> {
         conn = SESSION_BUS.get_mut().unwrap().as_mut().unwrap();
         CURRENT_SENDER = Some(sender.clone());
     }
-    
+
     let proxy = conn.with_proxy("org.bluez.obex", "/", Duration::from_millis(5000));
 
     // matches the signal of a new object getting added to the dbus interface (ie an agent)
@@ -193,7 +193,7 @@ pub fn register_obex_agent(sender: Sender<Message>) -> Result<(), dbus::Error> {
     let mut cr = Crossroads::new();
 
     create_agent(&mut cr, sender.clone());
-    proxy2.register_agent(Path::from_slice("/overskride/agent").unwrap()).expect("cant create agent");
+    proxy2.register_agent(Path::from_slice("/overskride/agent").unwrap()).expect("can't create agent");
 
     block_on(serve(conn, Some(cr))).expect("Cannot serve obex");
 
@@ -214,21 +214,21 @@ async fn serve(conn: &mut Connection, cr: Option<Crossroads>) -> Result<(), dbus
         BREAKING = false;
         CANCEL = false;
 
-        while !CANCEL && !BREAKING { 
+        while !CANCEL && !BREAKING {
             // println!("serving");
             conn.process(Duration::from_millis(1000))?;
         }
 
         let sender = CURRENT_SENDER.clone().unwrap();
-        
+
         let proxy2 = conn.with_proxy("org.bluez.obex", CURRENT_TRANSFER.clone(), Duration::from_millis(5000));
-        
+
         if CANCEL {
             if let Err(err) = proxy2.cancel() {
                 println!("error while canceling transfer {:?}", err.message());
             }
             println!("canceled");
-            CANCEL = false;              	
+            CANCEL = false;
         }
 
         BREAKING = false;
@@ -237,7 +237,7 @@ async fn serve(conn: &mut Connection, cr: Option<Crossroads>) -> Result<(), dbus
         let filename = proxy2.name().unwrap_or("Unknown File".to_string());
         let transferred = (proxy2.transferred().unwrap_or(9999) as f32 / 1000000.0).round() / 100.0;
         sender.send(Message::UpdateTransfer(proxy2.path.to_string(), filename.clone(), transferred, 0, "error".to_string())).await.expect("cannot send message");
-        
+
         // remove the transfer from the list after 1 minute
         std::thread::spawn(async move || {
             tokio::time::sleep(Duration::from_secs(60)).await;
@@ -261,7 +261,7 @@ fn create_agent(cr: &mut Crossroads, sender: Sender<Message>) {
                 let filesize_holder = &*all_props.get("Size").expect("cannot get file size.").0;
                 let filesize = filesize_holder.as_u64().unwrap_or(9999);
 				let session = all_props.get("Session").expect("cannot get session for receive").0.as_str().unwrap_or("");
-                
+
                 // println!("all props is: {:?}", all_props);
 
                 unsafe {
@@ -281,8 +281,8 @@ fn create_agent(cr: &mut Crossroads, sender: Sender<Message>) {
 				else {
 					return Err(MethodErr::from(("org.bluez.obex.Error.Canceled", "Request Canceled")));
 				};
-				
-				// if user sets auto accept from trusted, immediately accept the transfer without confirmation		
+
+				// if user sets auto accept from trusted, immediately accept the transfer without confirmation
 				if OVERSKRIDE_PROPS.lock().unwrap().auto_accept_from_trusted && device_trusted {
                     println!("transfer is: {:?}", transfer);
                     block_on(sender.send(Message::StartTransfer(transfer.to_string(), filename.clone(), 0.0, 0.0, mb, false))).expect("cannot send message");
@@ -295,7 +295,7 @@ fn create_agent(cr: &mut Crossroads, sender: Sender<Message>) {
                     block_on(sender.clone().send(Message::PopupError("file-storage-cache-invalid".to_string(), adw::ToastPriority::High))).expect("cannot send message");
 
   					return Err(MethodErr::from(("org.bluez.obex.Error.Canceled", "Request Canceled")));
-                }	
+                }
 
                 // spawn a dialog returning the accepted bool, no accepted => reject transfer
                 if OVERSKRIDE_PROPS.lock().unwrap().confirm_authorization || spawn_dialog(filename.clone(), &sender, device_name) {
@@ -368,7 +368,7 @@ pub async fn start_send_file(destination: bluer::Address, source: bluer::Address
     wait_for_dialog_exit().await;
 
     let file_paths = OVERSKRIDE_PROPS.lock().unwrap().send_files_path.clone();
-    
+
     // if calling on an empty transfer, get out
     if file_paths.is_empty() {
         return;
@@ -379,9 +379,9 @@ pub async fn start_send_file(destination: bluer::Address, source: bluer::Address
 
     // describes the properties of the transfer, like the origin and target devices
     let mut hashmap = PropMap::new();
-    
+
     hashmap.insert("Target".to_string(),Variant(Box::new("OPP".to_string())));
-    
+
     hashmap.insert("Source".to_string(), Variant(Box::new(source.to_string())));
 
     let sesh = proxy.create_session(&destination.to_string(), hashmap);
@@ -391,7 +391,7 @@ pub async fn start_send_file(destination: bluer::Address, source: bluer::Address
     }
     else {
         println!("Could not establish connection to send file {:?}", sesh.err().unwrap());
-        sender.send(Message::PopupError("obex-transfer-connection-error".to_string(), adw::ToastPriority::Normal)).await.expect("cannot send message");					    	
+        sender.send(Message::PopupError("obex-transfer-connection-error".to_string(), adw::ToastPriority::Normal)).await.expect("cannot send message");
     	return;
     };
     println!("send session is: {:?}, with filepaths {:?}", send_session, file_paths);
@@ -422,10 +422,10 @@ async fn send_file(source_file: String, session_path: &Path<'_>, sender: Sender<
 		CURRENT_TRANSFER = output.0.clone().to_string();
 		OUTBOUND = true;
 	}
-	
-    // changes filesize from bytes(?) to megabytes, then starts a transfer with the filename and size 
+
+    // changes filesize from bytes(?) to megabytes, then starts a transfer with the filename and size
     // let mb = ((transfer_proxy.size().unwrap_or(9999) as f32 / 1000000.0) * 100.0).round() / 100.0;
-    let mb = ((transfer_proxy.size().unwrap_or(9999) as f32 / 1000000.0) * 1000.0).round() / 1000.0;	
+    let mb = ((transfer_proxy.size().unwrap_or(9999) as f32 / 1000000.0) * 1000.0).round() / 1000.0;
     sender.send(Message::StartTransfer(output.0.clone().to_string(), transfer_proxy.name().unwrap_or("Unknown File".to_string()), 0.0, 0.0, mb, true)).await.expect("cannot send message");
 
 	transfer_proxy.match_signal(move |signal: PropertiesPropertiesChanged, _: &Connection, _: &dbus::Message| {
@@ -437,43 +437,43 @@ async fn send_file(source_file: String, session_path: &Path<'_>, sender: Sender<
         BREAKING = false;
         CANCEL = false;
 
-        while !CANCEL && !BREAKING { 
+        while !CANCEL && !BREAKING {
             // process dbus requests to that path
             conn.process(Duration::from_millis(1000)).expect("cannot process request");
         }
 
         let sender = CURRENT_SENDER.clone().unwrap();
-        
-        // stop sending this file 
+
+        // stop sending this file
         if CANCEL {
             if let Err(err) = transfer_proxy.cancel() {
-                // sender.send(Message::PopupError("obex-transfer-cancel-not-authorized".to_string(), adw::ToastPriority::Normal)).await.expect("cannot send message");					
+                // sender.send(Message::PopupError("obex-transfer-cancel-not-authorized".to_string(), adw::ToastPriority::Normal)).await.expect("cannot send message");
                 println!("error while canceling transfer {:?}", err.message());
-            }  
+            }
         	let transferred = (transfer_proxy.transferred().unwrap_or(9999) as f32 / 1000000.0).round() / 100.0;
             sender.send(Message::UpdateTransfer(CURRENT_TRANSFER.clone(), CURRENT_FILE_NAME.clone(), transferred, 0, "error".to_string())).await.expect("cannot send message");
             drop(transfer_proxy);
             drop(proxy);
-            CANCEL = false;              	
+            CANCEL = false;
         }
-        
+
         BREAKING = false;
-        
+
         // remove the transfer from the list after 1 minute
         std::thread::spawn(async move || {
             tokio::time::sleep(Duration::from_secs(60)).await;
             sender.send(Message::RemoveTransfer(CURRENT_TRANSFER.clone(), CURRENT_FILE_NAME.clone())).await.expect("cannot send message");
         });
     }
-}    
+}
 
 /// Moves a received file to where the user needs it to be
 /// needed because returning a file path in the agent's "AuthorizePush" method won't work because bluetooth :D
 pub async fn move_to_store_folder(sender: &Sender<Message>) {
 	if unsafe { OUTBOUND } {
-		return;	
+		return;
 	}
-	
+
     let filename = unsafe {
         CURRENT_FILE_NAME.clone()
     };

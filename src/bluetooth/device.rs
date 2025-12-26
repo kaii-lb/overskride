@@ -9,13 +9,13 @@ use crate::window::OVERSKRIDE_PROPS;
 
 static mut CANCELLATION_TOKEN: Option<CancellationToken> = None;
 
-/// Set the associated with `address` device's state, between connected and not 
+/// Set the associated with `address` device's state, between connected and not
 /// connected depending on what was already the case.
 /// A little funky and needs fixing but works for now.
 pub async fn set_device_active(address: bluer::Address, sender: Sender<Message>, adapter_name: String) -> bluer::Result<()> {
     let address_string = address.clone().to_string();
     let adapter_string = adapter_name.clone();
-    
+
     let adapter = bluer::Session::new().await?.adapter(adapter_name.as_str())?;
 	let device = adapter.device(address)?;
 
@@ -29,9 +29,9 @@ pub async fn set_device_active(address: bluer::Address, sender: Sender<Message>,
     else if !device.is_paired().await? {
 		// let agent = register_agent(&current_session, true, true).await?;
 		// println!("agent is: {:?}\n", agent);
-		 
+
    		device.pair().await?;
-           
+
    		device.connect().await?;
         device.connect().await?;
 		// drop(agent);
@@ -42,15 +42,15 @@ pub async fn set_device_active(address: bluer::Address, sender: Sender<Message>,
 
        let updated_state = device.is_connected().await?;
 
-    
+
     println!("set state {} for device {}\n", updated_state, device.address());
 	sender.send(Message::SwitchActiveSpinner(false)).await.expect("cannot set spinner to show.");
     sender.send(Message::SwitchActive(updated_state, address, true)).await.expect("cannot send message");
 	sender.send(Message::InvalidateSort()).await.expect("cannot set device name.");
-	
+
 	// sender.send(Message::SwitchActiveSpinner(false)).expect("cannot set spinner to show.");
     // connected_switch_row.set_active(!connected_switch_row.active());
-    
+
     let sender_clone = sender.clone();
     std::thread::spawn(move || {
         let clone = sender_clone.clone();
@@ -91,8 +91,8 @@ pub async fn set_device_active(address: bluer::Address, sender: Sender<Message>,
         sender.send(Message::SwitchSendFileActive(false)).await.expect("cannot send message");
     }
 
-    
-    
+
+
     Ok(())
 }
 
@@ -113,7 +113,7 @@ pub async fn set_device_blocked(address: bluer::Address, sender: Sender<Message>
 }
 
 /// Sets the device's trusted state depending on what was already the case.
-/// If trusted, connections to the device won't need pin/passkey everytime.
+/// If trusted, connections to the device won't need pin/passkey every time.
 pub async fn set_device_trusted(address: bluer::Address, sender: Sender<Message>, adapter_name: String) -> bluer::Result<()> {
     let adapter = bluer::Session::new().await?.adapter(adapter_name.as_str())?;
     let device = adapter.device(address)?;
@@ -154,7 +154,7 @@ pub async fn set_device_name(address: bluer::Address, name: String, sender: Send
     unsafe {
         lut.remove(&address);
         lut.insert(address, current_alias.clone());
-        DEVICES_LUT = Some(lut);           
+        DEVICES_LUT = Some(lut);
     }
 
 	sender.send(Message::SwitchName(current_alias, None, address)).await.expect("cannot set device name.");
@@ -185,7 +185,7 @@ pub async fn get_device_properties(address: bluer::Address, sender: Sender<Messa
             "image-missing-symbolic".to_string()
         },
     };
-    
+
     sender.send(Message::SwitchPage(Some(alias), Some(icon_name))).await.expect("cannot set device alias and icon in page.");
     sender.send(Message::SwitchActive(is_active, address, true)).await.expect("cannot set device active in page.");
     sender.send(Message::SwitchBlocked(is_blocked)).await.expect("cannot set device blocked in page.");
@@ -245,9 +245,9 @@ pub async fn remove_device(address: bluer::Address, sender: Sender<Message>, ada
     let subtitle = "Are you sure you want to remove <span font_weight='bold' color='#78aeed'>`".to_string() + &device.alias().await? + "`</span>?";
     let confirm = "Remove".to_string();
 
-    
+
     OVERSKRIDE_PROPS.lock().unwrap().displaying_dialog = true;
-    
+
     sender.send(Message::RequestYesNo(title, subtitle, confirm, adw::ResponseAppearance::Destructive)).await.expect("can't send message");
 
     wait_for_dialog_exit().await;
@@ -265,9 +265,9 @@ pub async fn remove_device(address: bluer::Address, sender: Sender<Message>, ada
                 DEVICES_LUT = Some(devices_lut);
             }
         }
-        
+
         sender.send(Message::RemoveDevice(name, address)).await.expect("can't send message");
-        sender.send(Message::UpdateListBoxImage()).await.expect("can't send message");    
+        sender.send(Message::UpdateListBoxImage()).await.expect("can't send message");
     }
 
     Ok(())
@@ -281,7 +281,7 @@ pub async fn has_service(service: bluer::Uuid, device: bluer::Device) -> bluer::
     Err(bluer::Error { kind: bluer::ErrorKind::DoesNotExist, message: "wanted service doesn't exist.".to_string()})
 }
 
-pub async fn stop_searching() { 
+pub async fn stop_searching() {
     unsafe {
         if let Some(token) = CANCELLATION_TOKEN.clone() {
             token.cancel();
@@ -298,9 +298,9 @@ pub async fn get_devices_continuous(sender: Sender<Message>, adapter_name: Strin
         ..Default::default()
     };
     adapter.set_discovery_filter(filter).await?;
-	
+
     let device_events = adapter.discover_devices().await?;
-    pin_mut!(device_events);    
+    pin_mut!(device_events);
 
     let mut all_change_events = SelectAll::new();
 
@@ -318,17 +318,17 @@ pub async fn get_devices_continuous(sender: Sender<Message>, adapter_name: Strin
                     AdapterEvent::DeviceAdded(addr) => {
 		                if adapter.is_powered().await? {
 	                        let supposed_device = adapter.device(addr);
-	    
+
                             let devices_lut = unsafe {
                                 DEVICES_LUT.clone().unwrap()
                             };
 
                             if !devices_lut.contains_key(&addr) {
                                 if let Ok(added_device) = supposed_device {
-	                                sender.send(Message::AddRow(added_device)).await.expect("cannot send message {}"); 
-	                                sender.send(Message::UpdateListBoxImage()).await.expect("cannot send message {}"); 
+	                                sender.send(Message::AddRow(added_device)).await.expect("cannot send message {}");
+	                                sender.send(Message::UpdateListBoxImage()).await.expect("cannot send message {}");
 	                                //println!("supposedly sent");
-	                                
+
 	                                let device = adapter.device(addr)?;
 	                                let change_events = device.events().await?.map(move |evt| (addr, evt));
 	                                all_change_events.push(change_events);
@@ -360,20 +360,20 @@ pub async fn get_devices_continuous(sender: Sender<Message>, adapter_name: Strin
                             else {
                                 String::new()
                             };
-                            
-                            sender_clone.send(Message::RemoveDevice(device_name.clone(), addr)).await.expect("cannot send message"); 
+
+                            sender_clone.send(Message::RemoveDevice(device_name.clone(), addr)).await.expect("cannot send message");
                             sender_clone.send(Message::UpdateListBoxImage()).await.expect("cannot send message");
-                            println!("Device removed: {:?} {}\n", addr, device_name.clone());    
+                            println!("Device removed: {:?} {}\n", addr, device_name.clone());
 						}
                     },
                     AdapterEvent::PropertyChanged(AdapterProperty::Powered(powered)) => {
                         tokio::time::sleep(std::time::Duration::from_secs_f32(0.5)).await;
-                        sender_clone.send(Message::SwitchAdapterPowered(powered)).await.expect("cannot send message {}"); 
+                        sender_clone.send(Message::SwitchAdapterPowered(powered)).await.expect("cannot send message {}");
                         println!("powered switch to {}", powered);
                     },
                     AdapterEvent::PropertyChanged(AdapterProperty::Discoverable(discoverable)) => {
                         tokio::time::sleep(std::time::Duration::from_secs_f32(0.5)).await;
-                        sender_clone.send(Message::SwitchAdapterDiscoverable(discoverable)).await.expect("cannot send message {}"); 
+                        sender_clone.send(Message::SwitchAdapterDiscoverable(discoverable)).await.expect("cannot send message {}");
                         println!("discoverable switch to {}", discoverable);
                     },
                     AdapterEvent::PropertyChanged(AdapterProperty::Alias(alias)) => {
@@ -394,7 +394,7 @@ pub async fn get_devices_continuous(sender: Sender<Message>, adapter_name: Strin
                     },
                     DeviceProperty::Trusted(trusted) => {
                         let current_address = OVERSKRIDE_PROPS.lock().unwrap().address;
-                        
+
                         if addr == current_address {
                             tokio::time::sleep(std::time::Duration::from_secs_f32(0.5)).await;
                             sender_clone.send(Message::SwitchTrusted(trusted)).await.expect("cannot send message");
@@ -402,7 +402,7 @@ pub async fn get_devices_continuous(sender: Sender<Message>, adapter_name: Strin
                     },
                     DeviceProperty::Blocked(blocked) => {
                         let current_address = OVERSKRIDE_PROPS.lock().unwrap().address;
-                        
+
                         if addr == current_address {
                             tokio::time::sleep(std::time::Duration::from_secs_f32(0.5)).await;
                             sender_clone.send(Message::SwitchBlocked(blocked)).await.expect("cannot send message");
@@ -410,17 +410,17 @@ pub async fn get_devices_continuous(sender: Sender<Message>, adapter_name: Strin
                     },
                     DeviceProperty::Alias(name) => {
                         let current_address = OVERSKRIDE_PROPS.lock().unwrap().address;
-                        
+
                         if addr == current_address {
                             tokio::time::sleep(std::time::Duration::from_secs_f32(0.01)).await;
                             sender_clone.send(Message::SwitchName(name.clone(), None, addr)).await.expect("cannot send message");
                             sender_clone.send(Message::SwitchPage(Some(name.clone()), None)).await.expect("cannot send message");
                         }
                         else {
-                            let hashmap = unsafe { 
-                            	DEVICES_LUT.clone().unwrap() 
+                            let hashmap = unsafe {
+                            	DEVICES_LUT.clone().unwrap()
                             };
-                            
+
                             let empty = String::new();
                             let old_alias = hashmap.get(&addr).unwrap_or(&empty);
 
@@ -429,7 +429,7 @@ pub async fn get_devices_continuous(sender: Sender<Message>, adapter_name: Strin
                     },
                     DeviceProperty::Icon(icon) => {
                         let current_address = OVERSKRIDE_PROPS.lock().unwrap().address;
-                       
+
                        	if addr == current_address {
                             tokio::time::sleep(std::time::Duration::from_secs_f32(0.5)).await;
                             sender_clone.send(Message::SwitchPage(None, Some(icon))).await.expect("cannot send message");
@@ -507,11 +507,11 @@ pub async fn get_more_info(address: bluer::Address, adapter_name: String) -> blu
 		// 	return Math.pow(ratio,10);
 		// }
 		// else {
-		// 	var distance =	(0.89976)*Math.pow(ratio,7.7095) + 0.111;		
+		// 	var distance =	(0.89976)*Math.pow(ratio,7.7095) + 0.111;
 		// 	return distance;
 		// }
     }.await?;
-    
+
     for uuid in device.uuids().await?.unwrap() {
         let service = services::get_name_from_service(uuid).unwrap_or("".to_string());
 
@@ -532,7 +532,7 @@ pub async fn get_more_info(address: bluer::Address, adapter_name: String) -> blu
 				},
 				Err(_) => {
 					"Unknown".to_string()
-				}	
+				}
 			};
 		}
     }

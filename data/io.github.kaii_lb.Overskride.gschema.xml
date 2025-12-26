@@ -19,7 +19,7 @@
 		</key>
 		<key name="original-adapter-name" type="s">
 			<default>""</default>
-			<summary>original adapter name incase everything else fails</summary>
+			<summary>original adapter name in case everything else fails</summary>
 		</key>
 		<key name="store-folder" type="s">
 			<default>""</default>
@@ -28,11 +28,10 @@
 		<key name="first-auto-accept" type="b">
 			<default>true</default>
 			<summary>one time auto accept indicator</summary>
-		</key>		
+		</key>
 		<key name="hide-unknown-devices" type="b">
 			<default>false</default>
 			<summary>hides unknown devices from the device list</summary>
-		</key>				
+		</key>
 	</schema>
 </schemalist>
-

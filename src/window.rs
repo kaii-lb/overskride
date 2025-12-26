@@ -634,7 +634,7 @@ impl OverskrideWindow {
                                 "Started receiving file"
                             }
                             s if s.to_lowercase().contains("transfer-active-outbound") => {
-                                "Started tranferring file"
+                                "Started transferring file"
                             }
                             s if s.to_lowercase().contains("transfer-error-inbound") => {
                                 "Receiving file stopped, error occurred"
@@ -908,7 +908,7 @@ impl OverskrideWindow {
                         // popup.set_modal(true);
                         popup.set_destroy_with_parent(true);
 
-                        popup.add_response("cancle", "Cancel");
+                        popup.add_response("cancel", "Cancel");
                         popup.add_response("allow", "Allow");
                         popup.set_response_appearance("allow", adw::ResponseAppearance::Suggested);
                         popup.set_default_response(Some("allow"));
@@ -953,7 +953,7 @@ impl OverskrideWindow {
                         // popup.set_modal(true);
                         popup.set_destroy_with_parent(true);
 
-                        popup.add_response("cancle", "Cancel");
+                        popup.add_response("cancel", "Cancel");
                         popup.add_response("allow", "Allow");
                         popup.set_response_appearance("allow", adw::ResponseAppearance::Suggested);
                         popup.set_default_response(Some("allow"));
