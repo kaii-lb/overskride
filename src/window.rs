@@ -1999,9 +1999,9 @@ impl OverskrideWindow {
             if name.is_empty() {
                 let adapter = session.default_adapter().await?;
                 OVERSKRIDE_PROPS.lock().unwrap().current_adapter = adapter.name().to_string();
-                OVERSKRIDE_PROPS.lock().unwrap().name = OVERSKRIDE_PROPS.lock().unwrap().current_adapter.to_string();
+                OVERSKRIDE_PROPS.lock().unwrap().name = adapter.name().to_string();
 
-                let current_adapter = OVERSKRIDE_PROPS.lock().unwrap().current_adapter.to_string();
+                let current_adapter = adapter.name().to_string();
                 settings
                     .set_string("current-adapter-name", current_adapter.as_str())
                     .expect("cannot set default adapter at start");
