@@ -4,12 +4,10 @@ use crate::{message::Message, window::ADAPTERS_LUT, agent::wait_for_dialog_exit}
 use crate::window::OVERSKRIDE_PROPS;
 
 /// sets the current adapter's powered state, updating the UI
-pub async fn set_adapter_powered(adapter_name: String, sender: Sender<Message>) -> bluer::Result<()> {
+pub async fn set_adapter_powered(adapter_name: String, powered: bool, sender: Sender<Message>) -> bluer::Result<()> {
     let adapter = bluer::Session::new().await?.adapter(adapter_name.as_str())?;
 
-    let current = adapter.is_powered().await?;
-
-    adapter.set_powered(!current).await?;
+    adapter.set_powered(powered).await?;
     
     let powered = adapter.is_powered().await?;
     
@@ -26,11 +24,10 @@ pub async fn set_adapter_powered(adapter_name: String, sender: Sender<Message>) 
 }
 
 /// Makes or un-makes this adapter visible to other devices
-pub async fn set_adapter_discoverable(adapter_name: String, sender: Sender<Message>) -> bluer::Result<()> {
+pub async fn set_adapter_discoverable(adapter_name: String, discoverable: bool, sender: Sender<Message>) -> bluer::Result<()> {
     let adapter = bluer::Session::new().await?.adapter(adapter_name.as_str())?;
-    
-    let current = adapter.is_discoverable().await?;
-    adapter.set_discoverable(!current).await?;
+
+    adapter.set_discoverable(discoverable).await?;
 
     tokio::time::sleep(std::time::Duration::from_secs_f32(0.5)).await;
     let discoverable = adapter.is_discoverable().await?;

@@ -137,6 +137,8 @@ mod imp {
         pub display_pass_key_dialog: RefCell<Option<adw::MessageDialog>>,
         pub index: RefCell<u32>,
         pub timeout_signal_id: OnceCell<SignalHandlerId>,
+        pub powered_signal_id: OnceCell<SignalHandlerId>,
+        pub discoverable_signal_id: OnceCell<SignalHandlerId>,
     }
 
     #[glib::object_subclass]
@@ -439,11 +441,17 @@ impl OverskrideWindow {
                     }
                     Message::SwitchAdapterPowered(powered) => {
                         let powered_switch_row = clone.imp().powered_switch_row.get();
+                        let id = clone.imp().powered_signal_id.get().expect("cannot get signal id");
+                        powered_switch_row.block_signal(id);
                         powered_switch_row.set_active(powered);
+                        powered_switch_row.unblock_signal(id);
                     }
                     Message::SwitchAdapterDiscoverable(discoverable) => {
                         let discoverable_switch_row = clone.imp().discoverable_switch_row.get();
+                        let id = clone.imp().discoverable_signal_id.get().expect("cannot get signal id");
+                        discoverable_switch_row.block_signal(id);
                         discoverable_switch_row.set_active(discoverable);
+                        discoverable_switch_row.unblock_signal(id);
                     }
                     Message::SwitchAdapterName(new_alias, old_alias) => {
                         let default_controller_expander = clone.imp().default_controller_expander.get();
@@ -600,7 +608,7 @@ impl OverskrideWindow {
                             s if s.to_lowercase().contains("invalid-arguments") => {
                                 "Invalid arguments provided"
                             }
-                            s if s.to_lowercase().contains("not-powered") || s.to_lowercase().contains("resource not ready") => {
+                            s if s.to_lowercase().contains("not-powered") || s.to_lowercase().contains("not powered") || s.to_lowercase().contains("resource not ready") => {
                                 "Adapter is not powered"
                             }
                             s if s.to_lowercase().contains("not-supported") => {
@@ -1592,50 +1600,60 @@ impl OverskrideWindow {
         // turn adapter on or off
         let powered_switch_row = self.imp().powered_switch_row.get();
         let sender5 = sender.clone();
-        powered_switch_row.connect_activated(move |_| {
+        let powered_signal_id = powered_switch_row.connect_active_notify(move |row| {
             let sender_clone = sender5.clone();
             let adapter_name = OVERSKRIDE_PROPS.lock().unwrap().current_adapter.clone();
+            let powered = row.is_active();
 
             runtime().spawn(clone!(
                 #[strong]
                 sender_clone,
                 async move {
                     if let Err(err) =
-                        bluetooth_settings::set_adapter_powered(adapter_name, sender_clone.clone()).await
+                        bluetooth_settings::set_adapter_powered(adapter_name, powered, sender_clone.clone()).await
                     {
                         let string = err.message;
                         sender_clone
                             .send(Message::PopupError(string, adw::ToastPriority::High))
                             .await.expect("cannot send message");
                         sender_clone
-                            .send(Message::SwitchAdapterPowered(false))
+                            .send(Message::SwitchAdapterPowered(!powered))
                             .await.expect("cannot send message");
                     }
                 }
             ));
         });
+        self.imp()
+            .powered_signal_id
+            .set(powered_signal_id)
+            .expect("cannot set powered signal id");
 
         // switches the current adapters discoverable state, making it visible to nearby devices
         let discoverable_switch_row = self.imp().discoverable_switch_row.get();
         let sender6 = sender.clone();
-        discoverable_switch_row.connect_activated(move |_| {
+        let discoverable_signal_id = discoverable_switch_row.connect_active_notify(move |row| {
             let sender_clone = sender6.clone();
             let adapter_name = OVERSKRIDE_PROPS.lock().unwrap().current_adapter.clone();
+            let discoverable = row.is_active();
 
             runtime().spawn(async move {
                 if let Err(err) =
-                    bluetooth_settings::set_adapter_discoverable(adapter_name, sender_clone.clone()).await
+                    bluetooth_settings::set_adapter_discoverable(adapter_name, discoverable, sender_clone.clone()).await
                 {
                     let string = "Adapter ".to_string() + &err.message;
                     sender_clone
                         .send(Message::PopupError(string, adw::ToastPriority::High))
                         .await.expect("cannot send message");
                     sender_clone
-                        .send(Message::SwitchAdapterDiscoverable(false))
+                        .send(Message::SwitchAdapterDiscoverable(!discoverable))
                         .await.expect("cannot send message");
                 }
             });
         });
+        self.imp()
+            .discoverable_signal_id
+            .set(discoverable_signal_id)
+            .expect("cannot set discoverable signal id");
 
         // change the adapter name, should always work (if not get professional help)
         let adapter_name_entry = self.imp().adapter_name_entry.get();
